@@ -67,7 +67,13 @@
     white-space: nowrap;
   }
 
-  &__delete {
+  &__actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  &__action {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -79,14 +85,19 @@
     color: rgba(255, 255, 255, 0.3);
     cursor: pointer;
     transition: all 0.15s ease;
-    flex-shrink: 0;
+    text-decoration: none;
 
     svg {
-      width: 16px;
-      height: 16px;
+      width: 15px;
+      height: 15px;
     }
 
-    &:hover {
+    &--edit:hover {
+      background: rgba(79, 70, 229, 0.15);
+      color: #a5b4fc;
+    }
+
+    &--delete:hover {
       background: rgba(239, 68, 68, 0.15);
       color: #ef4444;
     }

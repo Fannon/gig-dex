@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { getSong, updateSong, addSong, type Song } from '../db';
 import { SongView } from '../components/SongView';
 import './SongPage.scss';
@@ -7,7 +7,9 @@ import './SongPage.scss';
 export const SongPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isNew = id === 'new';
+  const startInEditMode = isNew || searchParams.get('edit') === 'true';
 
   const [song, setSong] = useState<Partial<Song>>({
     title: '',
@@ -16,7 +18,7 @@ export const SongPage = () => {
     key: '',
     tags: [],
   });
-  const [isEditing, setIsEditing] = useState(isNew);
+  const [isEditing, setIsEditing] = useState(startInEditMode);
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
