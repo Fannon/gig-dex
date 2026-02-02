@@ -1,4 +1,4 @@
-import ChordSheetJS from "chordsheetjs";
+import ChordSheetJS, { Chord } from "chordsheetjs";
 
 const {
 	ChordProParser,
@@ -51,9 +51,9 @@ export const parseChordPro = (
 		for (const line of song.lines) {
 			for (const item of line.items) {
 				if ("chords" in item && typeof item.chords === "string" && item.chords) {
-					const chord = ChordSheetJS.Chord.parse(item.chords);
+					const chord = Chord.parse(item.chords);
 					if (chord) {
-						let converted: ChordSheetJS.Chord | null = null;
+						let converted: Chord | null = null;
 						if (mode === "nashville") {
 							converted = chord.toNumeric(songKey);
 						} else if (mode === "roman") {
@@ -64,7 +64,10 @@ export const parseChordPro = (
 							const root = converted.root?.toString() || "";
 							const suffix = converted.suffix || "";
 							const bass = converted.bass ? `/${converted.bass.toString()}` : "";
-							const formattedSuffix = suffix.replace(/[0-9m]/g, (m) => SUPERSCRIPTS[m] || m);
+							const formattedSuffix = suffix.replace(
+								/[0-9m]/g,
+								(m: string) => SUPERSCRIPTS[m] || m,
+							);
 							item.chords = `${root}${formattedSuffix}${bass}`;
 						}
 					}

@@ -8,7 +8,7 @@ import "./App.scss";
 
 function App() {
 	return (
-		<BrowserRouter>
+		<BrowserRouter basename={import.meta.env.BASE_URL}>
 			<Routes>
 				<Route path="/" element={<HomePage />} />
 				<Route path="/song/:id" element={<SongPage />} />

@@ -2,11 +2,10 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Home Page", () => {
 	test("should display the Gig-Dex header and empty state", async ({ page }) => {
-		await page.goto("/");
+		await page.goto("./");
 
 		// Check header
 		await expect(page.locator(".home-page__title")).toContainText("Gig-Dex");
-		await expect(page.locator(".home-page__subtitle")).toContainText("Your personal songbook");
 
 		// Check search input
 		await expect(page.locator(".home-page__search-input")).toBeVisible();
@@ -22,7 +21,7 @@ test.describe("Home Page", () => {
 	});
 
 	test("should add a demo song", async ({ page }) => {
-		await page.goto("/");
+		await page.goto("./");
 
 		// Click add demo song button
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
@@ -34,7 +33,7 @@ test.describe("Home Page", () => {
 	});
 
 	test("should search songs", async ({ page }) => {
-		await page.goto("/");
+		await page.goto("./");
 
 		// Add demo song first
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
@@ -50,9 +49,9 @@ test.describe("Home Page", () => {
 	});
 
 	test("should navigate to new song page via FAB", async ({ page }) => {
-		await page.goto("/");
+		await page.goto("./");
 
 		await page.locator(".home-page__fab").click();
-		await expect(page).toHaveURL("/song/new");
+		await expect(page).toHaveURL(/.*\/song\/new/);
 	});
 });

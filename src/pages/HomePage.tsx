@@ -57,7 +57,11 @@ export const HomePage = () => {
 		<div className="home-page">
 			<header className="home-page__header">
 				<div className="home-page__brand">
-					<img src="/pwa-192x192.png" alt="Gig-Dex" className="home-page__logo" />
+					<img
+						src={`${import.meta.env.BASE_URL}pwa-192x192.png`}
+						alt="Gig-Dex"
+						className="home-page__logo"
+					/>
 					<h1 className="home-page__title">Gig-Dex</h1>
 				</div>
 
