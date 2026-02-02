@@ -116,10 +116,10 @@ export const SettingsPage = () => {
 					<h2>About</h2>
 					<div className="settings-page__about">
 						<div className="settings-page__about-brand">
-							<img src="/pwa-192x192.png" alt="Gig-Dex" />
+							<img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="Gig-Dex" />
 							<div>
 								<h3>Gig-Dex</h3>
-								<p>Version 1.0.0</p>
+								<p>Version 0.1.0</p>
 							</div>
 						</div>
 						<p className="settings-page__about-description">

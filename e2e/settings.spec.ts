@@ -33,7 +33,7 @@ test.describe("Settings Page", () => {
 	test("should display about section", async ({ page }) => {
 		await page.goto("/settings");
 
-		await expect(page.locator(".settings-page__about-brand p")).toContainText("Version 1.0.0");
+		await expect(page.locator(".settings-page__about-brand p")).toContainText("Version 0.1.0");
 		await expect(page.getByRole("link", { name: /Learn ChordPro/i })).toBeVisible();
 	});
 
