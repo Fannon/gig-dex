@@ -107,22 +107,22 @@
   &__btn {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1rem;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
     border: none;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 
     &--primary {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       color: #fff;
 
       &:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
       }
     }
 
@@ -145,62 +145,57 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 1.5rem;
-    gap: 1rem;
-    overflow-y: auto;
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    overflow: hidden;
   }
 
-  &__row {
+  &__meta-row {
     display: flex;
-    gap: 1rem;
-
-    @media (max-width: 480px) {
-      flex-direction: column;
-    }
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   &__field {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
 
-    &--content {
+    &--flex1 {
       flex: 1;
-      min-height: 300px;
+      min-width: 70px;
     }
 
-    &--tags {
+    &--flex2 {
       flex: 2;
+      min-width: 120px;
+    }
+
+    &--flex3 {
+      flex: 3;
+      min-width: 180px;
     }
 
     label {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      font-size: 0.85rem;
+      gap: 0.5rem;
+      font-size: 0.7rem;
       font-weight: 500;
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(255, 255, 255, 0.5);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-
-      a {
-        font-size: 0.75rem;
-        color: #a5b4fc;
-        text-transform: none;
-        letter-spacing: normal;
-      }
     }
 
-    input,
-    textarea {
-      padding: 0.75rem 1rem;
+    input {
+      padding: 0.5rem 0.75rem;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      font-size: 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
       color: #fff;
       outline: none;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
 
       &::placeholder {
         color: rgba(255, 255, 255, 0.35);
@@ -209,39 +204,53 @@
       &:focus {
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(79, 70, 229, 0.5);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
       }
     }
+  }
 
-    textarea {
-      flex: 1;
-      resize: none;
-      font-family: 'SF Mono', 'Fira Code', 'Monaco', monospace;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
+  &__tags-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   &__tags-input {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.25rem;
 
     input {
-      flex: 1;
+      width: 120px;
+      padding: 0.35rem 0.6rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #fff;
+      outline: none;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+      }
+
+      &:focus {
+        border-color: rgba(79, 70, 229, 0.5);
+      }
     }
 
     button {
-      width: 42px;
-      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      width: 28px;
+      height: 28px;
+      background: rgba(79, 70, 229, 0.3);
       border: none;
-      border-radius: 8px;
-      font-size: 1.25rem;
+      border-radius: 6px;
+      font-size: 1rem;
       color: #fff;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
 
       &:hover {
-        transform: scale(1.05);
+        background: rgba(79, 70, 229, 0.5);
       }
     }
   }
@@ -249,36 +258,220 @@
   &__tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    gap: 0.35rem;
   }
 
   &__tag {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.75rem;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
     background: rgba(79, 70, 229, 0.25);
-    border-radius: 20px;
-    font-size: 0.85rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
     color: #a5b4fc;
 
     button {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 18px;
-      height: 18px;
+      width: 14px;
+      height: 14px;
       background: rgba(255, 255, 255, 0.15);
       border: none;
       border-radius: 50%;
-      font-size: 1rem;
+      font-size: 0.8rem;
       color: #fff;
       cursor: pointer;
       line-height: 1;
 
       &:hover {
         background: rgba(239, 68, 68, 0.5);
+      }
+    }
+  }
+
+  &__mode-toggle {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    width: fit-content;
+  }
+
+  &__mode-btn {
+    padding: 0.35rem 0.75rem;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      color: #fff;
+    }
+
+    &--active {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+    }
+  }
+
+  &__content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  &__simple-editor {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    min-height: 0;
+    overflow: hidden;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr auto;
+    }
+  }
+
+  &__simple-input,
+  &__simple-preview {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+      flex-shrink: 0;
+    }
+  }
+
+  &__hint {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+  }
+
+  &__simple-input textarea {
+    flex: 1;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-family: 'SF Mono', 'Fira Code', 'Monaco', Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #fff;
+    resize: none;
+    outline: none;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    &:focus {
+      border-color: rgba(79, 70, 229, 0.5);
+    }
+  }
+
+  &__preview-content {
+    flex: 1;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    overflow-y: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+
+    table {
+      border-collapse: collapse;
+    }
+
+    td {
+      padding: 0;
+      vertical-align: bottom;
+    }
+
+    .chord {
+      color: #f59e0b;
+      font-weight: 600;
+      font-size: 0.85em;
+    }
+
+    .lyrics {
+      color: #fff;
+    }
+
+    .paragraph {
+      margin-bottom: 0.75em;
+    }
+  }
+
+  &__advanced-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+
+      a {
+        font-size: 0.65rem;
+        color: #a5b4fc;
+        text-transform: none;
+        letter-spacing: normal;
+      }
+    }
+
+    textarea {
+      flex: 1;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Fira Code', 'Monaco', Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #fff;
+      resize: none;
+      outline: none;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.25);
+      }
+
+      &:focus {
+        border-color: rgba(79, 70, 229, 0.5);
       }
     }
   }

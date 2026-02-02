@@ -1,203 +1,211 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { parseChordPro, transposeChordPro } from '../utils/chordEngine';
-import './SongView.scss';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { parseChordPro, transposeChordPro } from "../utils/chordEngine";
+import "./SongView.scss";
 
 interface SongViewProps {
-  content: string;
-  title?: string;
-  artist?: string;
-  onContentChange?: (content: string) => void;
+	content: string;
+	title?: string;
+	artist?: string;
+	onContentChange?: (content: string) => void;
 }
 
-export const SongView = ({ content, title: _title, artist: _artist, onContentChange }: SongViewProps) => {
-  const [transpose, setTranspose] = useState(0);
-  const [fontSize, setFontSize] = useState(16);
-  const [autoSize, setAutoSize] = useState(true);
-  const [showChords, setShowChords] = useState(true);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+export const SongView = ({
+	content,
+	title: _title,
+	artist: _artist,
+	onContentChange,
+}: SongViewProps) => {
+	const [transpose, setTranspose] = useState(0);
+	const [fontSize, setFontSize] = useState(16);
+	const [autoSize, setAutoSize] = useState(true);
+	const [showChords, setShowChords] = useState(true);
+	const wrapperRef = useRef<HTMLDivElement>(null);
+	const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
-  // Transpose the content
-  const transposedContent = useMemo(() => {
-    if (transpose === 0) return content;
-    return transposeChordPro(content, transpose);
-  }, [content, transpose]);
+	// Transpose the content
+	const transposedContent = useMemo(() => {
+		if (transpose === 0) return content;
+		return transposeChordPro(content, transpose);
+	}, [content, transpose]);
 
-  // Parse to HTML
-  const parsed = useMemo(() => {
-    return parseChordPro(transposedContent);
-  }, [transposedContent]);
+	// Parse to HTML
+	const parsed = useMemo(() => {
+		return parseChordPro(transposedContent);
+	}, [transposedContent]);
 
-  // Check if content fits without overflow
-  const doesContentFit = useCallback((wrapper: HTMLDivElement, contentEl: HTMLDivElement): boolean => {
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const contentStyle = window.getComputedStyle(contentEl);
-    
-    // Get number of columns
-    const columnCount = parseInt(contentStyle.columnCount) || 1;
-    const columnGap = parseFloat(contentStyle.columnGap) || 16;
-    const padding = parseFloat(contentStyle.paddingLeft) + parseFloat(contentStyle.paddingRight);
-    
-    // Calculate max width per column
-    const availableWidth = wrapperRect.width - padding;
-    const columnWidth = (availableWidth - (columnGap * (columnCount - 1))) / columnCount;
-    
-    // Check if any table is wider than the column width
-    const tables = contentEl.querySelectorAll('table');
-    for (const table of tables) {
-      if (table.offsetWidth > columnWidth + 10) {
-        return false;
-      }
-    }
-    
-    // Check vertical overflow - if content scrollHeight exceeds wrapper height
-    if (contentEl.scrollHeight > wrapperRect.height + 5) {
-      return false;
-    }
-    
-    return true;
-  }, []);
+	// Check if content fits without overflow
+	const doesContentFit = useCallback(
+		(wrapper: HTMLDivElement, contentEl: HTMLDivElement): boolean => {
+			const wrapperRect = wrapper.getBoundingClientRect();
+			const contentStyle = window.getComputedStyle(contentEl);
 
-  // Calculate optimal font size
-  const calculateOptimalFontSize = useCallback(() => {
-    if (!wrapperRef.current || !autoSize) return;
+			// Get number of columns
+			const columnCount = parseInt(contentStyle.columnCount, 10) || 1;
+			const columnGap = parseFloat(contentStyle.columnGap) || 16;
+			const padding = parseFloat(contentStyle.paddingLeft) + parseFloat(contentStyle.paddingRight);
 
-    const wrapper = wrapperRef.current;
-    const contentEl = wrapper.querySelector('.song-view__content') as HTMLDivElement;
-    if (!contentEl) return;
+			// Calculate max width per column
+			const availableWidth = wrapperRect.width - padding;
+			const columnWidth = (availableWidth - columnGap * (columnCount - 1)) / columnCount;
 
-    const maxSize = 36; // Reasonable max
-    const minSize = 10;
-    let optimalSize = minSize;
-    
-    // Scale up from min until content doesn't fit
-    for (let size = minSize; size <= maxSize; size++) {
-      contentEl.style.fontSize = `${size}px`;
-      
-      // Force layout recalculation
-      void contentEl.offsetHeight;
-      
-      if (!doesContentFit(wrapper, contentEl)) {
-        // This size is too big, use previous
-        optimalSize = Math.max(minSize, size - 1);
-        break;
-      }
-      optimalSize = size;
-    }
+			// Check if any table is wider than the column width
+			const tables = contentEl.querySelectorAll("table");
+			for (const table of tables) {
+				if (table.offsetWidth > columnWidth + 10) {
+					return false;
+				}
+			}
 
-    // Apply final size
-    contentEl.style.fontSize = `${optimalSize}px`;
-    setFontSize(optimalSize);
-  }, [autoSize, doesContentFit]);
+			// Check vertical overflow - if content scrollHeight exceeds wrapper height
+			if (contentEl.scrollHeight > wrapperRect.height + 5) {
+				return false;
+			}
 
-  // Use ResizeObserver for accurate resize detection
-  useEffect(() => {
-    if (!wrapperRef.current) return;
+			return true;
+		},
+		[],
+	);
 
-    resizeObserverRef.current = new ResizeObserver(() => {
-      if (autoSize) {
-        calculateOptimalFontSize();
-      }
-    });
+	// Calculate optimal font size
+	const calculateOptimalFontSize = useCallback(() => {
+		if (!wrapperRef.current || !autoSize) return;
 
-    resizeObserverRef.current.observe(wrapperRef.current);
+		const wrapper = wrapperRef.current;
+		const contentEl = wrapper.querySelector(".song-view__content") as HTMLDivElement;
+		if (!contentEl) return;
 
-    return () => {
-      resizeObserverRef.current?.disconnect();
-    };
-  }, [autoSize, calculateOptimalFontSize]);
+		const maxSize = 36; // Reasonable max
+		const minSize = 10;
+		let optimalSize = minSize;
 
-  // Initial calculation and recalculate when content/chords change
-  useEffect(() => {
-    if (autoSize) {
-      const timeout = setTimeout(() => {
-        calculateOptimalFontSize();
-      }, 150);
-      return () => clearTimeout(timeout);
-    }
-  }, [autoSize, calculateOptimalFontSize, parsed.html, showChords]);
+		// Scale up from min until content doesn't fit
+		for (let size = minSize; size <= maxSize; size++) {
+			contentEl.style.fontSize = `${size}px`;
 
-  // Update parent with transposed content if needed
-  useEffect(() => {
-    if (transpose !== 0 && onContentChange) {
-      onContentChange(transposedContent);
-    }
-  }, [transpose, transposedContent, onContentChange]);
+			// Force layout recalculation
+			void contentEl.offsetHeight;
 
-  const handleTranspose = (delta: number) => {
-    setTranspose(prev => {
-      let next = prev + delta;
-      if (next > 11) next -= 12;
-      if (next < -11) next += 12;
-      return next;
-    });
-  };
+			if (!doesContentFit(wrapper, contentEl)) {
+				// This size is too big, use previous
+				optimalSize = Math.max(minSize, size - 1);
+				break;
+			}
+			optimalSize = size;
+		}
 
-  const handleFontSize = (delta: number) => {
-    setAutoSize(false);
-    setFontSize(prev => Math.max(10, Math.min(48, prev + delta)));
-  };
+		// Apply final size
+		contentEl.style.fontSize = `${optimalSize}px`;
+		setFontSize(optimalSize);
+	}, [autoSize, doesContentFit]);
 
-  const toggleAutoSize = () => {
-    setAutoSize(prev => !prev);
-  };
+	// Use ResizeObserver for accurate resize detection
+	useEffect(() => {
+		if (!wrapperRef.current) return;
 
-  return (
-    <div className="song-view">
-      <div className="song-view__controls">
-        <div className="song-view__control-group">
-          <span className="song-view__control-label">Transpose</span>
-          <div className="song-view__buttons">
-            <button onClick={() => handleTranspose(-1)} className="song-view__btn">
-              -1
-            </button>
-            <span className="song-view__value">{transpose > 0 ? `+${transpose}` : transpose}</span>
-            <button onClick={() => handleTranspose(1)} className="song-view__btn">
-              +1
-            </button>
-          </div>
-        </div>
+		resizeObserverRef.current = new ResizeObserver(() => {
+			if (autoSize) {
+				calculateOptimalFontSize();
+			}
+		});
 
-        <div className="song-view__control-group">
-          <span className="song-view__control-label">Font Size</span>
-          <div className="song-view__buttons">
-            <button onClick={() => handleFontSize(-2)} className="song-view__btn">
-              A-
-            </button>
-            <span className="song-view__value">{fontSize}px</span>
-            <button onClick={() => handleFontSize(2)} className="song-view__btn">
-              A+
-            </button>
-          </div>
-          <button 
-            onClick={toggleAutoSize} 
-            className={`song-view__btn song-view__btn--auto ${autoSize ? 'song-view__btn--active' : ''}`}
-            title="Auto-fit text to screen"
-          >
-            Auto
-          </button>
-        </div>
+		resizeObserverRef.current.observe(wrapperRef.current);
 
-        <div className="song-view__control-group">
-          <label className="song-view__toggle">
-            <input
-              type="checkbox"
-              checked={showChords}
-              onChange={e => setShowChords(e.target.checked)}
-            />
-            <span className="song-view__toggle-slider"></span>
-            <span className="song-view__control-label">Chords</span>
-          </label>
-        </div>
-      </div>
+		return () => {
+			resizeObserverRef.current?.disconnect();
+		};
+	}, [autoSize, calculateOptimalFontSize]);
 
-      <div className="song-view__wrapper" ref={wrapperRef}>
-        <div
-          className={`song-view__content ${!showChords ? 'song-view__content--hide-chords' : ''}`}
-          style={{ fontSize: `${fontSize}px` }}
-          dangerouslySetInnerHTML={{ __html: parsed.html }}
-        />
-      </div>
-    </div>
-  );
+	// Initial calculation and recalculate when content/chords change
+	useEffect(() => {
+		if (autoSize) {
+			const timeout = setTimeout(() => {
+				calculateOptimalFontSize();
+			}, 150);
+			return () => clearTimeout(timeout);
+		}
+	}, [autoSize, calculateOptimalFontSize]);
+
+	// Update parent with transposed content if needed
+	useEffect(() => {
+		if (transpose !== 0 && onContentChange) {
+			onContentChange(transposedContent);
+		}
+	}, [transpose, transposedContent, onContentChange]);
+
+	const handleTranspose = (delta: number) => {
+		setTranspose((prev) => {
+			let next = prev + delta;
+			if (next > 11) next -= 12;
+			if (next < -11) next += 12;
+			return next;
+		});
+	};
+
+	const handleFontSize = (delta: number) => {
+		setAutoSize(false);
+		setFontSize((prev) => Math.max(10, Math.min(48, prev + delta)));
+	};
+
+	const toggleAutoSize = () => {
+		setAutoSize((prev) => !prev);
+	};
+
+	return (
+		<div className="song-view">
+			<div className="song-view__controls">
+				<div className="song-view__control-group">
+					<span className="song-view__control-label">Transpose</span>
+					<div className="song-view__buttons">
+						<button onClick={() => handleTranspose(-1)} className="song-view__btn">
+							-1
+						</button>
+						<span className="song-view__value">{transpose > 0 ? `+${transpose}` : transpose}</span>
+						<button onClick={() => handleTranspose(1)} className="song-view__btn">
+							+1
+						</button>
+					</div>
+				</div>
+
+				<div className="song-view__control-group">
+					<span className="song-view__control-label">Font Size</span>
+					<div className="song-view__buttons">
+						<button onClick={() => handleFontSize(-2)} className="song-view__btn">
+							A-
+						</button>
+						<span className="song-view__value">{fontSize}px</span>
+						<button onClick={() => handleFontSize(2)} className="song-view__btn">
+							A+
+						</button>
+					</div>
+					<button
+						onClick={toggleAutoSize}
+						className={`song-view__btn song-view__btn--auto ${autoSize ? "song-view__btn--active" : ""}`}
+						title="Auto-fit text to screen"
+					>
+						Auto
+					</button>
+				</div>
+
+				<div className="song-view__control-group">
+					<label className="song-view__toggle">
+						<input
+							type="checkbox"
+							checked={showChords}
+							onChange={(e) => setShowChords(e.target.checked)}
+						/>
+						<span className="song-view__toggle-slider"></span>
+						<span className="song-view__control-label">Chords</span>
+					</label>
+				</div>
+			</div>
+
+			<div className="song-view__wrapper" ref={wrapperRef}>
+				<div
+					className={`song-view__content ${!showChords ? "song-view__content--hide-chords" : ""}`}
+					style={{ fontSize: `${fontSize}px` }}
+					dangerouslySetInnerHTML={{ __html: parsed.html }}
+				/>
+			</div>
+		</div>
+	);
 };

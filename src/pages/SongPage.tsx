@@ -1,253 +1,513 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { getSong, updateSong, addSong, type Song } from '../db';
-import { SongView } from '../components/SongView';
-import './SongPage.scss';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { SongView } from "../components/SongView";
+import { addSong, getSong, type Song, updateSong } from "../db";
+import {
+	chordProToSimple,
+	extractMetadata,
+	injectMetadata,
+	parseChordPro,
+	type SongMetadata,
+	simpleToChordPro,
+	stripMetadata,
+} from "../utils/chordEngine";
+import "./SongPage.scss";
+
+type EditorMode = "simple" | "advanced";
 
 export const SongPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isNew = id === 'new';
-  const startInEditMode = isNew || searchParams.get('edit') === 'true';
+	const { id } = useParams<{ id: string }>();
+	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const isNew = id === "new";
+	const startInEditMode = isNew || searchParams.get("edit") === "true";
 
-  const [song, setSong] = useState<Partial<Song>>({
-    title: '',
-    artist: '',
-    content: '',
-    key: '',
-    tags: [],
-  });
-  const [isEditing, setIsEditing] = useState(startInEditMode);
-  const [tagInput, setTagInput] = useState('');
-  const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
+	const [song, setSong] = useState<Partial<Song>>({
+		title: "",
+		artist: "",
+		content: "",
+		key: "",
+		tempo: undefined,
+		capo: undefined,
+		time: "",
+		tags: [],
+	});
+	const [isEditing, setIsEditing] = useState(startInEditMode);
+	const [editorMode, setEditorMode] = useState<EditorMode>("simple");
+	const [simpleContent, setSimpleContent] = useState("");
+	const [tagInput, setTagInput] = useState("");
+	const [loading, setLoading] = useState(!isNew);
+	const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!isNew && id) {
-      loadSong(parseInt(id, 10));
-    }
-  }, [id, isNew]);
+	// Convert ChordPro to simple format (with metadata stripped) when entering edit mode
+	useEffect(() => {
+		if (isEditing && song.content) {
+			try {
+				// First strip metadata, then convert to simple format
+				const contentWithoutMeta = stripMetadata(song.content);
+				const simple = chordProToSimple(contentWithoutMeta);
+				setSimpleContent(simple);
+			} catch {
+				// If conversion fails, just strip metadata and use as-is
+				setSimpleContent(stripMetadata(song.content));
+			}
+		}
+	}, [isEditing, song.content]);
 
-  const loadSong = async (songId: number) => {
-    try {
-      const loadedSong = await getSong(songId);
-      if (loadedSong) {
-        setSong(loadedSong);
-      } else {
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Failed to load song:', error);
-      navigate('/');
-    } finally {
-      setLoading(false);
-    }
-  };
+	const loadSong = useCallback(
+		async (songId: number) => {
+			try {
+				const loadedSong = await getSong(songId);
+				if (loadedSong) {
+					setSong(loadedSong);
+				} else {
+					navigate("/");
+				}
+			} catch (error) {
+				console.error("Failed to load song:", error);
+				navigate("/");
+			} finally {
+				setLoading(false);
+			}
+		},
+		[navigate],
+	);
 
-  const handleSave = async () => {
-    if (!song.title || !song.content) {
-      alert('Please enter a title and content');
-      return;
-    }
+	useEffect(() => {
+		if (!isNew && id) {
+			loadSong(parseInt(id, 10));
+		}
+	}, [id, isNew, loadSong]);
 
-    setSaving(true);
-    try {
-      if (isNew) {
-        const newId = await addSong({
-          title: song.title,
-          artist: song.artist || 'Unknown',
-          content: song.content,
-          key: song.key,
-          tags: song.tags || [],
-        });
-        navigate(`/song/${newId}`, { replace: true });
-      } else if (id) {
-        await updateSong(parseInt(id, 10), song);
-      }
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Failed to save song:', error);
-      alert('Failed to save song');
-    } finally {
-      setSaving(false);
-    }
-  };
+	// Parse the simple content to show a live preview
+	const previewHtml = useMemo(() => {
+		if (!simpleContent) return "";
+		try {
+			// Convert simple to ChordPro, then parse for HTML
+			const chordPro = simpleToChordPro(simpleContent);
+			const parsed = parseChordPro(chordPro);
+			return parsed.html;
+		} catch {
+			return '<p style="color: #ef4444;">Preview unavailable</p>';
+		}
+	}, [simpleContent]);
 
-  const handleAddTag = () => {
-    if (tagInput.trim() && !song.tags?.includes(tagInput.trim())) {
-      setSong(prev => ({
-        ...prev,
-        tags: [...(prev.tags || []), tagInput.trim()],
-      }));
-      setTagInput('');
-    }
-  };
+	const handleSave = async () => {
+		// Build the final ChordPro content with metadata
+		let lyricsContent = "";
 
-  const handleRemoveTag = (tag: string) => {
-    setSong(prev => ({
-      ...prev,
-      tags: (prev.tags || []).filter(t => t !== tag),
-    }));
-  };
+		if (editorMode === "simple" && simpleContent) {
+			try {
+				lyricsContent = simpleToChordPro(simpleContent);
+			} catch {
+				lyricsContent = simpleContent;
+			}
+		} else {
+			// In advanced mode, strip existing metadata first (we'll re-inject from form)
+			lyricsContent = stripMetadata(song.content || "");
+		}
 
-  if (loading) {
-    return (
-      <div className="song-page song-page--loading">
-        <div className="song-page__spinner"></div>
-        <p>Loading song...</p>
-      </div>
-    );
-  }
+		// Extract existing metadata from original content to preserve extended fields
+		// (composer, lyricist, copyright, album, year, duration, subtitle)
+		const existingMetadata = extractMetadata(song.content || "");
 
-  return (
-    <div className="song-page">
-      <header className="song-page__header">
-        <Link to="/" className="song-page__back">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        
-        {!isEditing && (
-          <div className="song-page__title-row">
-            <h1 className="song-page__title">{song.title || 'Untitled'}</h1>
-            {song.artist && <span className="song-page__artist">by {song.artist}</span>}
-            {song.key && <span className="song-page__meta-tag">Key: {song.key}</span>}
-            {song.tags && song.tags.length > 0 && (
-              <div className="song-page__tags-inline">
-                {song.tags.map(tag => (
-                  <span key={tag} className="song-page__tag-inline">{tag}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        
-        {isEditing && (
-          <div className="song-page__title-row">
-            <h1 className="song-page__title">{isNew ? 'New Song' : 'Edit Song'}</h1>
-          </div>
-        )}
+		// Build metadata from form fields, merged with existing extended metadata
+		const metadata: SongMetadata = {
+			// Primary fields from form
+			title: song.title || undefined,
+			artist: song.artist || undefined,
+			key: song.key || undefined,
+			tempo: song.tempo || undefined,
+			capo: song.capo || undefined,
+			time: song.time || undefined,
+			// Preserve extended metadata from original content
+			subtitle: existingMetadata.subtitle,
+			composer: existingMetadata.composer,
+			lyricist: existingMetadata.lyricist,
+			copyright: existingMetadata.copyright,
+			album: existingMetadata.album,
+			year: existingMetadata.year,
+			duration: existingMetadata.duration,
+		};
 
-        <div className="song-page__actions">
-          {isEditing ? (
-            <>
-              <button
-                onClick={() => isNew ? navigate('/') : setIsEditing(false)}
-                className="song-page__btn song-page__btn--secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="song-page__btn song-page__btn--primary"
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="song-page__btn song-page__btn--primary"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              Edit
-            </button>
-          )}
-        </div>
-      </header>
+		// Inject metadata into the content
+		const contentToSave = injectMetadata(lyricsContent, metadata);
 
-      {isEditing ? (
-        <div className="song-page__editor">
-          <div className="song-page__field">
-            <label>Title</label>
-            <input
-              type="text"
-              value={song.title || ''}
-              onChange={e => setSong(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Song title"
-            />
-          </div>
+		if (!song.title || !lyricsContent.trim()) {
+			alert("Please enter a title and content");
+			return;
+		}
 
-          <div className="song-page__field">
-            <label>Artist</label>
-            <input
-              type="text"
-              value={song.artist || ''}
-              onChange={e => setSong(prev => ({ ...prev, artist: e.target.value }))}
-              placeholder="Artist name"
-            />
-          </div>
+		setSaving(true);
+		try {
+			const songData = {
+				title: song.title,
+				artist: song.artist || "Unknown",
+				content: contentToSave,
+				key: song.key,
+				tempo: song.tempo,
+				capo: song.capo,
+				time: song.time,
+				// Preserve extended metadata in database too
+				subtitle: existingMetadata.subtitle,
+				composer: existingMetadata.composer,
+				lyricist: existingMetadata.lyricist,
+				copyright: existingMetadata.copyright,
+				album: existingMetadata.album,
+				year: existingMetadata.year,
+				duration: existingMetadata.duration,
+				tags: song.tags || [],
+			};
 
-          <div className="song-page__row">
-            <div className="song-page__field">
-              <label>Key</label>
-              <input
-                type="text"
-                value={song.key || ''}
-                onChange={e => setSong(prev => ({ ...prev, key: e.target.value }))}
-                placeholder="G, Am, etc."
-              />
-            </div>
+			if (isNew) {
+				const newId = await addSong(songData);
+				navigate(`/song/${newId}`, { replace: true });
+			} else if (id) {
+				await updateSong(parseInt(id, 10), songData);
+				setSong((prev) => ({ ...prev, content: contentToSave }));
+			}
+			setIsEditing(false);
+		} catch (error) {
+			console.error("Failed to save song:", error);
+			alert("Failed to save song");
+		} finally {
+			setSaving(false);
+		}
+	};
 
-            <div className="song-page__field song-page__field--tags">
-              <label>Tags</label>
-              <div className="song-page__tags-input">
-                <input
-                  type="text"
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  placeholder="Add tag"
-                />
-                <button onClick={handleAddTag} type="button">+</button>
-              </div>
-              {song.tags && song.tags.length > 0 && (
-                <div className="song-page__tags">
-                  {song.tags.map(tag => (
-                    <span key={tag} className="song-page__tag">
-                      {tag}
-                      <button onClick={() => handleRemoveTag(tag)}>×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+	const handleAddTag = () => {
+		if (tagInput.trim() && !song.tags?.includes(tagInput.trim())) {
+			setSong((prev) => ({
+				...prev,
+				tags: [...(prev.tags || []), tagInput.trim()],
+			}));
+			setTagInput("");
+		}
+	};
 
-          <div className="song-page__field song-page__field--content">
-            <label>
-              Content (ChordPro format)
-              <a href="https://www.chordpro.org/chordpro/chordpro-introduction/" target="_blank" rel="noopener">
-                Learn ChordPro
-              </a>
-            </label>
-            <textarea
-              value={song.content || ''}
-              onChange={e => setSong(prev => ({ ...prev, content: e.target.value }))}
-              placeholder={`{title: Song Title}
-{artist: Artist Name}
-{key: G}
+	const handleRemoveTag = (tag: string) => {
+		setSong((prev) => ({
+			...prev,
+			tags: (prev.tags || []).filter((t) => t !== tag),
+		}));
+	};
 
-{start_of_verse: Verse 1}
+	const switchEditorMode = (mode: EditorMode) => {
+		if (mode === "advanced" && editorMode === "simple") {
+			// Convert simple to ChordPro before switching
+			try {
+				const chordPro = simpleToChordPro(simpleContent);
+				// Inject current metadata
+				const metadata: SongMetadata = {
+					title: song.title || undefined,
+					artist: song.artist || undefined,
+					key: song.key || undefined,
+					tempo: song.tempo || undefined,
+					capo: song.capo || undefined,
+					time: song.time || undefined,
+				};
+				setSong((prev) => ({ ...prev, content: injectMetadata(chordPro, metadata) }));
+			} catch {
+				// Keep existing content
+			}
+		} else if (mode === "simple" && editorMode === "advanced") {
+			// Convert ChordPro to simple before switching (strip metadata)
+			try {
+				const contentWithoutMeta = stripMetadata(song.content || "");
+				const simple = chordProToSimple(contentWithoutMeta);
+				setSimpleContent(simple);
+			} catch {
+				setSimpleContent(stripMetadata(song.content || ""));
+			}
+		}
+		setEditorMode(mode);
+	};
+
+	if (loading) {
+		return (
+			<div className="song-page song-page--loading">
+				<div className="song-page__spinner" />
+				<p>Loading song...</p>
+			</div>
+		);
+	}
+
+	return (
+		<div className="song-page">
+			<header className="song-page__header">
+				<Link to="/" className="song-page__back" aria-label="Go back">
+					<svg
+						width="20"
+						height="20"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						aria-hidden="true"
+					>
+						<path d="M19 12H5M12 19l-7-7 7-7" />
+					</svg>
+				</Link>
+
+				{!isEditing && (
+					<div className="song-page__title-row">
+						<h1 className="song-page__title">{song.title || "Untitled"}</h1>
+						{song.artist && <span className="song-page__artist">by {song.artist}</span>}
+						{song.key && <span className="song-page__meta-tag">Key: {song.key}</span>}
+						{song.tempo && <span className="song-page__meta-tag">{song.tempo} BPM</span>}
+						{song.capo && <span className="song-page__meta-tag">Capo {song.capo}</span>}
+						{song.time && <span className="song-page__meta-tag">{song.time}</span>}
+						{song.tags && song.tags.length > 0 && (
+							<div className="song-page__tags-inline">
+								{song.tags.map((tag) => (
+									<span key={tag} className="song-page__tag-inline">
+										{tag}
+									</span>
+								))}
+							</div>
+						)}
+					</div>
+				)}
+
+				{isEditing && (
+					<div className="song-page__title-row">
+						<h1 className="song-page__title">{isNew ? "New Song" : "Edit Song"}</h1>
+					</div>
+				)}
+
+				<div className="song-page__actions">
+					{isEditing ? (
+						<>
+							<button
+								type="button"
+								onClick={() => (isNew ? navigate("/") : setIsEditing(false))}
+								className="song-page__btn song-page__btn--secondary"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={handleSave}
+								disabled={saving}
+								className="song-page__btn song-page__btn--primary"
+							>
+								{saving ? "Saving..." : "Save"}
+							</button>
+						</>
+					) : (
+						<button
+							type="button"
+							onClick={() => setIsEditing(true)}
+							className="song-page__btn song-page__btn--primary"
+						>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="2"
+								aria-hidden="true"
+							>
+								<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+								<path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+							</svg>
+							Edit
+						</button>
+					)}
+				</div>
+			</header>
+
+			{isEditing ? (
+				<div className="song-page__editor">
+					{/* Row 1: Title, Artist, Key */}
+					<div className="song-page__meta-row">
+						<div className="song-page__field song-page__field--flex2">
+							<label htmlFor="song-title">Title</label>
+							<input
+								id="song-title"
+								type="text"
+								value={song.title || ""}
+								onChange={(e) => setSong((prev) => ({ ...prev, title: e.target.value }))}
+								placeholder="Song title"
+							/>
+						</div>
+						<div className="song-page__field song-page__field--flex2">
+							<label htmlFor="song-artist">Artist</label>
+							<input
+								id="song-artist"
+								type="text"
+								value={song.artist || ""}
+								onChange={(e) => setSong((prev) => ({ ...prev, artist: e.target.value }))}
+								placeholder="Artist name"
+							/>
+						</div>
+						<div className="song-page__field song-page__field--flex1">
+							<label htmlFor="song-key">Key</label>
+							<input
+								id="song-key"
+								type="text"
+								value={song.key || ""}
+								onChange={(e) => setSong((prev) => ({ ...prev, key: e.target.value }))}
+								placeholder="G"
+							/>
+						</div>
+					</div>
+
+					{/* Row 2: Tempo, Capo, Time, Tags */}
+					<div className="song-page__meta-row">
+						<div className="song-page__field song-page__field--flex1">
+							<label htmlFor="song-tempo">Tempo</label>
+							<input
+								id="song-tempo"
+								type="number"
+								value={song.tempo || ""}
+								onChange={(e) =>
+									setSong((prev) => ({
+										...prev,
+										tempo: e.target.value ? parseInt(e.target.value, 10) : undefined,
+									}))
+								}
+								placeholder="120"
+								min="20"
+								max="300"
+							/>
+						</div>
+						<div className="song-page__field song-page__field--flex1">
+							<label htmlFor="song-capo">Capo</label>
+							<input
+								id="song-capo"
+								type="number"
+								value={song.capo || ""}
+								onChange={(e) =>
+									setSong((prev) => ({
+										...prev,
+										capo: e.target.value ? parseInt(e.target.value, 10) : undefined,
+									}))
+								}
+								placeholder="0"
+								min="0"
+								max="12"
+							/>
+						</div>
+						<div className="song-page__field song-page__field--flex1">
+							<label htmlFor="song-time">Time</label>
+							<input
+								id="song-time"
+								type="text"
+								value={song.time || ""}
+								onChange={(e) => setSong((prev) => ({ ...prev, time: e.target.value }))}
+								placeholder="4/4"
+							/>
+						</div>
+						<div className="song-page__field song-page__field--flex3">
+							<label>Tags</label>
+							<div className="song-page__tags-row">
+								<div className="song-page__tags-input">
+									<input
+										type="text"
+										value={tagInput}
+										onChange={(e) => setTagInput(e.target.value)}
+										onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
+										placeholder="Add tag..."
+									/>
+									<button type="button" onClick={handleAddTag}>
+										+
+									</button>
+								</div>
+								{song.tags && song.tags.length > 0 && (
+									<div className="song-page__tags">
+										{song.tags.map((tag) => (
+											<span key={tag} className="song-page__tag">
+												{tag}
+												<button type="button" onClick={() => handleRemoveTag(tag)}>
+													×
+												</button>
+											</span>
+										))}
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+
+					{/* Editor mode toggle */}
+					<div className="song-page__mode-toggle">
+						<button
+							type="button"
+							className={`song-page__mode-btn ${editorMode === "simple" ? "song-page__mode-btn--active" : ""}`}
+							onClick={() => switchEditorMode("simple")}
+						>
+							Simple
+						</button>
+						<button
+							type="button"
+							className={`song-page__mode-btn ${editorMode === "advanced" ? "song-page__mode-btn--active" : ""}`}
+							onClick={() => switchEditorMode("advanced")}
+						>
+							Advanced (ChordPro)
+						</button>
+					</div>
+
+					{/* Content editor */}
+					<div className="song-page__content-area">
+						{editorMode === "simple" ? (
+							<div className="song-page__simple-editor">
+								<div className="song-page__simple-input">
+									<label htmlFor="simple-content">
+										Lyrics with chords
+										<span className="song-page__hint">Type chords on lines above lyrics</span>
+									</label>
+									<textarea
+										id="simple-content"
+										value={simpleContent}
+										onChange={(e) => setSimpleContent(e.target.value)}
+										placeholder={`   Am       C/G       F    C
+Let it be, let it be, let it be, let it be
+    C     G        F   C/E Dm C
+Whisper words of wisdom, let it be`}
+									/>
+								</div>
+								<div className="song-page__simple-preview">
+									<label>Preview</label>
+									<div
+										className="song-page__preview-content"
+										dangerouslySetInnerHTML={{ __html: previewHtml }}
+									/>
+								</div>
+							</div>
+						) : (
+							<div className="song-page__advanced-editor">
+								<label htmlFor="advanced-content">
+									ChordPro format
+									<a
+										href="https://www.chordpro.org/chordpro/chordpro-introduction/"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
+										Learn ChordPro
+									</a>
+								</label>
+								<textarea
+									id="advanced-content"
+									value={song.content || ""}
+									onChange={(e) => setSong((prev) => ({ ...prev, content: e.target.value }))}
+									placeholder={`{start_of_verse: Verse 1}
 [G]Amazing [G7]grace, how [C]sweet the [G]sound
 That [G]saved a [Em]wretch like [D]me
-{end_of_verse}`}
-            />
-          </div>
-        </div>
-      ) : (
-        <SongView
-          content={song.content || ''}
-          title={song.title}
-          artist={song.artist}
-        />
-      )}
-    </div>
-  );
+{end_of_verse}
+
+{start_of_chorus: Chorus}
+[C]This is the [G]chorus
+{end_of_chorus}`}
+								/>
+							</div>
+						)}
+					</div>
+				</div>
+			) : (
+				<SongView content={song.content || ""} title={song.title} artist={song.artist} />
+			)}
+		</div>
+	);
 };

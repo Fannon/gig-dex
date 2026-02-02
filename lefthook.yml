@@ -1,0 +1,23 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.{js,jsx,ts,tsx,css,scss,json,md}"
+      run: bunx biome check --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+
+    no-merge-markers:
+      glob: "*"
+      run: |
+        if grep -rn "^<<<<<<< \|^=======$\|^>>>>>>> " {staged_files} 2>/dev/null; then
+          echo "Error: Found git merge conflict markers in staged files"
+          exit 1
+        fi
+
+pre-push:
+  commands:
+    typecheck:
+      run: bun run build
