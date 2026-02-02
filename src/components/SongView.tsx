@@ -9,7 +9,7 @@ interface SongViewProps {
   onContentChange?: (content: string) => void;
 }
 
-export const SongView = ({ content, title, artist, onContentChange }: SongViewProps) => {
+export const SongView = ({ content, title: _title, artist: _artist, onContentChange }: SongViewProps) => {
   const [transpose, setTranspose] = useState(0);
   const [fontSize, setFontSize] = useState(16);
   const [autoSize, setAutoSize] = useState(true);

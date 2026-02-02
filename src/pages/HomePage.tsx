@@ -58,50 +58,47 @@ export const HomePage = () => {
       <header className="home-page__header">
         <div className="home-page__brand">
           <img src="/pwa-192x192.png" alt="Gig-Dex" className="home-page__logo" />
-          <div>
-            <h1 className="home-page__title">Gig-Dex</h1>
-            <p className="home-page__subtitle">Your personal songbook</p>
-          </div>
+          <h1 className="home-page__title">Gig-Dex</h1>
         </div>
+
+        <div className="home-page__search">
+          <svg className="home-page__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search songs, artists, or tags..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="home-page__search-input"
+          />
+        </div>
+
+        <nav className="home-page__nav">
+          <Link to="/" className="home-page__nav-item home-page__nav-item--active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            Songs
+          </Link>
+          <Link to="/setlists" className="home-page__nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+            </svg>
+            Setlists
+          </Link>
+          <Link to="/settings" className="home-page__nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 1v6m0 6v10M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h10M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24" />
+            </svg>
+            Settings
+          </Link>
+        </nav>
       </header>
-
-      <div className="home-page__search">
-        <svg className="home-page__search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="8" />
-          <path d="M21 21l-4.35-4.35" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search songs, artists, or tags..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          className="home-page__search-input"
-        />
-      </div>
-
-      <nav className="home-page__nav">
-        <Link to="/" className="home-page__nav-item home-page__nav-item--active">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 18V5l12-2v13" />
-            <circle cx="6" cy="18" r="3" />
-            <circle cx="18" cy="16" r="3" />
-          </svg>
-          Songs
-        </Link>
-        <Link to="/setlists" className="home-page__nav-item">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-          </svg>
-          Setlists
-        </Link>
-        <Link to="/settings" className="home-page__nav-item">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 1v6m0 6v10M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h10M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24" />
-          </svg>
-          Settings
-        </Link>
-      </nav>
 
       <main className="home-page__content">
         {loading ? (
