@@ -17,12 +17,61 @@ export interface ParsedSong {
 	html: string;
 }
 
+export type ChordMode = "standard" | "nashville" | "roman";
+
+const SUPERSCRIPTS: Record<string, string> = {
+	"0": "⁰",
+	"1": "¹",
+	"2": "²",
+	"3": "³",
+	"4": "⁴",
+	"5": "⁵",
+	"6": "⁶",
+	"7": "⁷",
+	"8": "⁸",
+	"9": "⁹",
+	m: "ᵐ",
+	M: "ᴹ",
+};
+
 /**
  * Parse a ChordPro formatted string and return structured data
  */
-export const parseChordPro = (chordProText: string): ParsedSong => {
+export const parseChordPro = (
+	chordProText: string,
+	options: { mode?: ChordMode } = {},
+): ParsedSong => {
+	const { mode = "standard" } = options;
 	const parser = new ChordProParser();
 	const song = parser.parse(chordProText);
+
+	// Convert notation if requested
+	if (mode !== "standard" && song.key) {
+		const songKey = song.key.toString();
+		for (const line of song.lines) {
+			for (const item of line.items) {
+				if ("chords" in item && typeof item.chords === "string" && item.chords) {
+					const chord = ChordSheetJS.Chord.parse(item.chords);
+					if (chord) {
+						let converted: ChordSheetJS.Chord | null = null;
+						if (mode === "nashville") {
+							converted = chord.toNumeric(songKey);
+						} else if (mode === "roman") {
+							converted = chord.toNumeral(songKey);
+						}
+
+						if (converted) {
+							const root = converted.root?.toString() || "";
+							const suffix = converted.suffix || "";
+							const bass = converted.bass ? `/${converted.bass.toString()}` : "";
+							const formattedSuffix = suffix.replace(/[0-9m]/g, (m) => SUPERSCRIPTS[m] || m);
+							item.chords = `${root}${formattedSuffix}${bass}`;
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// Use HtmlTableFormatter for better chord positioning
 	const formatter = new HtmlTableFormatter();

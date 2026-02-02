@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { parseChordPro, transposeChordPro } from "../utils/chordEngine";
+import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
 import "./SongView.scss";
 
 interface SongViewProps {
@@ -19,6 +19,7 @@ export const SongView = ({
 	const [fontSize, setFontSize] = useState(16);
 	const [autoSize, setAutoSize] = useState(true);
 	const [showChords, setShowChords] = useState(true);
+	const [chordMode, setChordMode] = useState<ChordMode>("standard");
 	const wrapperRef = useRef<HTMLDivElement>(null);
 	const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
@@ -30,8 +31,8 @@ export const SongView = ({
 
 	// Parse to HTML
 	const parsed = useMemo(() => {
-		return parseChordPro(transposedContent);
-	}, [transposedContent]);
+		return parseChordPro(transposedContent, { mode: chordMode });
+	}, [transposedContent, chordMode]);
 
 	// Check if content fits without overflow
 	const doesContentFit = useCallback(
@@ -197,6 +198,36 @@ export const SongView = ({
 						<span className="song-view__toggle-slider"></span>
 						<span className="song-view__control-label">Chords</span>
 					</label>
+				</div>
+
+				<div className="song-view__control-group">
+					<span className="song-view__control-label">Notation</span>
+					<div className="song-view__buttons">
+						<button
+							type="button"
+							onClick={() => setChordMode("standard")}
+							className={`song-view__btn ${chordMode === "standard" ? "song-view__btn--active" : ""}`}
+							title="Standard Chords"
+						>
+							Std
+						</button>
+						<button
+							type="button"
+							onClick={() => setChordMode("nashville")}
+							className={`song-view__btn ${chordMode === "nashville" ? "song-view__btn--active" : ""}`}
+							title="Nashville Number System"
+						>
+							1-7
+						</button>
+						<button
+							type="button"
+							onClick={() => setChordMode("roman")}
+							className={`song-view__btn ${chordMode === "roman" ? "song-view__btn--active" : ""}`}
+							title="Roman Numerals"
+						>
+							I-V
+						</button>
+					</div>
 				</div>
 			</div>
 
