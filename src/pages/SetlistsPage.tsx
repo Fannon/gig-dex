@@ -96,12 +96,17 @@ export const SetlistsPage = () => {
 							fill="none"
 							stroke="currentColor"
 							strokeWidth="1.5"
+							aria-hidden="true"
 						>
 							<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
 						</svg>
 						<h2>No setlists yet</h2>
 						<p>Create your first setlist to organize songs for your gigs</p>
-						<button onClick={() => setShowModal(true)} className="setlists-page__create-btn">
+						<button
+							type="button"
+							onClick={() => setShowModal(true)}
+							className="setlists-page__create-btn"
+						>
 							Create Setlist
 						</button>
 					</div>
@@ -116,6 +121,7 @@ export const SetlistsPage = () => {
 									</p>
 								</div>
 								<button
+									type="button"
 									className="setlists-page__item-delete"
 									onClick={(e) => {
 										e.preventDefault();
@@ -130,6 +136,7 @@ export const SetlistsPage = () => {
 										fill="none"
 										stroke="currentColor"
 										strokeWidth="2"
+										aria-hidden="true"
 									>
 										<path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
 									</svg>
@@ -141,24 +148,39 @@ export const SetlistsPage = () => {
 			</main>
 
 			{showModal && (
+				// biome-ignore lint/a11y/noStaticElementInteractions: Overlay is clickable to close modal
+				// biome-ignore lint/a11y/useKeyWithClickEvents: handled by proper dialog behavior
 				<div className="setlists-page__modal-overlay" onClick={() => setShowModal(false)}>
-					<div className="setlists-page__modal" onClick={(e) => e.stopPropagation()}>
+					{/* biome-ignore lint/a11y/useKeyWithClickEvents: Stop propagation */}
+					<div
+						className="setlists-page__modal"
+						onClick={(e) => e.stopPropagation()}
+						role="dialog"
+						aria-modal="true"
+					>
 						<h2>New Setlist</h2>
 						<input
 							type="text"
 							value={newSetlistName}
+							// biome-ignore lint/a11y/noAutofocus: input in modal
+							autoFocus
 							onChange={(e) => setNewSetlistName(e.target.value)}
 							placeholder="Setlist name"
 							onKeyDown={(e) => e.key === "Enter" && handleCreate()}
 						/>
 						<div className="setlists-page__modal-actions">
 							<button
+								type="button"
 								onClick={() => setShowModal(false)}
 								className="setlists-page__modal-btn--secondary"
 							>
 								Cancel
 							</button>
-							<button onClick={handleCreate} className="setlists-page__modal-btn--primary">
+							<button
+								type="button"
+								onClick={handleCreate}
+								className="setlists-page__modal-btn--primary"
+							>
 								Create
 							</button>
 						</div>

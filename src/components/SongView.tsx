@@ -156,11 +156,11 @@ export const SongView = ({
 				<div className="song-view__control-group">
 					<span className="song-view__control-label">Transpose</span>
 					<div className="song-view__buttons">
-						<button onClick={() => handleTranspose(-1)} className="song-view__btn">
+						<button type="button" onClick={() => handleTranspose(-1)} className="song-view__btn">
 							-1
 						</button>
 						<span className="song-view__value">{transpose > 0 ? `+${transpose}` : transpose}</span>
-						<button onClick={() => handleTranspose(1)} className="song-view__btn">
+						<button type="button" onClick={() => handleTranspose(1)} className="song-view__btn">
 							+1
 						</button>
 					</div>
@@ -169,15 +169,16 @@ export const SongView = ({
 				<div className="song-view__control-group">
 					<span className="song-view__control-label">Font Size</span>
 					<div className="song-view__buttons">
-						<button onClick={() => handleFontSize(-2)} className="song-view__btn">
+						<button type="button" onClick={() => handleFontSize(-2)} className="song-view__btn">
 							A-
 						</button>
 						<span className="song-view__value">{fontSize}px</span>
-						<button onClick={() => handleFontSize(2)} className="song-view__btn">
+						<button type="button" onClick={() => handleFontSize(2)} className="song-view__btn">
 							A+
 						</button>
 					</div>
 					<button
+						type="button"
 						onClick={toggleAutoSize}
 						className={`song-view__btn song-view__btn--auto ${autoSize ? "song-view__btn--active" : ""}`}
 						title="Auto-fit text to screen"
@@ -203,6 +204,7 @@ export const SongView = ({
 				<div
 					className={`song-view__content ${!showChords ? "song-view__content--hide-chords" : ""}`}
 					style={{ fontSize: `${fontSize}px` }}
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
 					dangerouslySetInnerHTML={{ __html: parsed.html }}
 				/>
 			</div>

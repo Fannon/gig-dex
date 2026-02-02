@@ -436,14 +436,19 @@ export const SongPage = () => {
 							/>
 						</div>
 						<div className="song-page__field song-page__field--flex3">
-							<label>Tags</label>
+							<div className="label">Tags</div>
 							<div className="song-page__tags-row">
 								<div className="song-page__tags-input">
 									<input
 										type="text"
 										value={tagInput}
 										onChange={(e) => setTagInput(e.target.value)}
-										onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddTag())}
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												e.preventDefault();
+												handleAddTag();
+											}
+										}}
 										placeholder="Add tag..."
 									/>
 									<button type="button" onClick={handleAddTag}>
@@ -509,17 +514,25 @@ Let it be, let it be, let it be, let it be
 Whisper words of wisdom, let it be`}
 									/>
 								</div>
+								{/* biome-ignore lint/a11y/useSemanticElements: custom resize handle */}
 								<div
 									className={`song-page__resize-handle ${isResizing ? "song-page__resize-handle--active" : ""}`}
 									onMouseDown={handleResizeStart}
+									role="separator"
+									aria-orientation="vertical"
+									aria-valuenow={splitRatio * 100}
+									aria-valuemin={20}
+									aria-valuemax={80}
+									tabIndex={0}
 								/>
 								<div
 									className="song-page__simple-preview"
 									style={{ flex: `0 0 calc(${(1 - splitRatio) * 100}% - 3px)` }}
 								>
-									<label>Preview</label>
+									<div className="label">Preview</div>
 									<div
 										className="song-page__preview-content"
+										// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
 										dangerouslySetInnerHTML={{ __html: previewHtml }}
 									/>
 								</div>

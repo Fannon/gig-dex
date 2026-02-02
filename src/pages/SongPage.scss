@@ -363,7 +363,8 @@
     min-height: 0;
     overflow: hidden;
 
-    label {
+    label,
+    .label {
       display: flex;
       align-items: center;
       gap: 0.5rem;

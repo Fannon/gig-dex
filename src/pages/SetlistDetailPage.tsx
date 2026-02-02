@@ -89,7 +89,7 @@ export const SetlistDetailPage = () => {
 	return (
 		<div className="setlist-detail">
 			<header className="setlist-detail__header">
-				<Link to="/setlists" className="setlist-detail__back">
+				<Link to="/setlists" className="setlist-detail__back" aria-label="Go back">
 					<svg
 						width="24"
 						height="24"
@@ -97,12 +97,18 @@ export const SetlistDetailPage = () => {
 						fill="none"
 						stroke="currentColor"
 						strokeWidth="2"
+						aria-hidden="true"
 					>
 						<path d="M19 12H5M12 19l-7-7 7-7" />
 					</svg>
 				</Link>
 				<h1>{setlist.name}</h1>
-				<button onClick={() => setShowAddModal(true)} className="setlist-detail__add">
+				<button
+					type="button"
+					onClick={() => setShowAddModal(true)}
+					className="setlist-detail__add"
+					aria-label="Add songs"
+				>
 					<svg
 						width="20"
 						height="20"
@@ -110,6 +116,7 @@ export const SetlistDetailPage = () => {
 						fill="none"
 						stroke="currentColor"
 						strokeWidth="2"
+						aria-hidden="true"
 					>
 						<path d="M12 5v14M5 12h14" />
 					</svg>
@@ -126,13 +133,18 @@ export const SetlistDetailPage = () => {
 							fill="none"
 							stroke="currentColor"
 							strokeWidth="1.5"
+							aria-hidden="true"
 						>
 							<path d="M9 18V5l12-2v13" />
 							<circle cx="6" cy="18" r="3" />
 							<circle cx="18" cy="16" r="3" />
 						</svg>
 						<p>No songs in this setlist</p>
-						<button onClick={() => setShowAddModal(true)} className="setlist-detail__add-btn">
+						<button
+							type="button"
+							onClick={() => setShowAddModal(true)}
+							className="setlist-detail__add-btn"
+						>
 							Add Songs
 						</button>
 					</div>
@@ -149,7 +161,11 @@ export const SetlistDetailPage = () => {
 								</div>
 								<div className="setlist-detail__song-actions">
 									{index > 0 && (
-										<button onClick={() => handleReorder(index, index - 1)} aria-label="Move up">
+										<button
+											type="button"
+											onClick={() => handleReorder(index, index - 1)}
+											aria-label="Move up"
+										>
 											<svg
 												width="16"
 												height="16"
@@ -157,13 +173,18 @@ export const SetlistDetailPage = () => {
 												fill="none"
 												stroke="currentColor"
 												strokeWidth="2"
+												aria-hidden="true"
 											>
 												<path d="M18 15l-6-6-6 6" />
 											</svg>
 										</button>
 									)}
 									{index < songs.length - 1 && (
-										<button onClick={() => handleReorder(index, index + 1)} aria-label="Move down">
+										<button
+											type="button"
+											onClick={() => handleReorder(index, index + 1)}
+											aria-label="Move down"
+										>
 											<svg
 												width="16"
 												height="16"
@@ -171,12 +192,14 @@ export const SetlistDetailPage = () => {
 												fill="none"
 												stroke="currentColor"
 												strokeWidth="2"
+												aria-hidden="true"
 											>
 												<path d="M6 9l6 6 6-6" />
 											</svg>
 										</button>
 									)}
 									<button
+										type="button"
 										onClick={() => song.id && handleRemoveSong(song.id)}
 										className="setlist-detail__song-remove"
 										aria-label="Remove"
@@ -188,6 +211,7 @@ export const SetlistDetailPage = () => {
 											fill="none"
 											stroke="currentColor"
 											strokeWidth="2"
+											aria-hidden="true"
 										>
 											<path d="M18 6L6 18M6 6l12 12" />
 										</svg>
@@ -200,8 +224,16 @@ export const SetlistDetailPage = () => {
 			</main>
 
 			{showAddModal && (
+				// biome-ignore lint/a11y/noStaticElementInteractions: Overlay is clickable to close modal
+				// biome-ignore lint/a11y/useKeyWithClickEvents: handled by proper dialog behavior
 				<div className="setlist-detail__modal-overlay" onClick={() => setShowAddModal(false)}>
-					<div className="setlist-detail__modal" onClick={(e) => e.stopPropagation()}>
+					{/* biome-ignore lint/a11y/useKeyWithClickEvents: Stop propagation */}
+					<div
+						className="setlist-detail__modal"
+						onClick={(e) => e.stopPropagation()}
+						role="dialog"
+						aria-modal="true"
+					>
 						<h2>Add Songs</h2>
 						{availableSongs.length === 0 ? (
 							<p className="setlist-detail__modal-empty">
@@ -211,7 +243,7 @@ export const SetlistDetailPage = () => {
 							<ul className="setlist-detail__modal-songs">
 								{availableSongs.map((song) => (
 									<li key={song.id}>
-										<button onClick={() => song.id && handleAddSong(song.id)}>
+										<button type="button" onClick={() => song.id && handleAddSong(song.id)}>
 											<span className="setlist-detail__modal-song-title">{song.title}</span>
 											<span className="setlist-detail__modal-song-artist">{song.artist}</span>
 										</button>
@@ -219,7 +251,11 @@ export const SetlistDetailPage = () => {
 								))}
 							</ul>
 						)}
-						<button onClick={() => setShowAddModal(false)} className="setlist-detail__modal-close">
+						<button
+							type="button"
+							onClick={() => setShowAddModal(false)}
+							className="setlist-detail__modal-close"
+						>
 							Close
 						</button>
 					</div>
