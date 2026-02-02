@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+	chordProToSimple,
 	chordProToText,
 	DEMO_SONG,
 	getSemitoneDifference,
 	getSongKey,
 	parseChordPro,
+	simpleToChordPro,
 	transposeChordPro,
 } from "./chordEngine";
 
@@ -115,6 +117,21 @@ describe("chordEngine", () => {
 		it("should return 0 for invalid keys", () => {
 			expect(getSemitoneDifference("X", "Y")).toBe(0);
 			expect(getSemitoneDifference("C", "Invalid")).toBe(0);
+		});
+	});
+
+	describe("chordProToSimple", () => {
+		it("should convert ChordPro to chords-over-words format", () => {
+			const result = chordProToSimple("[G]Hello [C]World");
+			expect(result).toContain("G     C");
+			expect(result).toContain("Hello World");
+		});
+	});
+
+	describe("simpleToChordPro", () => {
+		it("should convert chords-over-words to ChordPro", () => {
+			const result = simpleToChordPro("G     C\nHello World");
+			expect(result).toContain("[G]Hello [C]World");
 		});
 	});
 });

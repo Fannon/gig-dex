@@ -153,6 +153,10 @@ describe("Database", () => {
 			expect(results.length).toBe(1);
 			expect(results[0].title).toBe("Rock Song");
 		});
+
+		it("should throw error when updating non-existent song", async () => {
+			await expect(updateSong(999, { title: "New" })).rejects.toThrow("Song not found");
+		});
 	});
 
 	describe("Setlist Operations", () => {
@@ -238,6 +242,15 @@ describe("Database", () => {
 			expect(result?.songs.length).toBe(2);
 			expect(result?.songs[0].title).toBe("Song 1");
 			expect(result?.songs[1].title).toBe("Song 2");
+		});
+
+		it("should return undefined for non-existent setlist with songs", async () => {
+			const result = await getSetlistWithSongs(999);
+			expect(result).toBeUndefined();
+		});
+
+		it("should throw error when updating non-existent setlist", async () => {
+			await expect(updateSetlist(999, { name: "New" })).rejects.toThrow("Setlist not found");
 		});
 	});
 });

@@ -61,19 +61,34 @@ describe("Metadata Handling", () => {
 		const metadata: SongMetadata = {
 			title: "New Title",
 			artist: "New Artist",
-			// Primary fields intentionally changed
-
-			// Extended fields preserved (simulated)
+			key: "A",
+			tempo: 100,
+			capo: 2,
+			time: "4/4",
+			subtitle: "Subtitle",
 			composer: "Original Composer",
+			lyricist: "Lyricist",
 			copyright: "Original Copyright",
+			album: "Album",
+			year: 2024,
+			duration: "4:00",
 		};
 
 		const result = injectMetadata(lyrics, metadata);
 
 		expect(result).toContain("{title: New Title}");
 		expect(result).toContain("{artist: New Artist}");
+		expect(result).toContain("{key: A}");
+		expect(result).toContain("{tempo: 100}");
+		expect(result).toContain("{capo: 2}");
+		expect(result).toContain("{time: 4/4}");
+		expect(result).toContain("{subtitle: Subtitle}");
 		expect(result).toContain("{composer: Original Composer}");
+		expect(result).toContain("{lyricist: Lyricist}");
 		expect(result).toContain("{copyright: Original Copyright}");
+		expect(result).toContain("{album: Album}");
+		expect(result).toContain("{year: 2024}");
+		expect(result).toContain("{duration: 4:00}");
 		expect(result).toContain("[G]Amazing grace!");
 	});
 
