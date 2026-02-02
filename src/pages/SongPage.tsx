@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { SongView } from "../components/SongView";
 import { addSong, getSong, type Song, updateSong } from "../db";
@@ -38,6 +38,11 @@ export const SongPage = () => {
 	const [tagInput, setTagInput] = useState("");
 	const [loading, setLoading] = useState(!isNew);
 	const [saving, setSaving] = useState(false);
+
+	// Resizable split pane state
+	const [splitRatio, setSplitRatio] = useState(0.5);
+	const [isResizing, setIsResizing] = useState(false);
+	const splitContainerRef = useRef<HTMLDivElement>(null);
 
 	// Convert ChordPro to simple format (with metadata stripped) when entering edit mode
 	useEffect(() => {
@@ -91,6 +96,36 @@ export const SongPage = () => {
 			return '<p style="color: #ef4444;">Preview unavailable</p>';
 		}
 	}, [simpleContent]);
+
+	// Handle split pane resizing
+	const handleResizeStart = useCallback((e: React.MouseEvent) => {
+		e.preventDefault();
+		setIsResizing(true);
+	}, []);
+
+	useEffect(() => {
+		if (!isResizing) return;
+
+		const handleMouseMove = (e: MouseEvent) => {
+			if (!splitContainerRef.current) return;
+			const container = splitContainerRef.current;
+			const rect = container.getBoundingClientRect();
+			const newRatio = (e.clientX - rect.left) / rect.width;
+			setSplitRatio(Math.max(0.2, Math.min(0.8, newRatio)));
+		};
+
+		const handleMouseUp = () => {
+			setIsResizing(false);
+		};
+
+		document.addEventListener("mousemove", handleMouseMove);
+		document.addEventListener("mouseup", handleMouseUp);
+
+		return () => {
+			document.removeEventListener("mousemove", handleMouseMove);
+			document.removeEventListener("mouseup", handleMouseUp);
+		};
+	}, [isResizing]);
 
 	const handleSave = async () => {
 		// Build the final ChordPro content with metadata
@@ -452,8 +487,14 @@ export const SongPage = () => {
 					{/* Content editor */}
 					<div className="song-page__content-area">
 						{editorMode === "simple" ? (
-							<div className="song-page__simple-editor">
-								<div className="song-page__simple-input">
+							<div
+								className={`song-page__simple-editor ${isResizing ? "song-page__simple-editor--resizing" : ""}`}
+								ref={splitContainerRef}
+							>
+								<div
+									className="song-page__simple-input"
+									style={{ flex: `0 0 calc(${splitRatio * 100}% - 3px)` }}
+								>
 									<label htmlFor="simple-content">
 										Lyrics with chords
 										<span className="song-page__hint">Type chords on lines above lyrics</span>
@@ -468,7 +509,14 @@ Let it be, let it be, let it be, let it be
 Whisper words of wisdom, let it be`}
 									/>
 								</div>
-								<div className="song-page__simple-preview">
+								<div
+									className={`song-page__resize-handle ${isResizing ? "song-page__resize-handle--active" : ""}`}
+									onMouseDown={handleResizeStart}
+								/>
+								<div
+									className="song-page__simple-preview"
+									style={{ flex: `0 0 calc(${(1 - splitRatio) * 100}% - 3px)` }}
+								>
 									<label>Preview</label>
 									<div
 										className="song-page__preview-content"

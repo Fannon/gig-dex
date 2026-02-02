@@ -331,15 +331,28 @@
 
   &__simple-editor {
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    display: flex;
+    flex-direction: row;
     min-height: 0;
     overflow: hidden;
+    gap: 0;
+
+    &--resizing {
+      cursor: col-resize;
+      user-select: none;
+    }
 
     @media (max-width: 768px) {
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr auto;
+      flex-direction: column;
+      
+      .song-page__simple-input,
+      .song-page__simple-preview {
+        flex: 1 1 auto !important;
+      }
+      
+      .song-page__resize-handle {
+        display: none;
+      }
     }
   }
 
@@ -384,13 +397,32 @@
     color: #fff;
     resize: none;
     outline: none;
+    white-space: pre;
+    tab-size: 4;
 
     &::placeholder {
       color: rgba(255, 255, 255, 0.25);
+      white-space: pre-wrap;
     }
 
     &:focus {
       border-color: rgba(79, 70, 229, 0.5);
+    }
+  }
+
+  &__resize-handle {
+    width: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+    border-radius: 3px;
+    margin: 0 -3px;
+    z-index: 5;
+
+    &:hover,
+    &--active {
+      background: rgba(79, 70, 229, 0.5);
     }
   }
 
@@ -404,19 +436,30 @@
     font-size: 0.9rem;
     line-height: 1.4;
 
+    // Preserve whitespace in the preview
+    white-space: pre-wrap;
+
     table {
       border-collapse: collapse;
+      width: 100%;
     }
 
     td {
       padding: 0;
       vertical-align: bottom;
+      white-space: pre; // Preserve spaces in cells
+    }
+
+    // Lyrics text
+    .lyrics {
+      white-space: pre;
     }
 
     .chord {
       color: #f59e0b;
       font-weight: 600;
       font-size: 0.85em;
+      white-space: pre; // Preserve chord spacing
     }
 
     .lyrics {
