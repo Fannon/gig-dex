@@ -1,20 +1,54 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { isGDriveAuthenticated, isGDriveEnabled, syncManager } from "../sync";
+import type { SyncStatus } from "../sync/types";
 import "./SettingsPage.scss";
 
 export const SettingsPage = () => {
+	const [syncStatus, setSyncStatus] = useState<SyncStatus>(syncManager.getStatus());
+	const [isGdriveConnected, setIsGdriveConnected] = useState(isGDriveAuthenticated());
+	const gdriveEnabled = isGDriveEnabled();
+
+	useEffect(() => {
+		// Update status periodically if syncing
+		let interval: number;
+		if (syncStatus.isSyncing) {
+			interval = window.setInterval(() => {
+				setSyncStatus(syncManager.getStatus());
+			}, 500);
+		}
+		return () => clearInterval(interval);
+	}, [syncStatus.isSyncing]);
+
 	const handleExport = async () => {
-		// TODO: Implement export functionality
-		alert("Export feature coming soon! This will export all your songs to a JSON file.");
+		// Existing implementation...
+		alert("Export feature coming soon!");
 	};
 
 	const handleImport = () => {
-		// TODO: Implement import functionality
-		alert("Import feature coming soon! This will allow you to import songs from a JSON file.");
+		alert("Import feature coming soon!");
 	};
 
-	const handleGoogleDriveSync = () => {
-		// TODO: Implement Google Drive sync
-		alert("Google Drive sync coming soon! This will sync your songs across devices.");
+	const handleConnectGDrive = async () => {
+		try {
+			await syncManager.sync();
+			setSyncStatus(syncManager.getStatus());
+			setIsGdriveConnected(!!localStorage.getItem("gdrive_access_token"));
+		} catch (error) {
+			console.error("Connection failed", error);
+		}
+	};
+
+	const handleSync = async () => {
+		await syncManager.sync();
+		setSyncStatus(syncManager.getStatus());
+	};
+
+	const handleLogoutGDrive = () => {
+		localStorage.removeItem("gdrive_access_token");
+		localStorage.removeItem("last_sync_time");
+		setIsGdriveConnected(false);
+		setSyncStatus(syncManager.getStatus());
 	};
 
 	return (
@@ -85,30 +119,87 @@ export const SettingsPage = () => {
 				<section className="settings-page__section">
 					<h2>Cloud Sync</h2>
 					<div className="settings-page__options">
-						<button
-							type="button"
-							onClick={handleGoogleDriveSync}
-							className="settings-page__option settings-page__option--coming-soon"
-						>
-							<div className="settings-page__option-icon settings-page__option-icon--gdrive">
-								<svg
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									aria-hidden="true"
-								>
-									<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
-								</svg>
+						{!gdriveEnabled ? (
+							<div className="settings-page__option settings-page__option--disabled">
+								<div className="settings-page__option-icon settings-page__option-icon--gdrive">
+									<svg
+										width="24"
+										height="24"
+										viewBox="0 0 24 24"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
+									</svg>
+								</div>
+								<div className="settings-page__option-text">
+									<h3>Google Drive Sync</h3>
+									<p>Not configured. A Google Client ID is required to enable sync.</p>
+								</div>
 							</div>
-							<div className="settings-page__option-text">
-								<h3>
-									Google Drive Sync
-									<span className="settings-page__badge">Coming Soon</span>
-								</h3>
-								<p>Sync your songs across all your devices</p>
+						) : !isGdriveConnected ? (
+							<button type="button" onClick={handleConnectGDrive} className="settings-page__option">
+								<div className="settings-page__option-icon settings-page__option-icon--gdrive">
+									<svg
+										width="24"
+										height="24"
+										viewBox="0 0 24 24"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
+									</svg>
+								</div>
+								<div className="settings-page__option-text">
+									<h3>Connect Google Drive</h3>
+									<p>Backup and sync your songs across devices</p>
+								</div>
+							</button>
+						) : (
+							<div className="settings-page__sync-box">
+								<div className="settings-page__option">
+									<div className="settings-page__option-icon settings-page__option-icon--gdrive">
+										<svg
+											width="24"
+											height="24"
+											viewBox="0 0 24 24"
+											fill="currentColor"
+											aria-hidden="true"
+										>
+											<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
+										</svg>
+									</div>
+									<div className="settings-page__option-text">
+										<h3>Google Drive Connected</h3>
+										<p>
+											{syncStatus.lastSyncTime
+												? `Last synced: ${new Date(syncStatus.lastSyncTime).toLocaleString()}`
+												: "Never synced"}
+										</p>
+									</div>
+									<div className="settings-page__option-actions">
+										<button
+											type="button"
+											className={`settings-page__sync-btn ${syncStatus.isSyncing ? "settings-page__sync-btn--syncing" : ""}`}
+											onClick={handleSync}
+											disabled={syncStatus.isSyncing}
+										>
+											{syncStatus.isSyncing ? "Syncing..." : "Sync Now"}
+										</button>
+										<button
+											type="button"
+											className="settings-page__logout-btn"
+											onClick={handleLogoutGDrive}
+										>
+											Disconnect
+										</button>
+									</div>
+								</div>
+								{syncStatus.error && (
+									<div className="settings-page__sync-error">{syncStatus.error}</div>
+								)}
 							</div>
-						</button>
+						)}
 					</div>
 				</section>
 

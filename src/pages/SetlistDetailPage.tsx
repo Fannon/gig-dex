@@ -14,7 +14,7 @@ export const SetlistDetailPage = () => {
 	const [showAddModal, setShowAddModal] = useState(false);
 
 	const loadSetlist = useCallback(
-		async (setlistId: number) => {
+		async (setlistId: string) => {
 			try {
 				const result = await getSetlistWithSongs(setlistId);
 				if (result) {
@@ -40,12 +40,12 @@ export const SetlistDetailPage = () => {
 
 	useEffect(() => {
 		if (id) {
-			loadSetlist(parseInt(id, 10));
+			loadSetlist(id);
 			loadAllSongs();
 		}
 	}, [id, loadAllSongs, loadSetlist]);
 
-	const handleAddSong = async (songId: number) => {
+	const handleAddSong = async (songId: string) => {
 		if (!setlist || !setlist.id) return;
 
 		const newSongIds = [...setlist.songIds, songId];
@@ -54,7 +54,7 @@ export const SetlistDetailPage = () => {
 		setShowAddModal(false);
 	};
 
-	const handleRemoveSong = async (songId: number) => {
+	const handleRemoveSong = async (songId: string) => {
 		if (!setlist || !setlist.id) return;
 
 		const newSongIds = setlist.songIds.filter((id) => id !== songId);

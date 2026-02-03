@@ -24,10 +24,15 @@ test.describe("Settings Page", () => {
 	test("should display cloud sync section", async ({ page }) => {
 		await page.goto("/settings");
 
+		// Check for Cloud Sync section header
 		await expect(
-			page.locator(".settings-page__option-text h3").filter({ hasText: "Google Drive Sync" }),
+			page.locator(".settings-page__section h2").filter({ hasText: "Cloud Sync" }),
 		).toBeVisible();
-		await expect(page.locator(".settings-page__badge")).toContainText("Coming Soon");
+
+		// Check for either "Google Drive Sync" (when not configured) or "Connect Google Drive" (when configured)
+		await expect(
+			page.locator(".settings-page__option-text h3").filter({ hasText: /Google Drive/i }),
+		).toBeVisible();
 	});
 
 	test("should display about section", async ({ page }) => {

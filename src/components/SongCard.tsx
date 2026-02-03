@@ -4,7 +4,7 @@ import "./SongCard.scss";
 
 interface SongCardProps {
 	song: Song;
-	onDelete?: (id: number) => void;
+	onDelete?: (id: string) => void;
 }
 
 export const SongCard = ({ song, onDelete }: SongCardProps) => {

@@ -36,7 +36,7 @@ describe("Database", () => {
 			});
 
 			expect(songId).toBeDefined();
-			expect(typeof songId).toBe("number");
+			expect(typeof songId).toBe("string");
 
 			const song = await getSong(songId);
 			expect(song).toBeDefined();
@@ -155,7 +155,9 @@ describe("Database", () => {
 		});
 
 		it("should throw error when updating non-existent song", async () => {
-			await expect(updateSong(999, { title: "New" })).rejects.toThrow("Song not found");
+			await expect(updateSong("non-existent-id", { title: "New" })).rejects.toThrow(
+				"Song not found",
+			);
 		});
 	});
 
@@ -198,10 +200,10 @@ describe("Database", () => {
 				songIds: [],
 			});
 
-			await updateSetlist(setlistId, { songIds: [1, 2, 3] });
+			await updateSetlist(setlistId, { songIds: ["1", "2", "3"] });
 
 			const setlist = await getSetlist(setlistId);
-			expect(setlist?.songIds).toEqual([1, 2, 3]);
+			expect(setlist?.songIds).toEqual(["1", "2", "3"]);
 		});
 
 		it("should delete a setlist", async () => {
@@ -245,12 +247,14 @@ describe("Database", () => {
 		});
 
 		it("should return undefined for non-existent setlist with songs", async () => {
-			const result = await getSetlistWithSongs(999);
+			const result = await getSetlistWithSongs("non-existent-id");
 			expect(result).toBeUndefined();
 		});
 
 		it("should throw error when updating non-existent setlist", async () => {
-			await expect(updateSetlist(999, { name: "New" })).rejects.toThrow("Setlist not found");
+			await expect(updateSetlist("non-existent-id", { name: "New" })).rejects.toThrow(
+				"Setlist not found",
+			);
 		});
 	});
 });

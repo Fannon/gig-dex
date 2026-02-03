@@ -60,7 +60,7 @@ export const SongPage = () => {
 	}, [isEditing, song.content]);
 
 	const loadSong = useCallback(
-		async (songId: number) => {
+		async (songId: string) => {
 			try {
 				const loadedSong = await getSong(songId);
 				if (loadedSong) {
@@ -80,7 +80,7 @@ export const SongPage = () => {
 
 	useEffect(() => {
 		if (!isNew && id) {
-			loadSong(parseInt(id, 10));
+			loadSong(id);
 		}
 	}, [id, isNew, loadSong]);
 
@@ -198,7 +198,7 @@ export const SongPage = () => {
 				const newId = await addSong(songData);
 				navigate(`/song/${newId}`, { replace: true });
 			} else if (id) {
-				await updateSong(parseInt(id, 10), songData);
+				await updateSong(id, songData);
 				setSong((prev) => ({ ...prev, content: contentToSave }));
 			}
 			setIsEditing(false);
