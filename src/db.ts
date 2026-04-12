@@ -133,7 +133,20 @@ export const saveSong = async (song: Song): Promise<void> => {
 
 export const deleteSong = async (id: string): Promise<void> => {
 	const db = await initDB();
-	await db.delete("songs", id);
+	const tx = db.transaction(["songs", "setlists"], "readwrite");
+	await tx.objectStore("songs").delete(id);
+
+	const setlists = await tx.objectStore("setlists").getAll();
+	for (const setlist of setlists) {
+		if (!setlist.songIds.includes(id)) continue;
+		await tx.objectStore("setlists").put({
+			...setlist,
+			songIds: setlist.songIds.filter((songId) => songId !== id),
+			lastModified: now(),
+		});
+	}
+
+	await tx.done;
 };
 
 export const getSong = async (id: string): Promise<Song | undefined> => {

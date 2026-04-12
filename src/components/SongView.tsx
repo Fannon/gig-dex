@@ -117,6 +117,7 @@ export const SongView = ({
 	}, [autoSize, calculateOptimalFontSize]);
 
 	// Initial calculation and recalculate when content/chords change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Re-run auto-fit after visible song markup changes.
 	useEffect(() => {
 		if (autoSize) {
 			const timeout = setTimeout(() => {
@@ -124,7 +125,7 @@ export const SongView = ({
 			}, 150);
 			return () => clearTimeout(timeout);
 		}
-	}, [autoSize, calculateOptimalFontSize]);
+	}, [autoSize, calculateOptimalFontSize, parsed.html, showChords]);
 
 	// Update parent with transposed content if needed
 	useEffect(() => {

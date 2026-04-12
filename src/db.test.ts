@@ -94,6 +94,25 @@ describe("Database", () => {
 			expect(song).toBeUndefined();
 		});
 
+		it("should remove deleted songs from setlists", async () => {
+			const songId = await addSong({
+				title: "Setlist Song",
+				artist: "Artist",
+				content: "Content",
+				tags: [],
+			});
+
+			const setlistId = await addSetlist({
+				name: "Cleanup Test",
+				songIds: [songId],
+			});
+
+			await deleteSong(songId);
+
+			const setlist = await getSetlist(setlistId);
+			expect(setlist?.songIds).toEqual([]);
+		});
+
 		it("should search songs by title", async () => {
 			await addSong({
 				title: "Amazing Grace",

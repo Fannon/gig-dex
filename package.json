@@ -15,8 +15,8 @@
 		"test:coverage": "vitest run --coverage",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
-		"validate": "bun run lint && bun run test",
-		"verify": "bun run lint && bun run test && bun run build && bun run test:e2e",
+		"validate": "npm run lint && npm run test",
+		"verify": "npm run lint && npm run test && npm run build && npm run test:e2e",
 		"prepare": "lefthook install"
 	},
 	"dependencies": {

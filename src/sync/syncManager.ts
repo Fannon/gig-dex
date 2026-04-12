@@ -17,6 +17,14 @@ export class SyncManager {
 		return { ...this.status };
 	}
 
+	resetStatus(): void {
+		this.status = {
+			lastSyncTime: null,
+			isSyncing: false,
+			error: null,
+		};
+	}
+
 	async sync(): Promise<void> {
 		if (this.status.isSyncing) return;
 

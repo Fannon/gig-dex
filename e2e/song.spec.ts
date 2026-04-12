@@ -102,7 +102,7 @@ test.describe("Song Page", () => {
 		await page.getByRole("button", { name: "Save" }).click();
 
 		// Wait for navigation
-		await page.waitForURL(/\/song\/\d+/);
+		await page.waitForURL(/\/song\/[^/]+$/);
 
 		// Verify song is displayed
 		await expect(page.locator(".song-page__title")).toContainText("Test Song");

@@ -75,7 +75,7 @@ describe("SyncManager", () => {
 		});
 
 		it("should set syncing status during sync", async () => {
-			let statusDuringSync: SyncStatus | null = null;
+			let statusDuringSync: SyncStatus = syncManager.getStatus();
 
 			vi.mocked(mockProvider.listFiles).mockImplementation(async () => {
 				statusDuringSync = syncManager.getStatus();
@@ -84,7 +84,7 @@ describe("SyncManager", () => {
 
 			await syncManager.sync();
 
-			expect(statusDuringSync?.isSyncing).toBe(true);
+			expect(statusDuringSync.isSyncing).toBe(true);
 			expect(syncManager.getStatus().isSyncing).toBe(false);
 		});
 

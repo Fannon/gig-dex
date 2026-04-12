@@ -24,7 +24,7 @@
 
 ## 🛠️ Tech Stack
 
-- **Framework**: React 18 + TypeScript
+- **Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
 - **Storage**: IndexedDB (Browser-native)
 - **Linting**: [Biome](https://biomejs.dev/)
@@ -42,7 +42,7 @@ bun install
 # Start development server
 bun run dev
 
-# Run verification (lint + test + build)
+# Run verification (lint + test + build + e2e)
 bun run verify
 ```
 

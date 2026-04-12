@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { isGDriveAuthenticated, isGDriveEnabled, syncManager } from "../sync";
+import { gDriveProvider, isGDriveAuthenticated, isGDriveEnabled, syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
 import "./SettingsPage.scss";
 
@@ -44,10 +44,11 @@ export const SettingsPage = () => {
 		setSyncStatus(syncManager.getStatus());
 	};
 
-	const handleLogoutGDrive = () => {
-		localStorage.removeItem("gdrive_access_token");
+	const handleLogoutGDrive = async () => {
+		await gDriveProvider.logout();
 		localStorage.removeItem("last_sync_time");
 		setIsGdriveConnected(false);
+		syncManager.resetStatus();
 		setSyncStatus(syncManager.getStatus());
 	};
 

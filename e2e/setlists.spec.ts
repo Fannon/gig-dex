@@ -47,7 +47,7 @@ test.describe("Setlists Page", () => {
 		await page.locator(".setlists-page__item").click();
 
 		// Verify detail page
-		await expect(page).toHaveURL(/\/setlist\/\d+/);
+		await expect(page).toHaveURL(/\/setlist\/[^/]+$/);
 		await expect(page.locator(".setlist-detail__header h1")).toContainText("Test Setlist");
 	});
 
