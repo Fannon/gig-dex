@@ -142,6 +142,7 @@ test("cancel restores saved content, and clearing simple lyrics does not restore
 	await page.getByRole("button", { name: "Edit", exact: true }).click();
 	await page.locator('input[placeholder="Song title"]').fill("Unsaved title");
 	await page.locator("textarea").fill("Changed lyrics");
+	page.once("dialog", (dialog) => dialog.accept());
 	await page.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(page.locator(".song-page__title")).toHaveText("Saved title");
 	await expect(page.locator(".song-view__content")).toContainText("Original lyrics");

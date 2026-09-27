@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { SongView } from "../components/SongView";
+import { TempoIndicator } from "../components/TempoIndicator";
 import { addSong, getSong, type Song, updateSong } from "../db";
+import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import {
 	chordProToSimple,
 	extractMetadata,
@@ -38,6 +40,8 @@ export const SongPage = () => {
 	const [tagInput, setTagInput] = useState("");
 	const [loading, setLoading] = useState(!isNew);
 	const [saving, setSaving] = useState(false);
+	const [dirty, setDirty] = useState(false);
+	const allowLeave = useUnsavedEdits(isEditing && dirty);
 	const [displayKey, setDisplayKey] = useState<string | null>(null);
 
 	// Resizable split pane state
@@ -66,6 +70,7 @@ export const SongPage = () => {
 				const loadedSong = await getSong(songId);
 				if (loadedSong) {
 					setSong(loadedSong);
+					setDirty(false);
 				} else {
 					navigate("/");
 				}
@@ -197,12 +202,15 @@ export const SongPage = () => {
 
 			if (isNew) {
 				const newId = await addSong(songData);
+				allowLeave();
+				setDirty(false);
 				navigate(`/song/${newId}`, { replace: true });
 			} else if (id) {
 				await updateSong(id, songData);
 				setSong((prev) => ({ ...prev, content: contentToSave }));
 			}
 			setIsEditing(false);
+			setDirty(false);
 		} catch (error) {
 			console.error("Failed to save song:", error);
 			alert("Failed to save song");
@@ -212,6 +220,7 @@ export const SongPage = () => {
 	};
 
 	const handleAddTag = () => {
+		setDirty(true);
 		if (tagInput.trim() && !song.tags?.includes(tagInput.trim())) {
 			setSong((prev) => ({
 				...prev,
@@ -222,6 +231,7 @@ export const SongPage = () => {
 	};
 
 	const handleRemoveTag = (tag: string) => {
+		setDirty(true);
 		setSong((prev) => ({
 			...prev,
 			tags: (prev.tags || []).filter((t) => t !== tag),
@@ -293,7 +303,7 @@ export const SongPage = () => {
 						{(displayKey || song.key) && (
 							<span className="song-page__meta-tag">Key: {displayKey || song.key}</span>
 						)}
-						{song.tempo && <span className="song-page__meta-tag">{song.tempo} BPM</span>}
+						<TempoIndicator bpm={song.tempo} />
 						{song.capo && <span className="song-page__meta-tag">Capo {song.capo}</span>}
 						{song.time && <span className="song-page__meta-tag">{song.time}</span>}
 						{song.tags && song.tags.length > 0 && (
@@ -315,11 +325,19 @@ export const SongPage = () => {
 				)}
 
 				<div className="song-page__actions">
+					{!isEditing && (
+						<Link to={`/perform/song/${id}`} className="song-page__btn song-page__btn--secondary">
+							Perform
+						</Link>
+					)}
 					{isEditing ? (
 						<>
 							<button
 								type="button"
 								onClick={async () => {
+									if (dirty && !confirm("Discard unsaved changes?")) return;
+									allowLeave();
+									setDirty(false);
 									if (isNew) navigate("/");
 									else if (id) {
 										await loadSong(id);
@@ -364,7 +382,7 @@ export const SongPage = () => {
 			</header>
 
 			{isEditing ? (
-				<div className="song-page__editor">
+				<div className="song-page__editor" onInput={() => setDirty(true)}>
 					{/* Row 1: Title, Artist, Key */}
 					<div className="song-page__meta-row">
 						<div className="song-page__field song-page__field--flex2">
@@ -402,7 +420,7 @@ export const SongPage = () => {
 					{/* Row 2: Tempo, Capo, Time, Tags */}
 					<div className="song-page__meta-row">
 						<div className="song-page__field song-page__field--flex1">
-							<label htmlFor="song-tempo">Tempo</label>
+							<label htmlFor="song-tempo">Tempo (BPM)</label>
 							<input
 								id="song-tempo"
 								type="number"
@@ -578,6 +596,7 @@ That [G]saved a [Em]wretch like [D]me
 				</div>
 			) : (
 				<SongView
+					readingKey={`song:${id}`}
 					key={id}
 					content={song.content || ""}
 					title={song.title}

@@ -11,6 +11,7 @@ import {
 	type Song,
 	updateSetlist,
 } from "../db";
+import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import "./SetlistsPage.scss";
 
 const SongView = lazy(() =>
@@ -79,6 +80,19 @@ export const SetlistsPage = () => {
 	});
 	const songMap = new Map(songs.map((song) => [song.id, song]));
 	const preview = selected ? songMap.get(selected.songIds[songIndex]) : undefined;
+	const originalDraft = draft?.id ? setlists.find((list) => list.id === draft.id) : undefined;
+	const dirtyDraft =
+		!!draft &&
+		(draft.name !== (originalDraft?.name ?? "") ||
+			draft.tags !== (originalDraft?.tags?.join(", ") ?? "") ||
+			draft.description !== (originalDraft?.description ?? ""));
+	const allowLeave = useUnsavedEdits(dirtyDraft);
+	const closeDraft = () => {
+		if (!dirtyDraft || confirm("Discard unsaved changes?")) {
+			allowLeave();
+			setDraft(null);
+		}
+	};
 	const availableSongs = songs
 		.filter((song) => {
 			const text = [song.title, song.artist, ...song.tags].join(" ").toLocaleLowerCase();
@@ -138,6 +152,7 @@ export const SetlistsPage = () => {
 			if (listId) await updateSetlist(listId, data);
 			else listId = await addSetlist({ ...data, songIds: [] });
 			setSetlists(await getAllSetlists());
+			allowLeave();
 			setDraft(null);
 			setSearch("");
 			setTag("");
@@ -321,6 +336,11 @@ export const SetlistsPage = () => {
 									))}
 								</div>
 								<div className="setlists-page__actions">
+									{selected.songIds.length > 0 && (
+										<Link className="setlists-page__perform" to={`/perform/setlist/${selected.id}`}>
+											Perform setlist ↗
+										</Link>
+									)}
 									<button
 										type="button"
 										disabled={busy}
@@ -439,6 +459,7 @@ export const SetlistsPage = () => {
 									{preview.artist}
 									{previewKey ? ` · ${previewKey}` : ""}
 								</p>
+
 								<Link to={`/song/${preview.id}`}>Open song ↗</Link>
 							</header>
 							<Suspense fallback={<output className="setlists-page__empty">Loading song…</output>}>
@@ -459,10 +480,7 @@ export const SetlistsPage = () => {
 				</section>
 			</main>
 			{draft && (
-				<WorkspaceDialog
-					title={draft.id ? "Edit setlist" : "New Setlist"}
-					onClose={() => setDraft(null)}
-				>
+				<WorkspaceDialog title={draft.id ? "Edit setlist" : "New Setlist"} onClose={closeDraft}>
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
@@ -497,7 +515,7 @@ export const SetlistsPage = () => {
 							/>
 						</label>
 						<div className="setlists-page__modal-actions">
-							<button type="button" onClick={() => setDraft(null)}>
+							<button type="button" onClick={closeDraft}>
 								Cancel
 							</button>
 							<button type="submit" className="primary" disabled={busy || !draft.name.trim()}>

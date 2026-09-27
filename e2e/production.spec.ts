@@ -26,5 +26,8 @@ test("production chunks load on demand and cached songs work offline", async ({
 	await expect(page.locator(".song-card")).toHaveCount(1);
 	await page.locator(".song-card").first().click();
 	await expect(page.locator(".song-view__content")).toContainText("Amazing");
+	await page.getByRole("link", { name: "Perform", exact: true }).click();
+	await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
+	await expect(page.locator(".song-view__content")).toContainText("Amazing");
 	await context.setOffline(false);
 });

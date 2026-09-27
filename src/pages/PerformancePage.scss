@@ -1,0 +1,8 @@
+.performance-page { height: 100dvh; background: #101023; color: white; display: flex; flex-direction: column; overflow: hidden;
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .65rem; border-bottom: 1px solid #ffffff20; > div { flex: 1; min-width: 100px; } span { font-size: .75rem; color: #b8b5d5; } h1 { margin: .15rem 0; font-size: 1.2rem; } a { color: #c5baff; padding: .5rem; } }
+  button, select { min-height: 44px; background: #292541; color: white; border: 1px solid #615879; border-radius: 8px; padding: .5rem .75rem; cursor: pointer; &:disabled { opacity: .4; cursor: default; } }
+  &__options { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .35rem .65rem; label { color: #c0bcd9; font-size: .85rem; } }
+  &__navigation { display: flex; gap: .65rem; padding: .65rem; border-top: 1px solid #ffffff20; button { flex: 1; min-height: 60px; font-size: 1rem; font-weight: 600; background: #4f46e5; } }
+  &__empty { flex: 1; padding: 1rem; }
+  [role=alert] { margin: .25rem .65rem; color: #fca5a5; font-size: .85rem; }
+}

@@ -17,7 +17,15 @@ export const WorkspaceDialog = ({
 		return () => dialog?.close();
 	}, []);
 	return (
-		<dialog ref={ref} className="setlists-page__modal" aria-label={title} onCancel={onClose}>
+		<dialog
+			ref={ref}
+			className="setlists-page__modal"
+			aria-label={title}
+			onCancel={(event) => {
+				event.preventDefault();
+				onClose();
+			}}
+		>
 			<header>
 				<h2>{title}</h2>
 				<button type="button" onClick={onClose} aria-label="Close dialog">

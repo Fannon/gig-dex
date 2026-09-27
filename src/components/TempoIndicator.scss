@@ -1,0 +1,3 @@
+.tempo-indicator { display: inline-flex; align-items: center; gap: .65rem; min-height: 44px; padding: .5rem .7rem; background: #24243b; border: 1px solid #585174; border-radius: 8px; color: #d6d1ff; font-size: .8rem; cursor: pointer;
+  &__dots { display: flex; gap: 5px; > span { width: 9px; height: 9px; border-radius: 50%; background: #ffffff30; &.active { background: #fbbf24; box-shadow: 0 0 5px #fbbf2480; } } }
+}
