@@ -130,7 +130,7 @@ test("makes every line reachable when a song cannot fit or manual text is too la
 		el.scrollTop = el.scrollHeight;
 		el.scrollLeft = el.scrollWidth;
 	});
-	await expect(page.locator(".song-view__content table.row").last()).toBeInViewport();
+	await expect(page.locator(".song-view__content .reading-line").last()).toBeInViewport();
 	await info.attach("scroll-fallback", { body: await page.screenshot(), contentType: "image/png" });
 });
 
@@ -184,4 +184,52 @@ test("keeps malformed songs readable and lets the editor repair them", async ({ 
 	await expectScreenFit(page);
 	await expect(page.getByRole("alert")).toHaveCount(0);
 	await expect(page.locator(".song-view__content")).toContainText("Repaired text");
+});
+
+test("wraps wide phone lyrics at word boundaries with all chords preserved and remembers minimum font", async ({
+	page,
+}, info) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	const line =
+		"[C]Follow the lantern across the harbor with a mid[G]word change and [Am]many more words until the [F]last light";
+	const lyrics =
+		"Follow the lantern across the harbor with a midword change and many more words until the last light";
+	await openSong(
+		page,
+		`${Array.from({ length: 24 }, () => line).join("\n")}\n[C]Final reachable line`,
+		"Phone reading",
+	);
+	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", "scroll");
+	const wrapper = page.locator(".song-view__wrapper");
+	await expect(page.getByLabel("Wrap lines")).toBeChecked();
+	await expect
+		.poll(() => wrapper.evaluate((element) => element.scrollWidth <= element.clientWidth + 1))
+		.toBe(true);
+	const rendered = await page.locator(".reading-line").first().locator(".lyrics").allTextContents();
+	expect(rendered.join("")).toBe(lyrics);
+	expect(
+		(await page.locator(".reading-line").first().locator(".chord").allTextContents()).filter(
+			Boolean,
+		),
+	).toEqual(["C", "G", "Am", "F"]);
+	const midword = page.locator(".chord-word").filter({ hasText: "midGword" }).first();
+	await expect(midword).toBeVisible();
+	await page.getByLabel("Wrap lines").uncheck();
+	await expect(page.locator(".reading-line")).toHaveCount(0);
+	await expect
+		.poll(() => wrapper.evaluate((element) => element.scrollWidth > element.clientWidth))
+		.toBe(true);
+	await page.getByLabel("Wrap lines").check();
+	await page.getByLabel("Minimum font", { exact: true }).selectOption("20");
+	await page.reload();
+	await expect(page.getByLabel("Minimum font", { exact: true })).toHaveValue("20");
+	await expect(page.locator(".song-view__value").nth(1)).toHaveText("20px");
+	await wrapper.evaluate((element) => {
+		element.scrollTop = element.scrollHeight;
+	});
+	await expect(page.getByText("Final ", { exact: true })).toBeInViewport();
+	await info.attach("phone-wrapped-reading", {
+		body: await page.screenshot(),
+		contentType: "image/png",
+	});
 });

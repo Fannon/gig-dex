@@ -32,3 +32,12 @@ describe("song layout selection", () => {
 		expect(findSongLayout(6, () => false, 32).fontSize).toBe(32);
 	});
 });
+
+it("honors a configurable automatic minimum and readable fallback", () => {
+	expect(findSongLayout(3, (size) => size <= 15, undefined, 18)).toEqual({
+		fontSize: 18,
+		columns: 1,
+		fits: false,
+	});
+	expect(findSongLayout(3, () => false, undefined, 20).fontSize).toBe(20);
+});

@@ -37,13 +37,37 @@ const SUPERSCRIPTS: Record<string, string> = {
 /**
  * Parse a ChordPro formatted string and return structured data
  */
+const escapeHtmlText = (text: string) =>
+	text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const decodeHtmlText = (text: string) =>
+	text.replace(
+		/&(amp|lt|gt);/g,
+		(_, entity: string) => ({ amp: "&", lt: "<", gt: ">" })[entity] ?? "",
+	);
+
+/** Only formatter-owned structural markup and classes may enter the live DOM. */
+function safeFormattedHtml(html: string): string {
+	const template = document.createElement("template");
+	template.innerHTML = html;
+	const allowed = new Set(["DIV", "TABLE", "TBODY", "TR", "TD", "H1", "H2", "H3", "BR", "SPAN"]);
+	for (const element of template.content.querySelectorAll("*")) {
+		if (!allowed.has(element.tagName)) {
+			element.replaceWith(document.createTextNode(element.textContent ?? ""));
+			continue;
+		}
+		for (const attribute of Array.from(element.attributes))
+			if (attribute.name !== "class") element.removeAttribute(attribute.name);
+	}
+	return template.innerHTML;
+}
+
 export const parseChordPro = (
 	chordProText: string,
 	options: { mode?: ChordMode } = {},
 ): ParsedSong => {
 	const { mode = "standard" } = options;
 	const parser = new ChordProParser();
-	const song = parser.parse(chordProText);
+	const song = parser.parse(escapeHtmlText(chordProText));
 
 	// Convert notation if requested
 	if (mode !== "standard" && song.key) {
@@ -78,7 +102,7 @@ export const parseChordPro = (
 
 	// Use HtmlTableFormatter for better chord positioning
 	const formatter = new HtmlTableFormatter();
-	const html = formatter.format(song);
+	const html = safeFormattedHtml(formatter.format(song));
 
 	// Handle artist which can be string, string[], or null
 	let artist: string | null = null;
@@ -87,8 +111,8 @@ export const parseChordPro = (
 	}
 
 	return {
-		title: song.title || null,
-		artist,
+		title: song.title ? decodeHtmlText(song.title) : null,
+		artist: artist ? decodeHtmlText(artist) : null,
 		key: song.key?.toString() || null,
 		tempo: song.metadata.getSingle("tempo") || null,
 		html,

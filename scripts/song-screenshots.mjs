@@ -165,6 +165,9 @@ try {
 					),
 				);
 				return {
+					fitMs: Number(content.dataset.fitMs ?? 0),
+					fitCandidates: Number(content.dataset.fitCandidates ?? 0),
+					fitRuns: Number(content.dataset.fitRuns ?? 0),
 					invalid: !!content.querySelector(".song-view__raw"),
 					fontSize: parseFloat(getComputedStyle(content).fontSize),
 					columns: getComputedStyle(content).columnCount,

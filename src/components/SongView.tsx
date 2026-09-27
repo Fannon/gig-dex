@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
+import { readingHtml } from "../utils/readingLayout";
 import { findSongLayout, songContentFits } from "../utils/songLayout";
 import "./SongView.scss";
 
@@ -23,6 +24,15 @@ export const SongView = ({
 	const [transpose, setTranspose] = useState(0);
 	const [fontSize, setFontSize] = useState(fitToScreen ? 16 : 18);
 	const [autoSize, setAutoSize] = useState(fitToScreen);
+	const [minimumFontSize, setMinimumFontSize] = useState(() => {
+		try {
+			const value = Number(localStorage.getItem("song_minimum_font"));
+			return [12, 14, 16, 18, 20].includes(value) ? value : 12;
+		} catch {
+			return 12;
+		}
+	});
+	const [wrapLines, setWrapLines] = useState(true);
 	const [showChords, setShowChords] = useState(true);
 	const [chordMode, setChordMode] = useState<ChordMode>("standard");
 	const wrapperRef = useRef<HTMLElement>(null);
@@ -51,6 +61,14 @@ export const SongView = ({
 		}
 	}, [content, transpose, chordMode]);
 
+	const flowHtml = useMemo(() => readingHtml(parsed.html), [parsed.html]);
+	useEffect(() => {
+		try {
+			localStorage.setItem("song_minimum_font", String(minimumFontSize));
+		} catch {
+			/* Storage may be unavailable. */
+		}
+	}, [minimumFontSize]);
 	useEffect(() => {
 		onKeyChange?.(parsed.key);
 	}, [onKeyChange, parsed.key]);
@@ -74,28 +92,41 @@ export const SongView = ({
 		let disposed = false;
 		const measure = () => {
 			if (disposed || !wrapper.clientWidth || !wrapper.clientHeight) return;
+			const started = performance.now();
+			let candidates = 0;
+			contentEl.classList.remove("song-view__content--reading");
+			if (contentEl.querySelector(".reading-line")) contentEl.innerHTML = parsed.html;
 			contentEl.style.height = "100%";
 			const maxColumns = Math.max(1, Math.min(6, Math.floor(wrapper.clientWidth / 160)));
 			const result = parsed.error
-				? { fontSize: autoSize ? 18 : fontSize, columns: 1, fits: false }
+				? { fontSize: autoSize ? Math.max(18, minimumFontSize) : fontSize, columns: 1, fits: false }
 				: findSongLayout(
 						maxColumns,
 						(size, columns) => {
+							candidates++;
 							contentEl.style.fontSize = `${size}px`;
 							contentEl.style.columnCount = String(columns);
 							return songContentFits(contentEl);
 						},
 						autoSize ? undefined : fontSize,
+						minimumFontSize,
 					);
 			contentEl.style.fontSize = `${result.fontSize}px`;
 			contentEl.style.columnCount = String(result.columns);
 			contentEl.style.height = result.fits ? "100%" : "auto";
+			if (!result.fits && wrapLines && !parsed.error) {
+				contentEl.innerHTML = flowHtml;
+				contentEl.classList.add("song-view__content--reading");
+			}
 			setLayout((previous) =>
 				previous.columns === result.columns && previous.fits === result.fits
 					? previous
 					: { columns: result.columns, fits: result.fits },
 			);
 			if (autoSize) setFontSize(result.fontSize);
+			contentEl.dataset.fitMs = (performance.now() - started).toFixed(2);
+			contentEl.dataset.fitCandidates = String(candidates);
+			contentEl.dataset.fitRuns = String(Number(contentEl.dataset.fitRuns ?? 0) + 1);
 			setMeasuring(false);
 		};
 		const schedule = () => {
@@ -113,7 +144,17 @@ export const SongView = ({
 			observer.disconnect();
 			document.fonts.removeEventListener("loadingdone", schedule);
 		};
-	}, [fitToScreen, autoSize, fontSize, parsed.html, parsed.error, showChords]);
+	}, [
+		fitToScreen,
+		autoSize,
+		fontSize,
+		minimumFontSize,
+		parsed.html,
+		parsed.error,
+		showChords,
+		wrapLines,
+		flowHtml,
+	]);
 
 	// Update parent with transposed content if needed
 	useEffect(() => {
@@ -141,7 +182,7 @@ export const SongView = ({
 	};
 
 	const contentProps = {
-		className: `song-view__content ${!showChords ? "song-view__content--hide-chords" : ""}`,
+		className: `song-view__content ${!layout.fits && wrapLines ? "song-view__content--reading" : ""} ${!showChords ? "song-view__content--hide-chords" : ""}`,
 		ref: contentRef,
 		style: {
 			fontSize: `${fontSize}px`,
@@ -234,6 +275,33 @@ export const SongView = ({
 						</button>
 					</div>
 				</div>
+				{fitToScreen && (
+					<label className="song-view__control-group">
+						<span className="song-view__control-label">Minimum font</span>
+						<select
+							aria-label="Minimum font"
+							className="song-view__select"
+							value={minimumFontSize}
+							onChange={(event) => setMinimumFontSize(Number(event.target.value))}
+						>
+							{[12, 14, 16, 18, 20].map((size) => (
+								<option key={size} value={size}>
+									{size}px
+								</option>
+							))}
+						</select>
+					</label>
+				)}
+				{!layout.fits && !parsed.error && (
+					<label className="song-view__control-group">
+						<input
+							type="checkbox"
+							checked={wrapLines}
+							onChange={(event) => setWrapLines(event.target.checked)}
+						/>
+						<span className="song-view__control-label">Wrap lines</span>
+					</label>
+				)}
 				<output className="song-view__layout-status">
 					{layout.fits
 						? `${layout.columns} ${layout.columns === 1 ? "column" : "columns"}`
@@ -258,7 +326,7 @@ export const SongView = ({
 					<div
 						{...contentProps}
 						// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
-						dangerouslySetInnerHTML={{ __html: parsed.html }}
+						dangerouslySetInnerHTML={{ __html: !layout.fits && wrapLines ? flowHtml : parsed.html }}
 					/>
 				)}
 			</section>

@@ -82,6 +82,8 @@ $font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica N
     }
   }
 
+  &__select { color: white; background: #25253b; border: 1px solid #57516f; border-radius: 6px; padding: .35rem; }
+
   &__value {
     min-width: 36px;
     text-align: center;
@@ -154,6 +156,17 @@ $font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica N
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-size: inherit;
+  }
+
+
+  &__content--reading {
+    .reading-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: .25em; }
+    .chord-word { display: inline-flex; align-items: flex-end; }
+    .chord-fragment { display: inline-flex; flex-direction: column; justify-content: flex-end; }
+    .chord:empty { padding-right: 0; }
+    .chord:empty::before { content: '\00a0'; }
+    td, .label, .comment { white-space: normal; overflow-wrap: anywhere; }
+    table { max-width: 100%; }
   }
 
   // Wrapper for measuring available space

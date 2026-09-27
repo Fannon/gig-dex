@@ -135,3 +135,16 @@ describe("chordEngine", () => {
 		});
 	});
 });
+
+it("renders user lyrics, titles, comments and labels as literal text without executable markup", () => {
+	const parsed = parseChordPro(
+		'{title: <img src=x onerror=alert(1)>}\n{start_of_verse: <svg onload=alert(1)>}\n[C]Words <img src=x onerror=alert(1)> & symbols\n{comment: <script>alert(1)</script>}\n{textcolour: red" onmouseover="alert(1)}\n[G]Last line\n{end_of_verse}',
+	);
+	const element = document.createElement("div");
+	element.innerHTML = parsed.html;
+	expect(
+		element.querySelector("img, svg, script, [onerror], [onload], [onmouseover], [style]"),
+	).toBeNull();
+	expect(element.textContent).toContain("Words <img src=x onerror=alert(1)> & symbols");
+	expect(parsed.title).toBe("<img src=x onerror=alert(1)>");
+});

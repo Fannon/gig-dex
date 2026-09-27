@@ -9,16 +9,21 @@ export function findSongLayout(
 	maxColumns: number,
 	fits: (fontSize: number, columns: number) => boolean,
 	manualFontSize?: number,
+	minimumFontSize = 12,
 ): SongLayout {
 	// Column fragmentation is not monotonic: an oversized section can start splitting
 	// at a larger size. A descending search avoids binary-search false negatives.
-	for (let fontSize = manualFontSize ?? 36; fontSize >= (manualFontSize ?? 12); fontSize--) {
+	for (
+		let fontSize = manualFontSize ?? 36;
+		fontSize >= (manualFontSize ?? minimumFontSize);
+		fontSize--
+	) {
 		for (let columns = 1; columns <= maxColumns; columns++) {
 			if (fits(fontSize, columns)) return { fontSize, columns, fits: true };
 		}
 	}
 	// Readable scrolling is preferable to silently clipping content at the minimum size.
-	return { fontSize: manualFontSize ?? 18, columns: 1, fits: false };
+	return { fontSize: manualFontSize ?? Math.max(18, minimumFontSize), columns: 1, fits: false };
 }
 
 /** Check every chord/lyric pair, including overflow into implicit extra CSS columns. */

@@ -132,3 +132,17 @@ verification remains necessary with a configured account.
 Revision joins respect [Drive's custom property limits](https://developers.google.com/workspace/drive/api/guides/properties);
 large joins use intermediate revisions. Normal local editing and previewing do
 not connect to Drive.
+
+### Reading long songs
+
+Songs that cannot fit at the automatic minimum font use a readable scroll view.
+Wrap lines is enabled there by default: words stay intact, and chords stay above
+their corresponding lyric fragments, including changes inside words. Disable it
+for the original unbroken lines. Set Minimum font to 12–20px; that preference is
+remembered locally. Setlist previews also use this reading layout.
+
+Lyrics, labels and comments are rendered as literal text; user-authored HTML and
+inline style attributes cannot enter the live song DOM. Display font and color
+come from the app's controls and stylesheet. Source ChordPro remains unchanged.
+Screenshot metrics include fitting time, candidate count and fitting pass count
+for performance comparisons on the same songs and viewports.

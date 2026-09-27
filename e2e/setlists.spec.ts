@@ -60,6 +60,7 @@ test("browse and create a tagged setlist, persist details, and delete it", async
 	await page.getByRole("button", { name: "Edit details" }).click();
 	await page.getByRole("dialog").getByLabel("Description").fill("Saturday night");
 	await page.getByRole("button", { name: "Save changes" }).click();
+	await expect(page.getByRole("dialog", { name: "Edit setlist" })).not.toBeVisible();
 	await page.reload();
 	await expect(page.getByRole("region", { name: "Setlist content" })).toContainText(
 		"Saturday night",
@@ -179,7 +180,8 @@ for (const viewport of [
 		await wrapper.evaluate((element) => {
 			element.scrollTop = element.scrollHeight;
 		});
-		await expect(page.getByText("Final harbor line", { exact: true })).toBeInViewport();
+		await expect(page.locator(".reading-line").last()).toContainText("Final harbor line");
+		await expect(page.locator(".reading-line").last()).toBeInViewport();
 		await wrapper.evaluate((element) => {
 			element.scrollTop = 0;
 		});
