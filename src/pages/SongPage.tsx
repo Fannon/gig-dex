@@ -39,7 +39,7 @@ type EditorMode = "simple" | "advanced";
 export const SongPage = () => {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
-	const { currentSetlistId, currentSetlist, setlists, selectCurrentSetlist } =
+	const { currentSetlistId, currentSetlist, songSetCounts, selectCurrentSetlist } =
 		useOutletContext<LibraryWorkspaceContext>();
 	const [addingToSet, setAddingToSet] = useState(false);
 	const [setMessage, setSetMessage] = useState("");
@@ -418,7 +418,7 @@ export const SongPage = () => {
 							className="song-page__set-count"
 							to={`/setlists?q=${encodeURIComponent(id ?? "")}`}
 						>
-							In {setlists.filter((list) => list.songIds.includes(id ?? "")).length} Sets
+							In {songSetCounts.get(id ?? "") ?? 0} Sets
 						</Link>
 						<span className="song-page__meta-tag">
 							{settingLabel(

@@ -5,10 +5,12 @@ import { DataManagement } from "../components/DataManagement";
 import { PwaSettings } from "../components/PwaSettings";
 import { syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
+import { applyMinimumFontSize, minimumFontSizes, savedMinimumFontSize } from "../utils/readingFont";
 import { applyReadingTheme, type ReadingTheme, savedReadingTheme } from "../utils/readingTheme";
 import "./SettingsPage.scss";
 
 export const SettingsPage = () => {
+	const [minimumFontSize, setMinimumFontSize] = useState(savedMinimumFontSize);
 	const [readingTheme, setReadingTheme] = useState(savedReadingTheme);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>(syncManager.getStatus());
 
@@ -16,7 +18,7 @@ export const SettingsPage = () => {
 		<div className="settings-page">
 			<main className="settings-page__content">
 				<h1>Settings</h1>
-				<section className="settings-page__section">
+				<section className="settings-page__section settings-page__appearance">
 					<h2>Appearance</h2>
 					<label>
 						Theme{" "}
@@ -34,6 +36,28 @@ export const SettingsPage = () => {
 							<option value="light">Light</option>
 						</select>
 					</label>
+					<label>
+						Minimum font
+						<select
+							aria-label="Minimum font"
+							value={minimumFontSize}
+							onChange={(event) => {
+								const value = Number(event.target.value);
+								setMinimumFontSize(value);
+								applyMinimumFontSize(value);
+							}}
+						>
+							{minimumFontSizes.map((size) => (
+								<option key={size} value={size}>
+									{size}px
+								</option>
+							))}
+						</select>
+					</label>
+					<p className="settings-page__hint">
+						Smallest text used when fitting songs to this screen. Longer songs scroll when they
+						cannot fit at this size.
+					</p>
 				</section>
 				<DataManagement />
 

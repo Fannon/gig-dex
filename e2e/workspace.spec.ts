@@ -463,9 +463,7 @@ test("Add to Set creates one dated set when none is selected and then appends to
 	await page.screenshot({ path: "reports/workspace/add-to-set-phone.png" });
 });
 
-test("search pops out beneath the top-right button with larger text and outside dismissal", async ({
-	page,
-}) => {
+test("centered search keeps larger text and outside dismissal", async ({ page }) => {
 	await seed(page);
 	await page.getByRole("button", { name: /Search songs & setlists/ }).click();
 	const dialog = page.getByRole("dialog", { name: "Search library" });
@@ -474,11 +472,11 @@ test("search pops out beneath the top-right button with larger text and outside 
 	await input.fill("Lantern");
 	await expect(dialog.getByRole("link")).toHaveCount(2);
 	const bounds = await dialog.boundingBox();
-	expect(bounds?.y).toBe(62);
-	expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBe((page.viewportSize()?.width ?? 0) - 16);
+	expect((bounds?.y ?? 0) + (bounds?.height ?? 0) / 2).toBe((page.viewportSize()?.height ?? 0) / 2);
+	expect((bounds?.x ?? 0) + (bounds?.width ?? 0) / 2).toBe((page.viewportSize()?.width ?? 0) / 2);
 	await expect(input).toHaveCSS("font-size", "18px");
 	await screenshots();
-	await page.screenshot({ path: "reports/workspace/search-popout.png" });
+	await page.screenshot({ path: "reports/workspace/search-centered.png" });
 	await page.mouse.click(30, 100);
 	await expect(dialog).not.toBeVisible();
 	await page.keyboard.press("Control+k");
@@ -487,7 +485,7 @@ test("search pops out beneath the top-right button with larger text and outside 
 	const phone = await dialog.boundingBox();
 	expect(phone?.x).toBe(8);
 	expect((phone?.x ?? 0) + (phone?.width ?? 0)).toBe(382);
-	await page.screenshot({ path: "reports/workspace/search-popout-phone.png" });
+	await page.screenshot({ path: "reports/workspace/search-centered-phone.png" });
 	await page.keyboard.press("Escape");
 	await expect(dialog).not.toBeVisible();
 });

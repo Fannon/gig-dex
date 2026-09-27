@@ -220,9 +220,14 @@ test("wraps wide phone lyrics at word boundaries with all chords preserved and r
 		.poll(() => wrapper.evaluate((element) => element.scrollWidth > element.clientWidth))
 		.toBe(true);
 	await page.getByLabel("Wrap lines").check();
+	const songUrl = page.url();
+	await expect(page.getByLabel("Minimum font", { exact: true })).toHaveCount(0);
+	await expect(page.locator(".song-view__layout-status")).toHaveCount(0);
+	await page.goto("./settings");
 	await page.getByLabel("Minimum font", { exact: true }).selectOption("20");
 	await page.reload();
 	await expect(page.getByLabel("Minimum font", { exact: true })).toHaveValue("20");
+	await page.goto(songUrl);
 	await expect(page.locator(".song-view__value").nth(1)).toHaveText("20px");
 	await wrapper.evaluate((element) => {
 		element.scrollTop = element.scrollHeight;

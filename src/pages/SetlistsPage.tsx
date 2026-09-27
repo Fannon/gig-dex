@@ -16,6 +16,7 @@ import {
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { displayCalendarDate, isCalendarDate, localCalendarDate } from "../utils/calendarDate";
+import { matchesLibrarySearch } from "../utils/librarySearch";
 import {
 	defaultSongSetting,
 	occurrenceContent,
@@ -102,18 +103,14 @@ export const SetlistsPage = () => {
 		return b.lastModified.localeCompare(a.lastModified) || collator.compare(a.name, b.name);
 	});
 	const tags = [...new Set(setlists.flatMap((list) => list.tags ?? []))].sort(collator.compare);
-	const terms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+
 	const filtered = ordered.filter((list) => {
 		const text = [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])]
 			.join(" ")
 			.toLocaleLowerCase();
 		return (
 			(!tag || list.tags?.includes(tag)) &&
-			terms.every((term) =>
-				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(term)
-					? list.songIds.some((songId) => songId.toLowerCase() === term)
-					: text.includes(term),
-			)
+			matchesLibrarySearch(text, list.tags ?? [], search, list.songIds)
 		);
 	});
 	const selected = setlists.find((list) => list.id === id) ?? (!id ? filtered[0] : undefined);
@@ -145,11 +142,7 @@ export const SetlistsPage = () => {
 			const text = [song.title, song.subtitle ?? "", song.artist, ...song.tags]
 				.join(" ")
 				.toLocaleLowerCase();
-			return songSearch
-				.trim()
-				.toLocaleLowerCase()
-				.split(/\s+/)
-				.every((term) => text.includes(term));
+			return matchesLibrarySearch(text, song.tags, songSearch);
 		})
 		.sort((a, b) => collator.compare(a.title, b.title));
 
@@ -450,19 +443,22 @@ export const SetlistsPage = () => {
 							<div className="setlists-page__detail-header">
 								<div className="setlists-page__eyebrow">
 									SETLIST · {selected.songIds.length} SONGS
+									{selected.date && (
+										<>
+											{" "}
+											· <time dateTime={selected.date}>{displayCalendarDate(selected.date)}</time>
+										</>
+									)}
 								</div>
 								<h2>{selected.name}</h2>
-								{selected.date && (
-									<p>
-										<time dateTime={selected.date}>{displayCalendarDate(selected.date)}</time>
-									</p>
-								)}
 								{selected.description && <p>{selected.description}</p>}
-								<div className="setlists-page__tags">
-									{selected.tags?.map((value) => (
-										<span key={value}>{value}</span>
-									))}
-								</div>
+								{!!selected.tags?.length && (
+									<div className="setlists-page__tags">
+										{selected.tags?.map((value) => (
+											<span key={value}>{value}</span>
+										))}
+									</div>
+								)}
 								<div className="setlists-page__actions">
 									{selected.songIds.length > 0 && (
 										<Link className="setlists-page__perform" to={`/perform/setlist/${selected.id}`}>
@@ -490,18 +486,18 @@ export const SetlistsPage = () => {
 									<button type="button" className="danger" disabled={busy} onClick={remove}>
 										Delete setlist
 									</button>
+									<button
+										type="button"
+										className="primary"
+										disabled={busy}
+										onClick={() => {
+											setSongSearch("");
+											setAddingSongs(true);
+										}}
+									>
+										Add songs
+									</button>
 								</div>
-								<button
-									type="button"
-									className="primary"
-									disabled={busy}
-									onClick={() => {
-										setSongSearch("");
-										setAddingSongs(true);
-									}}
-								>
-									Add songs
-								</button>
 							</div>
 							<ol
 								className="setlists-page__songs"

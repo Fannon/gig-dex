@@ -39,7 +39,7 @@
 }
 .library-sidebar__song-row { display: flex; align-items: center; gap: 4px; a { flex: 1; min-width: 0; overflow-wrap: anywhere; } > button { min-width: 36px; min-height: 36px; } }
 .library-sidebar__current-name { margin: 0; padding: 6px 8px; font-size: 14px; color: var(--color-accent); }
- .workspace-search { position: fixed; inset: 62px 16px auto auto; margin: 0; width: min(640px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: min(650px, calc(100dvh - 74px)); padding: 18px; font-size: 16px;
+ .workspace-search { position: fixed; inset: 0; margin: auto; width: min(640px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: min(650px, calc(100dvh - 74px)); padding: 18px; font-size: 16px;
  &::backdrop { background: #0005; }
  header h2 { font-size: 18px; margin: 0; } header { margin-bottom: 12px; } header button { padding: 6px 10px; font-size: 20px; }
  input { padding: 12px; font-size: 18px; }
@@ -47,7 +47,7 @@
  &__results a { padding: 12px 6px; gap: 12px; } &__results small { font-size: 14px; margin-top: 4px; }
  &__type { flex-basis: 58px; padding: 5px; font-size: 13px; }
 }
-@media (max-width: 650px) { .workspace-search { right: 8px; width: calc(100vw - 16px); max-width: calc(100vw - 16px); padding: 14px; } }
+@media (max-width: 650px) { .workspace-search { inset: 0; width: calc(100vw - 16px); max-width: calc(100vw - 16px); padding: 14px; } }
 
 .library-sidebar__current-date { padding: 0 8px; color: var(--text-secondary); font-size: 12px; }
 .library-sidebar__heading > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -81,3 +81,8 @@
 .library-sidebar__drop-remove { min-height: 32px; padding: 7px; font-size: .7rem; color: #a57878; border: 1px dashed #a5787840; border-radius: 6px; }
 
 .library-sidebar__drop-remove[data-active=true] { color: #fca5a5; background: #ef44441a; border-color: #ef4444; }
+
+.workspace-search__results a > span:not(.workspace-search__type):not(.workspace-search__set-count) { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.workspace-search mark { color: inherit; background: #fbbf2440; border-radius: 2px; }
+.workspace-search__set-count { flex-shrink: 0; font-size: .75rem; white-space: nowrap; color: var(--text-secondary); margin-left: auto; }
+@media (max-width: 650px) { .workspace-search__results a { flex-wrap: wrap; gap: 8px; } .workspace-search__set-count { margin-left: 66px; } }

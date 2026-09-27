@@ -53,7 +53,6 @@
   &__preview { background: #09091744; }
   &__preview-header { padding: 1.35rem 1.25rem 1rem; position: relative; flex-shrink: 0; h2 { font-size: 1.25rem; margin: .3rem 0; overflow-wrap: anywhere; } p { color: #a0a0b9; font-size: .85rem; margin: .25rem 0 .5rem; } a { color: #c2bbfc; font-size: .8rem; } }
   &__preview .song-view__controls { gap: .5rem; }
-  &__preview .song-view__layout-status { display: none; }
   &__empty { padding: 2rem 1rem; color: #a0a0b9; text-align: center; font-size: .9rem; h2, h3 { color: #d8d8e6; font-size: 1.1rem; } }
   &__error { background: #792d2d; padding: .6rem 1.25rem; margin: 0; font-size: .85rem; }
   &__tabs { display: none; }
@@ -89,3 +88,7 @@
 
 .setlists-page__header { min-height: 54px; padding: .5rem .65rem; gap: .5rem; background: #0000004d; border-bottom-color: #ffffff14; h1 { font-size: 1.1rem; font-weight: 700; } .setlists-page__add { min-height: 38px; padding: .4rem .75rem; font-size: .8rem; border: 1px solid #ffffff14; background: #ffffff1a; } }
 .setlists-page__drop-remove { min-height: 32px; padding: .5rem .65rem; margin-top: .3rem; font-size: .75rem; color: #a57878; border: 1px dashed #a5787840; border-radius: 8px; &[data-active=true] { color: #fca5a5; background: #ef44441a; border-color: #ef4444; } }
+
+.setlists-page__detail-header { padding: .7rem .7rem .6rem; h2 { margin: .25rem 0; } p { margin: .3rem 0; } .setlists-page__tags { margin-top: .3rem; } }
+.setlists-page__actions { margin: .6rem 0 0; gap: .35rem; }
+.setlists-page .setlists-page__actions > button, .setlists-page .setlists-page__actions > a { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 6px 10px; font-size: .8rem; line-height: 1.25; }

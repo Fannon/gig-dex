@@ -1,4 +1,12 @@
-import { type CSSProperties, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+	type CSSProperties,
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
 	getAllSetlists,
@@ -9,8 +17,10 @@ import {
 	type Song,
 	updateSetlist,
 } from "../db";
+import { matchesLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
+import { HighlightedText } from "./HighlightedText";
 import "./LibraryWorkspace.scss";
 
 const readPreference = (key: string, fallback = "") => {
@@ -27,12 +37,6 @@ const remember = (key: string, value: string) => {
 		/* Optional preferences. */
 	}
 };
-const matches = (text: string, query: string) =>
-	query
-		.trim()
-		.toLocaleLowerCase()
-		.split(/\s+/)
-		.every((term) => text.toLocaleLowerCase().includes(term));
 
 export interface LibraryWorkspaceContext {
 	performanceHost: HTMLDivElement | null;
@@ -40,6 +44,7 @@ export interface LibraryWorkspaceContext {
 	currentSetlistId: string | undefined;
 	currentSetlist: Setlist | undefined;
 	setlists: Setlist[];
+	songSetCounts: ReadonlyMap<string, number>;
 	selectCurrentSetlist: (id: string) => void;
 }
 
@@ -208,34 +213,63 @@ export function LibraryWorkspace() {
 		} else if (source.songId) void changeSetlist(source.songId, undefined, slot);
 	};
 	const songMap = new Map(songs.map((song) => [song.id, song]));
+	const songSetCounts = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const list of lists)
+			for (const id of new Set(list.songIds)) counts.set(id, (counts.get(id) ?? 0) + 1);
+		return counts;
+	}, [lists]);
 	const filteredSongs = songs.filter((song) =>
-		matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), songQuery),
+		matchesLibrarySearch(
+			[song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "),
+			song.tags,
+			songQuery,
+		),
 	);
 	const results = query.trim()
 		? [
 				...songs
 					.filter((song) =>
-						matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), query),
+						matchesLibrarySearch(
+							[song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "),
+							song.tags,
+							query,
+						),
 					)
 					.map((song) => ({
 						id: song.id,
 						label: song.title,
-						detail: [song.subtitle, song.artist].filter(Boolean).join(" · "),
-						type: "Song",
+						detail: [
+							song.subtitle,
+							song.artist,
+							...song.tags.map((tag) => `#${tag.replace(/^#+/, "")}`),
+						]
+							.filter(Boolean)
+							.join(" · "),
+						type: "Song" as const,
+						setCount: songSetCounts.get(song.id) ?? 0,
 						url: `/song/${song.id}`,
 					})),
 				...lists
 					.filter((list) =>
-						matches(
+						matchesLibrarySearch(
 							[list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])].join(" "),
+							list.tags ?? [],
 							query,
+							list.songIds,
 						),
 					)
 					.map((list) => ({
 						id: list.id,
 						label: list.name,
-						detail: [list.date, ...(list.tags ?? [])].filter(Boolean).join(" · "),
-						type: "Setlist",
+						detail: [
+							list.date,
+							list.description,
+							...(list.tags ?? []).map((tag) => `#${tag.replace(/^#+/, "")}`),
+						]
+							.filter(Boolean)
+							.join(" · "),
+						type: "Setlist" as const,
 						url: `/setlist/${list.id}`,
 					})),
 			]
@@ -604,6 +638,7 @@ export function LibraryWorkspace() {
 									currentSetlistId: current?.id,
 									currentSetlist: current,
 									setlists: lists,
+									songSetCounts,
 									selectCurrentSetlist,
 								} satisfies LibraryWorkspaceContext
 							}
@@ -641,7 +676,7 @@ export function LibraryWorkspace() {
 				<input
 					ref={search}
 					aria-label="Search songs and setlists"
-					placeholder="Title, artist, description or tags…"
+					placeholder="Title, artist, or #tag…"
 					value={query}
 					onChange={(event) => setQuery(event.target.value)}
 					onKeyDown={(event) => {
@@ -676,9 +711,16 @@ export function LibraryWorkspace() {
 								{result.type}
 							</span>
 							<span>
-								<strong>{result.label}</strong>
-								<small>{result.detail}</small>
+								<strong>
+									<HighlightedText text={result.label} query={query} />
+								</strong>
+								<small>
+									<HighlightedText text={result.detail} query={query} />
+								</small>
 							</span>
+							{result.type === "Song" && (
+								<span className="workspace-search__set-count">In {result.setCount} Sets</span>
+							)}
 						</Link>
 					))}
 					{!!query.trim() && !results.length && <p>No matches. Try another title or tag.</p>}

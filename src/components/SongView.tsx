@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSongReading } from "../hooks/useSongReading";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
+import { savedMinimumFontSize } from "../utils/readingFont";
 import { readingHtml } from "../utils/readingLayout";
 import { savedReadingTheme } from "../utils/readingTheme";
 import { createSongFitChecker, findSongLayout } from "../utils/songLayout";
@@ -47,14 +48,16 @@ export const SongView = ({
 	};
 	const [fontSize, setFontSize] = useState(fitToScreen ? 16 : 18);
 	const [autoSize, setAutoSize] = useState(fitToScreen);
-	const [minimumFontSize, setMinimumFontSize] = useState(() => {
-		try {
-			const value = Number(localStorage.getItem("song_minimum_font"));
-			return [12, 14, 16, 18, 20].includes(value) ? value : 12;
-		} catch {
-			return 12;
-		}
-	});
+	const [minimumFontSize, setMinimumFontSize] = useState(savedMinimumFontSize);
+	useEffect(() => {
+		const update = () => setMinimumFontSize(savedMinimumFontSize());
+		window.addEventListener("reading-font-changed", update);
+		window.addEventListener("storage", update);
+		return () => {
+			window.removeEventListener("reading-font-changed", update);
+			window.removeEventListener("storage", update);
+		};
+	}, []);
 	const [wrapLines, setWrapLines] = useState(true);
 	const [showChords, setShowChords] = useState(true);
 	const [chordMode, setChordMode] = useState<ChordMode>("standard");
@@ -95,13 +98,7 @@ export const SongView = ({
 	}, [content, transpose, chordMode]);
 
 	const flowHtml = useMemo(() => readingHtml(parsed.html), [parsed.html]);
-	useEffect(() => {
-		try {
-			localStorage.setItem("song_minimum_font", String(minimumFontSize));
-		} catch {
-			/* Storage may be unavailable. */
-		}
-	}, [minimumFontSize]);
+
 	useEffect(() => {
 		onKeyChange?.(parsed.key);
 	}, [onKeyChange, parsed.key]);
@@ -328,23 +325,6 @@ export const SongView = ({
 							</button>
 						</div>
 					</div>
-					{fitToScreen && (
-						<label className="song-view__control-group">
-							<span className="song-view__control-label">Minimum font</span>
-							<select
-								aria-label="Minimum font"
-								className="song-view__select"
-								value={minimumFontSize}
-								onChange={(event) => setMinimumFontSize(Number(event.target.value))}
-							>
-								{[12, 14, 16, 18, 20].map((size) => (
-									<option key={size} value={size}>
-										{size}px
-									</option>
-								))}
-							</select>
-						</label>
-					)}
 					{!layout.fits && !parsed.error && (
 						<label className="song-view__control-group">
 							<input
@@ -355,11 +335,6 @@ export const SongView = ({
 							<span className="song-view__control-label">Wrap lines</span>
 						</label>
 					)}
-					<output className="song-view__layout-status">
-						{layout.fits
-							? `${layout.columns} ${layout.columns === 1 ? "column" : "columns"}`
-							: "Scroll to see the whole song"}
-					</output>
 				</div>
 			)}
 

@@ -2,6 +2,7 @@ import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 import type { SyncMetadata } from "./sync/types";
+import { matchesLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
 // Contains ALL ChordPro metadata fields for full compatibility
@@ -262,13 +263,12 @@ export const getAllSongs = async (): Promise<Song[]> => {
 
 export const searchSongs = async (query: string): Promise<Song[]> => {
 	const songs = await getAllSongs();
-	const lowerQuery = query.toLowerCase();
-	return songs.filter(
-		(song) =>
-			song.title.toLowerCase().includes(lowerQuery) ||
-			song.artist.toLowerCase().includes(lowerQuery) ||
-			song.subtitle?.toLowerCase().includes(lowerQuery) ||
-			song.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)),
+	return songs.filter((song) =>
+		matchesLibrarySearch(
+			[song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "),
+			song.tags,
+			query,
+		),
 	);
 };
 
