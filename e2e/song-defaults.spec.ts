@@ -72,6 +72,7 @@ test("song default and alternative title persist, while new entries copy the def
 	await page.getByRole("button", { name: "Edit", exact: true }).click();
 	await page.getByLabel("Alternative title", { exact: true }).fill("");
 	await page.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(page.getByRole("button", { name: "Edit", exact: true })).toBeVisible();
 	await page.reload();
 	await page.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.getByLabel("Alternative title", { exact: true })).toHaveValue("");
