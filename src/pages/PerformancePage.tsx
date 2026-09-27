@@ -3,12 +3,16 @@ import { Link, useParams } from "react-router-dom";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
 import { getAllSongs, getSetlist, type Song } from "../db";
+import { useWakeLock } from "../hooks/useWakeLock";
+import { blockPwaUpdate } from "../pwa/lifecycle";
 import { extractMetadata } from "../utils/chordEngine";
 import "./PerformancePage.scss";
 
 type Mode = "auto" | "scroll" | "pages";
 export const PerformancePage = () => {
 	const { id, listId } = useParams();
+	const awake = useWakeLock();
+	useEffect(() => blockPwaUpdate(), []);
 	const root = useRef<HTMLDivElement>(null);
 	const [songs, setSongs] = useState<(Song | undefined)[]>([]);
 	const [order, setOrder] = useState<string[]>([]);
@@ -99,6 +103,17 @@ export const PerformancePage = () => {
 				</button>
 			</header>
 			<div className="performance-page__options">
+				<button type="button" aria-pressed={awake.enabled} onClick={awake.toggle}>
+					Keep screen awake
+				</button>
+				{awake.enabled && (
+					<span className="performance-page__wake-status">Screen: {awake.status}</span>
+				)}
+				{awake.enabled && awake.status.includes("Retry") && (
+					<button type="button" onClick={awake.retry}>
+						Retry wake lock
+					</button>
+				)}
 				<label>
 					Reading{" "}
 					<select

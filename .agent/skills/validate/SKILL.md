@@ -111,3 +111,24 @@ to a remote version after acknowledgement or review. Retention checks must prove
 that previews do not mutate, stale plans/concurrency failures stop cleanup, heads
 and branches survive, and interruption cannot expose older history as current.
 Report mocked coverage separately from live account/consent verification.
+
+## PWA lifecycle
+
+Changes to service workers, registration, updates, storage or recovery require
+production checks, not just the development browser suite. Match the build's
+`VITE_BASE_PATH` when starting preview as well as when running Playwright:
+
+```bash
+VITE_BASE_PATH=/gig-dex/ npm run build
+VITE_BASE_PATH=/gig-dex/ npm run preview -- --port 5177
+VITE_BASE_PATH=/gig-dex/ PLAYWRIGHT_URL=http://localhost:5177/gig-dex/ npm run test:e2e -- e2e/production.spec.ts e2e/pwa-production.spec.ts --workers=1
+```
+
+The upgrade fixture changes HTML and its actual precache revision between two
+production deployment snapshots. Verify waiting updates cannot activate during
+performance, dirty editing, sync or cleanup, including busy tabs. Cold offline
+relaunch and cache repair must preserve the library and reading preferences;
+repair must leave unrelated caches intact and stop before mutation if unreachable.
+Capture phone settings and tablet performance screenshots under `reports/pwa/`.
+Wake-lock checks cover denial/retry, visibility return, late acquisition and exit.
+Browser mocks do not replace testing installed Chrome on a physical Android tablet.

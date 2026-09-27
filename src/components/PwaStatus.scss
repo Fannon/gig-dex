@@ -1,0 +1,6 @@
+.pwa-status { flex-shrink: 0; width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .6rem; padding: .65rem .9rem; background: #23213b; border: 1px solid #897ae0;  font-size: .85rem;
+  button { background: #5143b7; color: white; min-height: 44px; padding: .5rem .75rem; &:disabled { opacity: .5; } }
+}
+.pwa-settings { p { color: #b9b6cc; line-height: 1.5; } dl { display: grid; grid-template-columns: minmax(90px, 1fr) 2fr; gap: .6rem; font-size: .9rem; } dd { margin: 0; overflow-wrap: anywhere; } &__actions { display: flex; flex-wrap: wrap; gap: .6rem; button { background: #5143b7; color: white; min-height: 44px; padding: .6rem .8rem; &:disabled { opacity: .5; } } } details { margin-top: 1rem; summary { cursor: pointer; min-height: 44px; padding-top: .5rem; } } }
+
+.pwa-recovery { max-width: 650px; margin: auto; padding: 2rem; p { line-height: 1.5; } a, button { display: inline-flex; align-items: center; margin: .4rem; min-height: 44px; padding: .6rem .8rem; background: #5143b7; color: white; border-radius: .5rem; &:disabled { opacity: .5; } } }

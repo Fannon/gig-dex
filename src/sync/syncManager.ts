@@ -1,4 +1,5 @@
 import { getAllSetlists, getAllSongs, initDB } from "../db";
+import { blockPwaUpdate } from "../pwa/lifecycle";
 import { parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import { recordFingerprint } from "../utils/recordFingerprint";
 import {
@@ -24,10 +25,13 @@ export class SyncManager {
 	static async exclusive<T>(operation: () => Promise<T>): Promise<T> {
 		if (SyncManager.busy) throw new Error("Another sync or cleanup is running. Please wait.");
 		SyncManager.busy = true;
+		const releaseUpdate = blockPwaUpdate();
 		try {
 			return await operation();
 		} finally {
 			SyncManager.busy = false;
+			releaseUpdate();
+			window.dispatchEvent(new Event("gigdex-library-change"));
 		}
 	}
 	private status: SyncStatus = {
@@ -53,6 +57,7 @@ export class SyncManager {
 			return;
 		}
 		SyncManager.busy = true;
+		const releaseUpdate = blockPwaUpdate();
 		this.status.isSyncing = true;
 		this.status.error = null;
 		try {
@@ -86,6 +91,8 @@ export class SyncManager {
 		} finally {
 			this.status.isSyncing = false;
 			SyncManager.busy = false;
+			releaseUpdate();
+			window.dispatchEvent(new Event("gigdex-library-change"));
 		}
 	}
 	private async read(file: SyncMetadata): Promise<RemoteVersion> {

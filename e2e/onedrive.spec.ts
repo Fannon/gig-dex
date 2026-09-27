@@ -133,6 +133,22 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
 			});
 			return;
 		}
+		if (route.request().method() === "PUT") {
+			const content = route.request().postDataJSON();
+			const id = `upload${files.size}`;
+			const name = url.pathname.match(/gigdex-song-[^/]+\.json/)?.[0];
+			expect(name).toBeTruthy();
+			files.set(id, {
+				id,
+				name: name ?? "",
+				eTag: `etag-${id}`,
+				createdDateTime: new Date().toISOString(),
+				file: {},
+				content,
+			});
+			await route.fulfill({ json: { id } });
+			return;
+		}
 		const id = url.pathname.split("/").at(-1) ?? "";
 		const file = files.get(id);
 		if (route.request().method() === "DELETE") {
@@ -185,4 +201,20 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
 	await page.screenshot({ path: "reports/sync/onedrive-cleanup.png", fullPage: true });
 	await page.getByRole("link", { name: "Go back", exact: true }).click();
 	await expect(page.locator(".song-card__title")).toHaveText("OneDrive fixture");
+	await page.locator(".song-card").first().click();
+	await page.getByRole("button", { name: "Edit", exact: true }).click();
+	await context.setOffline(true);
+	await page.getByLabel("Title", { exact: true }).fill("Edited while offline");
+	await page.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(page.locator(".song-page__title")).toHaveText("Edited while offline");
+	await page.getByRole("link", { name: "Go back", exact: true }).click();
+	await expect(page.locator(".song-card__title")).toHaveText("Edited while offline");
+	await context.setOffline(false);
+	await page.getByRole("link", { name: /Settings/i }).click();
+	await host.getByRole("button", { name: "Sync Now", exact: true }).click();
+	await expect(host.getByRole("button", { name: "Sync Now", exact: true })).toBeEnabled();
+	await expect(host.getByRole("alert")).toHaveCount(0);
+	expect([...files.values()].some((file) => file.content.title === "Edited while offline")).toBe(
+		true,
+	);
 });

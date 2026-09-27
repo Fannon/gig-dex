@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CloudSync } from "../components/CloudSync";
 import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
+import { PwaSettings } from "../components/PwaSettings";
 import { syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
 import "./SettingsPage.scss";
@@ -30,6 +31,7 @@ export const SettingsPage = () => {
 			</header>
 
 			<main className="settings-page__content">
+				<PwaSettings />
 				<DataManagement />
 				<ConflictReview status={syncStatus} />
 

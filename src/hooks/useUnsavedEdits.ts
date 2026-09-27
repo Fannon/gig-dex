@@ -1,9 +1,19 @@
 import { useEffect, useRef } from "react";
 import { useBlocker } from "react-router-dom";
+import { blockPwaUpdate } from "../pwa/lifecycle";
 
 export function useUnsavedEdits(dirty: boolean) {
 	const dirtyRef = useRef(dirty);
 	dirtyRef.current = dirty;
+	const release = useRef<(() => void) | undefined>(undefined);
+	useEffect(() => {
+		if (!dirty) return;
+		release.current = blockPwaUpdate();
+		return () => {
+			release.current?.();
+			release.current = undefined;
+		};
+	}, [dirty]);
 	const handled = useRef(false);
 	const blocker = useBlocker(() => dirtyRef.current);
 	useEffect(() => {
@@ -27,5 +37,7 @@ export function useUnsavedEdits(dirty: boolean) {
 	}, [dirty]);
 	return () => {
 		dirtyRef.current = false;
+		release.current?.();
+		release.current = undefined;
 	};
 }

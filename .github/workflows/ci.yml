@@ -43,6 +43,20 @@ jobs:
           VITE_MICROSOFT_CLIENT_ID: ${{ vars.VITE_MICROSOFT_CLIENT_ID }}
           VITE_MICROSOFT_TENANT: ${{ vars.VITE_MICROSOFT_TENANT }}
 
+      - name: Verify production offline and update behavior
+        env:
+          VITE_BASE_PATH: /gig-dex/
+          PLAYWRIGHT_URL: http://localhost:5177/gig-dex/
+        run: |
+          bun run preview -- --port 5177 --strictPort > /tmp/gig-dex-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent "$PLAYWRIGHT_URL" > /dev/null; then break; fi
+            sleep 1
+          done
+          bun run test:e2e -- e2e/production.spec.ts e2e/pwa-production.spec.ts --workers=1 --output=reports/production-results --reporter=line
+
       - name: Upload Test Reports
         if: always()
         uses: actions/upload-artifact@v4

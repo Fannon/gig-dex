@@ -242,3 +242,55 @@ Local deletion markers and acknowledged snapshots are retained for offline devic
 and [OneDrive conditional deletion](https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0)
 determine recovery and concurrency behavior. Cloud trash follows host retention;
 exporting a library backup remains useful before cleanup.
+
+## Offline use on Android
+
+Install the production HTTPS app in Chrome using **⋮ → Add to home screen →
+Install**, then import a library backup or sync your songs. Settings → **Offline &
+installation** separates app download readiness, local songs/setlists (including
+missing song references), connection status, storage usage/protection, and the
+last backup export. Cloud status and last successful sync remain in Cloud Sync.
+An export timestamp records the download request; verify the backup file was saved.
+
+Use **Protect local storage** to request persistent storage. Browser approval
+varies; clearing site/app data still deletes the local library. Keep backups
+outside the app. In performance mode, **Keep screen awake** is remembered and
+reports Active, Released, or Unavailable; the app retries when returning to a
+visible page and offers manual Retry if the browser refuses. It releases the
+screen lock on exit. Browser/device power policy can still release it.
+
+Updates download in the background and require **Update and restart** to activate.
+Performance mode, unsaved edits, library imports/restores/exports, sync and
+revision cleanup defer activation.
+Web Locks coordinate busy tabs where supported; other browsers ask you to close
+other tabs. A controller change from an older tab never automatically reloads a
+busy reader. Remaining open tabs show a restart prompt. Updates preserve saved
+reading preferences and library data. Tabs running versions predating this update
+may retain their previous automatic-update behavior until reopened.
+
+**Repair downloaded app** verifies the host is reachable, then unregisters only
+this app's service worker and removes only its Workbox precache. It preserves
+IndexedDB, preferences, and unrelated caches. Close other tabs first. A route
+loading failure also offers recovery controls; if the main application itself
+cannot load at all, reopen its HTTPS URL online. The development server does not
+install a service worker and is not an offline deployment.
+
+Before a gig, verify app readiness and your local setlist, then enable airplane
+mode, close/reopen the installed app, and try performance navigation. Real-device
+checks remain necessary for Android installation, wake lock, and power management.
+
+Production offline/update checks run in CI after the regular verification suite:
+
+```bash
+VITE_BASE_PATH=/gig-dex/ npm run build
+VITE_BASE_PATH=/gig-dex/ npm run preview -- --port 5177
+# In another terminal:
+VITE_BASE_PATH=/gig-dex/ PLAYWRIGHT_URL=http://localhost:5177/gig-dex/ npm run test:e2e -- e2e/production.spec.ts e2e/pwa-production.spec.ts --workers=1
+```
+
+The upgrade check serves two deployment snapshots of the production build with
+changed HTML and Workbox precache revisions. It exercises waiting/activation,
+protection across tabs, cold offline relaunch, offline edits, and cache repair
+without changing `dist/`. For manual inspection, run
+`VITE_BASE_PATH=/gig-dex/ node scripts/pwa-upgrade-server.mjs`, open the printed URL,
+and press Enter in its terminal to serve deployment B. No private songs are used.

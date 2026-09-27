@@ -10,3 +10,9 @@ html, body, #root {
 }
 
 .app-loading { min-height: 100dvh; display: grid; place-items: center; color: #c2bbfc; }
+
+.app-shell { height: 100dvh; display: flex; flex-direction: column; }
+.app-route { flex: 1; min-height: 0; overflow: auto;
+  > .song-page, > .setlists-page { height: 100%; }
+  > .home-page, > .settings-page { min-height: 100%; }
+}

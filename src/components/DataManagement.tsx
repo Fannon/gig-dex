@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { blockPwaUpdate } from "../pwa/lifecycle";
 import {
 	exportLibrary,
 	type ImportResult,
@@ -17,6 +18,7 @@ export const DataManagement = () => {
 	const [mode, setMode] = useState<"merge" | "replace">("merge");
 	const [results, setResults] = useState<ImportResult[]>([]);
 	const run = async (action: () => Promise<void>) => {
+		const releaseUpdate = blockPwaUpdate();
 		setBusy(true);
 		setError("");
 		setMessage("");
@@ -26,6 +28,8 @@ export const DataManagement = () => {
 			setError(error instanceof Error ? error.message : "Could not complete this operation.");
 		} finally {
 			setBusy(false);
+			releaseUpdate();
+			window.dispatchEvent(new Event("gigdex-library-change"));
 		}
 	};
 	return (
@@ -45,6 +49,12 @@ export const DataManagement = () => {
 						link.href = url;
 						link.download = `gig-dex-backup-${new Date().toISOString().slice(0, 10)}.json`;
 						link.click();
+						try {
+							localStorage.setItem("last_backup_export", new Date().toISOString());
+						} catch {
+							/* Optional reminder. */
+						}
+						window.dispatchEvent(new Event("gigdex-backup-export"));
 						setTimeout(() => URL.revokeObjectURL(url), 1000);
 						setMessage(
 							`Backup downloaded: ${data.songs.length} songs and ${data.setlists.length} setlists.`,

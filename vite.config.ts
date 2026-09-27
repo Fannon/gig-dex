@@ -15,7 +15,8 @@ export default defineConfig({
 	plugins: [
 		react(),
 		VitePWA({
-			registerType: "autoUpdate",
+			registerType: "prompt",
+			injectRegister: false,
 			includeAssets: ["apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png"],
 			manifest: {
 				name: "Gig-Dex - Song & Setlist Manager",
@@ -47,6 +48,8 @@ export default defineConfig({
 				],
 			},
 			workbox: {
+				clientsClaim: true,
+				skipWaiting: false,
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
 			},
 		}),

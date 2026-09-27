@@ -1,5 +1,7 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
+import { PwaRecovery } from "./components/PwaRecovery";
+import { PwaStatus } from "./components/PwaStatus";
 import { HomePage } from "./pages/HomePage";
 import "./App.scss";
 
@@ -19,16 +21,22 @@ const PerformancePage = lazy(() =>
 const router = createBrowserRouter(
 	[
 		{
+			errorElement: <PwaRecovery />,
 			element: (
-				<Suspense
-					fallback={
-						<div className="app-loading">
-							<output>Loading…</output>
-						</div>
-					}
-				>
-					<Outlet />
-				</Suspense>
+				<div className="app-shell">
+					<PwaStatus />
+					<div className="app-route">
+						<Suspense
+							fallback={
+								<div className="app-loading">
+									<output>Loading…</output>
+								</div>
+							}
+						>
+							<Outlet />
+						</Suspense>
+					</div>
+				</div>
 			),
 			children: [
 				{ path: "/", element: <HomePage /> },
