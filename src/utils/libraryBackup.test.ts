@@ -1,0 +1,110 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { addSetlist, addSong, getAllSetlists, getAllSongs, initDB, updateSong } from "../db";
+import { exportLibrary, importChordPro, parseBackup, restoreLibrary } from "./libraryBackup";
+
+beforeEach(async () => {
+	const db = await initDB();
+	const tx = db.transaction(["songs", "setlists"], "readwrite");
+	await tx.objectStore("songs").clear();
+	await tx.objectStore("setlists").clear();
+	await tx.done;
+});
+async function seed() {
+	const id = await addSong({
+		title: "Original",
+		artist: "Artist",
+		content: "{title: Original}\n[C]Test",
+		composer: "Composer",
+		subtitle: undefined,
+		tags: ["folk"],
+	});
+	await addSetlist({ name: "Gig", tags: ["venue"], description: "Friday", songIds: [id, id] });
+	return id;
+}
+describe("library backups and imports", () => {
+	it("exports all metadata and repeated song references, and restores atomically", async () => {
+		await seed();
+		const backup = await exportLibrary();
+		expect(parseBackup(JSON.stringify(backup))).toEqual(backup);
+		await restoreLibrary(backup, "replace");
+		expect((await getAllSongs())[0]).toMatchObject({
+			composer: "Composer",
+			tags: ["folk"],
+			createdAt: backup.songs[0].createdAt,
+		});
+		expect((await getAllSetlists())[0]).toMatchObject({
+			description: "Friday",
+			tags: ["venue"],
+			songIds: backup.setlists[0].songIds,
+		});
+	});
+	it("merge skips identical records and preserves competing versions with remapped references", async () => {
+		const id = await seed();
+		const backup = await exportLibrary();
+		await restoreLibrary(backup, "merge");
+		expect(await getAllSongs()).toHaveLength(1);
+		expect(await getAllSetlists()).toHaveLength(1);
+		await updateSong(id, { title: "Local edit" });
+		await restoreLibrary(backup, "merge");
+		const songs = await getAllSongs();
+		const lists = await getAllSetlists();
+		expect(songs).toHaveLength(2);
+		expect(lists).toHaveLength(2);
+		const imported = songs.find((song) => song.title === "Original");
+		expect(imported?.id).not.toBe(id);
+		expect(lists.some((list) => list.songIds.every((songId) => songId === imported?.id))).toBe(
+			true,
+		);
+		expect(lists.some((list) => list.songIds.every((songId) => songId === id))).toBe(true);
+	});
+	it("rejects invalid backups before touching existing data", async () => {
+		await seed();
+		const original = await exportLibrary();
+		for (const invalid of [
+			{ ...original, version: 2 },
+			{ ...original, songs: [...original.songs, original.songs[0]] },
+			{ ...original, songs: [] },
+			{ ...original, songs: [{ ...original.songs[0], tags: [7] }] },
+		]) {
+			expect(() => parseBackup(JSON.stringify(invalid))).toThrow();
+		}
+		await expect(restoreLibrary({ ...original, songs: [] }, "replace")).rejects.toThrow();
+		expect((await exportLibrary()).songs).toEqual(original.songs);
+	});
+	it("rolls back all writes if a merge fails after its first write", async () => {
+		const id = await seed();
+		const backup = await exportLibrary();
+		await updateSong(id, { title: "Local edit" });
+		backup.songs.unshift({ ...backup.songs[0], id: "new", title: "New" });
+		const random = vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+			throw new Error("Failure");
+		});
+		try {
+			await expect(restoreLibrary(backup, "merge")).rejects.toThrow("Failure");
+		} finally {
+			random.mockRestore();
+		}
+		expect(await getAllSongs()).toHaveLength(1);
+		expect((await getAllSongs())[0].title).toBe("Local edit");
+	});
+	it("imports multiple ChordPro files, preserves source and metadata, skips duplicates and reports errors", async () => {
+		const text =
+			"{title: Harbor}\n{artist: Artist}\n{composer: Composer}\n{tags: acoustic, gig}\n[C]Original line";
+		const results = await importChordPro([
+			{ name: "one.cho", content: text },
+			{ name: "same.cho", content: text.replaceAll("\n", "\r\n") },
+			{ name: "empty.cho", content: "" },
+			{ name: "broken.cho", content: "{title: Repair}\n[C broken" },
+		]);
+		expect(results.filter((result) => result.status === "imported")).toHaveLength(2);
+		expect(results.find((result) => result.file === "same.cho")?.status).toBe("duplicate");
+		expect(results.find((result) => result.file === "empty.cho")?.status).toBe("error");
+		expect(results.find((result) => result.file === "broken.cho")?.message).toContain("raw text");
+		expect((await getAllSongs()).find((song) => song.title === "Harbor")).toMatchObject({
+			content: text,
+			composer: "Composer",
+			artist: "Artist",
+			tags: ["acoustic", "gig"],
+		});
+	});
+});

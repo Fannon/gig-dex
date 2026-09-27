@@ -14,11 +14,10 @@ test.describe("Settings Page", () => {
 
 		// Use more specific locators
 		await expect(
-			page.locator(".settings-page__option-text h3").filter({ hasText: "Export Songs" }),
+			page.locator(".settings-page__option-text h3").filter({ hasText: "Export library" }),
 		).toBeVisible();
-		await expect(
-			page.locator(".settings-page__option-text h3").filter({ hasText: "Import Songs" }),
-		).toBeVisible();
+		await expect(page.getByLabel("Restore backup")).toBeVisible();
+		await expect(page.getByLabel("Import ChordPro songs")).toBeVisible();
 	});
 
 	test("should display cloud sync section", async ({ page }) => {

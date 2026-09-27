@@ -4,6 +4,8 @@ function validCommon(value: unknown, expectedId: string): value is Record<string
 	if (!value || typeof value !== "object") return false;
 	const record = value as Record<string, unknown>;
 	return (
+		typeof record.id === "string" &&
+		record.id.trim().length > 0 &&
 		record.id === expectedId &&
 		[record.createdAt, record.lastModified].every(
 			(date) => typeof date === "string" && Number.isFinite(Date.parse(date)),
@@ -22,7 +24,15 @@ export function parseSyncedSong(content: string, expectedId: string): Song {
 		typeof value.title !== "string" ||
 		typeof value.artist !== "string" ||
 		typeof value.content !== "string" ||
-		!stringArray(value.tags)
+		!stringArray(value.tags) ||
+		["key", "time", "subtitle", "composer", "lyricist", "copyright", "album", "duration"].some(
+			(key) => value[key] !== undefined && typeof value[key] !== "string",
+		) ||
+		["tempo", "capo", "year"].some(
+			(key) =>
+				value[key] !== undefined &&
+				(typeof value[key] !== "number" || !Number.isFinite(value[key])),
+		)
 	) {
 		throw new Error("Invalid remote song data");
 	}

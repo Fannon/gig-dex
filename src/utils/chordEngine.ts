@@ -191,7 +191,8 @@ export const extractMetadata = (chordProText: string): SongMetadata => {
 
 	const getNum = (key: string): number | undefined => {
 		const val = song.metadata.getSingle(key);
-		return val ? parseInt(val, 10) : undefined;
+		const number = val ? Number.parseInt(val, 10) : NaN;
+		return Number.isFinite(number) ? number : undefined;
 	};
 
 	const getStr = (key: string): string | undefined => {

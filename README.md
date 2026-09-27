@@ -97,3 +97,17 @@ Browser checks capture synthetic workspace screenshots at desktop, tablet and
 phone sizes in ignored `reports/setlists/`. Run `npm run test:e2e -- e2e/setlists.spec.ts`.
 To test a deployment base path while leaving your live server running, use
 `VITE_BASE_PATH=/gig-dex/ PLAYWRIGHT_PORT=5176 npm run verify`.
+
+### Backup and import
+
+Settings exports a versioned JSON backup containing the entire library, including
+setlists, song order, tags and extended metadata. Restore validates every record
+and song reference before writing both stores in one transaction. Its default
+merge mode skips identical records and keeps different versions with new IDs,
+remapping imported setlists to their imported songs. Replace mode requires
+confirmation and marks restored records as newly modified.
+
+Import multiple ChordPro files from Settings. Source text and extended metadata
+are preserved, identical source text is skipped, and the results identify each
+file's status. Malformed chord markup is retained as raw text for editing; empty
+files are rejected. Private song inputs and generated screenshots remain ignored.

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { DataManagement } from "../components/DataManagement";
 import { gDriveProvider, isGDriveAuthenticated, isGDriveEnabled, syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
 import "./SettingsPage.scss";
@@ -19,15 +20,6 @@ export const SettingsPage = () => {
 		}
 		return () => clearInterval(interval);
 	}, [syncStatus.isSyncing]);
-
-	const handleExport = async () => {
-		// Existing implementation...
-		alert("Export feature coming soon!");
-	};
-
-	const handleImport = () => {
-		alert("Import feature coming soon!");
-	};
 
 	const handleConnectGDrive = async () => {
 		try {
@@ -72,50 +64,7 @@ export const SettingsPage = () => {
 			</header>
 
 			<main className="settings-page__content">
-				<section className="settings-page__section">
-					<h2>Data Management</h2>
-					<div className="settings-page__options">
-						<button type="button" onClick={handleExport} className="settings-page__option">
-							<div className="settings-page__option-icon">
-								<svg
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									aria-hidden="true"
-								>
-									<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-								</svg>
-							</div>
-							<div className="settings-page__option-text">
-								<h3>Export Songs</h3>
-								<p>Download all your songs as a JSON backup file</p>
-							</div>
-						</button>
-
-						<button type="button" onClick={handleImport} className="settings-page__option">
-							<div className="settings-page__option-icon">
-								<svg
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									aria-hidden="true"
-								>
-									<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-								</svg>
-							</div>
-							<div className="settings-page__option-text">
-								<h3>Import Songs</h3>
-								<p>Import songs from a JSON backup file</p>
-							</div>
-						</button>
-					</div>
-				</section>
+				<DataManagement />
 
 				<section className="settings-page__section">
 					<h2>Cloud Sync</h2>

@@ -1,0 +1,12 @@
+.data-management {
+  output { display: block; margin-top: 1rem; }
+  &__file { display: flex; flex-direction: column; gap: .5rem; padding: 1rem; background: #ffffff06; border: 1px solid #ffffff12; border-radius: 10px; margin-top: .75rem; font-size: .9rem; }
+  input { width: 100%; min-width: 0; font-size: .85rem; }
+  input::file-selector-button, &__restore button { padding: .55rem .8rem; border: 0; border-radius: 6px; background: #6152dd; color: white; margin-right: .5rem; cursor: pointer; }
+  &__restore { padding: 1rem; border: 1px solid #a59ae545; border-radius: 10px; margin-top: .75rem; font-size: .9rem; label { display: flex; flex-direction: column; gap: .5rem; } select { background: #25253b; color: white; padding: .6rem; border-radius: 6px; border: 1px solid #57516f; } button { margin-top: .5rem; } }
+  small, details { color: #b0b0c4; font-size: .8rem; }
+  details { margin-top: .75rem; overflow-wrap: anywhere; }
+  details ul { max-height: 20rem; overflow-y: auto; }
+  &__error { color: #fca5a5; }
+  button:disabled, input:disabled { opacity: .5; }
+}
