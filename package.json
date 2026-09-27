@@ -15,9 +15,11 @@
 		"test:coverage": "vitest run --coverage",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
-		"validate": "npm run lint && npm run test",
-		"verify": "npm run lint && npm run test && npm run build && npm run test:e2e",
-		"prepare": "lefthook install"
+		"validate": "npm run lint && npm run typecheck && npm run test",
+		"verify": "npm run validate && npm run build && npm run test:e2e",
+		"prepare": "lefthook install",
+		"typecheck": "tsc -b",
+		"screenshots": "node scripts/song-screenshots.mjs"
 	},
 	"dependencies": {
 		"chordsheetjs": "^13.1.0",

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
+import { findSongLayout, songContentFits } from "../utils/songLayout";
 import "./SongView.scss";
 
 interface SongViewProps {
@@ -20,8 +21,10 @@ export const SongView = ({
 	const [autoSize, setAutoSize] = useState(true);
 	const [showChords, setShowChords] = useState(true);
 	const [chordMode, setChordMode] = useState<ChordMode>("standard");
-	const wrapperRef = useRef<HTMLDivElement>(null);
-	const resizeObserverRef = useRef<ResizeObserver | null>(null);
+	const wrapperRef = useRef<HTMLElement>(null);
+	const contentRef = useRef<HTMLDivElement>(null);
+	const [layout, setLayout] = useState({ columns: 1, fits: true });
+	const [measuring, setMeasuring] = useState(true);
 
 	// Transpose the content
 	const transposedContent = useMemo(() => {
@@ -34,98 +37,55 @@ export const SongView = ({
 		return parseChordPro(transposedContent, { mode: chordMode });
 	}, [transposedContent, chordMode]);
 
-	// Check if content fits without overflow
-	const doesContentFit = useCallback(
-		(wrapper: HTMLDivElement, contentEl: HTMLDivElement): boolean => {
-			const wrapperRect = wrapper.getBoundingClientRect();
-			const contentStyle = window.getComputedStyle(contentEl);
-
-			// Get number of columns
-			const columnCount = parseInt(contentStyle.columnCount, 10) || 1;
-			const columnGap = parseFloat(contentStyle.columnGap) || 16;
-			const padding = parseFloat(contentStyle.paddingLeft) + parseFloat(contentStyle.paddingRight);
-
-			// Calculate max width per column
-			const availableWidth = wrapperRect.width - padding;
-			const columnWidth = (availableWidth - columnGap * (columnCount - 1)) / columnCount;
-
-			// Check if any table is wider than the column width
-			const tables = contentEl.querySelectorAll("table");
-			for (const table of tables) {
-				if (table.offsetWidth > columnWidth + 10) {
-					return false;
-				}
-			}
-
-			// Check vertical overflow - if content scrollHeight exceeds wrapper height
-			if (contentEl.scrollHeight > wrapperRect.height + 5) {
-				return false;
-			}
-
-			return true;
-		},
-		[],
-	);
-
-	// Calculate optimal font size
-	const calculateOptimalFontSize = useCallback(() => {
-		if (!wrapperRef.current || !autoSize) return;
-
+	// Measure the real chord/lyric tables at each candidate size and column count.
+	// Refit before paint, on container changes, and after fonts finish loading.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Markup and chord visibility change the measured DOM.
+	useLayoutEffect(() => {
 		const wrapper = wrapperRef.current;
-		const contentEl = wrapper.querySelector(".song-view__content") as HTMLDivElement;
-		if (!contentEl) return;
-
-		const maxSize = 36; // Reasonable max
-		const minSize = 10;
-		let optimalSize = minSize;
-
-		// Scale up from min until content doesn't fit
-		for (let size = minSize; size <= maxSize; size++) {
-			contentEl.style.fontSize = `${size}px`;
-
-			// Force layout recalculation
-			void contentEl.offsetHeight;
-
-			if (!doesContentFit(wrapper, contentEl)) {
-				// This size is too big, use previous
-				optimalSize = Math.max(minSize, size - 1);
-				break;
-			}
-			optimalSize = size;
-		}
-
-		// Apply final size
-		contentEl.style.fontSize = `${optimalSize}px`;
-		setFontSize(optimalSize);
-	}, [autoSize, doesContentFit]);
-
-	// Use ResizeObserver for accurate resize detection
-	useEffect(() => {
-		if (!wrapperRef.current) return;
-
-		resizeObserverRef.current = new ResizeObserver(() => {
-			if (autoSize) {
-				calculateOptimalFontSize();
-			}
-		});
-
-		resizeObserverRef.current.observe(wrapperRef.current);
-
-		return () => {
-			resizeObserverRef.current?.disconnect();
+		const contentEl = contentRef.current;
+		if (!wrapper || !contentEl) return;
+		let frame = 0;
+		let disposed = false;
+		const measure = () => {
+			if (disposed || !wrapper.clientWidth || !wrapper.clientHeight) return;
+			contentEl.style.height = "100%";
+			const maxColumns = Math.max(1, Math.min(6, Math.floor(wrapper.clientWidth / 160)));
+			const result = findSongLayout(
+				maxColumns,
+				(size, columns) => {
+					contentEl.style.fontSize = `${size}px`;
+					contentEl.style.columnCount = String(columns);
+					return songContentFits(contentEl);
+				},
+				autoSize ? undefined : fontSize,
+			);
+			contentEl.style.fontSize = `${result.fontSize}px`;
+			contentEl.style.columnCount = String(result.columns);
+			contentEl.style.height = result.fits ? "100%" : "auto";
+			setLayout((previous) =>
+				previous.columns === result.columns && previous.fits === result.fits
+					? previous
+					: { columns: result.columns, fits: result.fits },
+			);
+			if (autoSize) setFontSize(result.fontSize);
+			setMeasuring(false);
 		};
-	}, [autoSize, calculateOptimalFontSize]);
-
-	// Initial calculation and recalculate when content/chords change
-	// biome-ignore lint/correctness/useExhaustiveDependencies: Re-run auto-fit after visible song markup changes.
-	useEffect(() => {
-		if (autoSize) {
-			const timeout = setTimeout(() => {
-				calculateOptimalFontSize();
-			}, 150);
-			return () => clearTimeout(timeout);
-		}
-	}, [autoSize, calculateOptimalFontSize, parsed.html, showChords]);
+		const schedule = () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(measure);
+		};
+		measure();
+		const observer = new ResizeObserver(schedule);
+		observer.observe(wrapper);
+		void document.fonts.ready.then(schedule);
+		document.fonts.addEventListener("loadingdone", schedule);
+		return () => {
+			disposed = true;
+			cancelAnimationFrame(frame);
+			observer.disconnect();
+			document.fonts.removeEventListener("loadingdone", schedule);
+		};
+	}, [autoSize, fontSize, parsed.html, showChords]);
 
 	// Update parent with transposed content if needed
 	useEffect(() => {
@@ -153,7 +113,10 @@ export const SongView = ({
 	};
 
 	return (
-		<div className="song-view">
+		<div
+			className="song-view"
+			data-layout={measuring ? "measuring" : layout.fits ? "fit" : "scroll"}
+		>
 			<div className="song-view__controls">
 				<div className="song-view__control-group">
 					<span className="song-view__control-label">Transpose</span>
@@ -184,6 +147,7 @@ export const SongView = ({
 						onClick={toggleAutoSize}
 						className={`song-view__btn song-view__btn--auto ${autoSize ? "song-view__btn--active" : ""}`}
 						title="Auto-fit text to screen"
+						aria-pressed={autoSize}
 					>
 						Auto
 					</button>
@@ -230,16 +194,31 @@ export const SongView = ({
 						</button>
 					</div>
 				</div>
+				<output className="song-view__layout-status">
+					{layout.fits
+						? `${layout.columns} ${layout.columns === 1 ? "column" : "columns"}`
+						: "Scroll to see the whole song"}
+				</output>
 			</div>
 
-			<div className="song-view__wrapper" ref={wrapperRef}>
+			<section
+				className={`song-view__wrapper ${!layout.fits ? "song-view__wrapper--scroll" : ""}`}
+				ref={wrapperRef}
+				tabIndex={layout.fits ? undefined : 0}
+				aria-label="Song lyrics and chords"
+			>
 				<div
 					className={`song-view__content ${!showChords ? "song-view__content--hide-chords" : ""}`}
-					style={{ fontSize: `${fontSize}px` }}
+					ref={contentRef}
+					style={{
+						fontSize: `${fontSize}px`,
+						columnCount: layout.columns,
+						height: layout.fits ? "100%" : "auto",
+					}}
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
 					dangerouslySetInnerHTML={{ __html: parsed.html }}
 				/>
-			</div>
+			</section>
 		</div>
 	);
 };

@@ -131,7 +131,7 @@ export const SongPage = () => {
 		// Build the final ChordPro content with metadata
 		let lyricsContent = "";
 
-		if (editorMode === "simple" && simpleContent) {
+		if (editorMode === "simple") {
 			try {
 				lyricsContent = simpleToChordPro(simpleContent);
 			} catch {
@@ -232,8 +232,9 @@ export const SongPage = () => {
 			// Convert simple to ChordPro before switching
 			try {
 				const chordPro = simpleToChordPro(simpleContent);
-				// Inject current metadata
+				// Preserve extended metadata while updating the editable fields.
 				const metadata: SongMetadata = {
+					...extractMetadata(song.content || ""),
 					title: song.title || undefined,
 					artist: song.artist || undefined,
 					key: song.key || undefined,
@@ -315,7 +316,13 @@ export const SongPage = () => {
 						<>
 							<button
 								type="button"
-								onClick={() => (isNew ? navigate("/") : setIsEditing(false))}
+								onClick={async () => {
+									if (isNew) navigate("/");
+									else if (id) {
+										await loadSong(id);
+										setIsEditing(false);
+									}
+								}}
 								className="song-page__btn song-page__btn--secondary"
 							>
 								Cancel
@@ -567,7 +574,7 @@ That [G]saved a [Em]wretch like [D]me
 					</div>
 				</div>
 			) : (
-				<SongView content={song.content || ""} title={song.title} artist={song.artist} />
+				<SongView key={id} content={song.content || ""} title={song.title} artist={song.artist} />
 			)}
 		</div>
 	);

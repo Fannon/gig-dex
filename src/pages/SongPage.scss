@@ -1,8 +1,9 @@
 .song-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: linear-gradient(180deg, #0f0f23 0%, #1a1a2e 100%);
   color: #fff;
 
@@ -71,6 +72,9 @@
     font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.6);
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__meta-tag {
@@ -143,11 +147,12 @@
 
   &__editor {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
     padding: 0.75rem 1rem;
     gap: 0.75rem;
-    overflow: hidden;
   }
 
   &__meta-row {
