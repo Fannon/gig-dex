@@ -34,7 +34,9 @@ export function parseSyncedSetlist(content: string, expectedId: string): Setlist
 	if (
 		!validCommon(value, expectedId) ||
 		typeof value.name !== "string" ||
-		!stringArray(value.songIds)
+		!stringArray(value.songIds) ||
+		(value.tags !== undefined && !stringArray(value.tags)) ||
+		(value.description !== undefined && typeof value.description !== "string")
 	) {
 		throw new Error("Invalid remote setlist data");
 	}

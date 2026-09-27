@@ -1,6 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
-import { SetlistDetailPage } from "./pages/SetlistDetailPage";
 import { SetlistsPage } from "./pages/SetlistsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SongPage } from "./pages/SongPage";
@@ -13,7 +12,7 @@ function App() {
 				<Route path="/" element={<HomePage />} />
 				<Route path="/song/:id" element={<SongPage />} />
 				<Route path="/setlists" element={<SetlistsPage />} />
-				<Route path="/setlist/:id" element={<SetlistDetailPage />} />
+				<Route path="/setlist/:id" element={<SetlistsPage />} />
 				<Route path="/settings" element={<SettingsPage />} />
 			</Routes>
 		</BrowserRouter>

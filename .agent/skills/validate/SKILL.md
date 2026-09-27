@@ -37,7 +37,8 @@ Report environment blockers and distinguish checks that passed from checks that
 could not run. Do not claim a browser check passed based only on unit tests.
 Use relative URLs such as `./settings` in browser tests so they respect the
 configured base URL. For routing or deployment changes, also verify with
-`VITE_BASE_PATH=/gig-dex/ npm run verify`, matching the CI configuration.
+`VITE_BASE_PATH=/gig-dex/ npm run verify`, matching the CI configuration. Set `PLAYWRIGHT_PORT=5176` to run a separate
+test server while preserving the user’s live-reload instance.
 
 ## Song display visual checks
 

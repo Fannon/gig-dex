@@ -4,6 +4,7 @@ import {
 	addSong,
 	deleteSetlist,
 	deleteSong,
+	duplicateSetlist,
 	getAllSetlists,
 	getAllSongs,
 	getSetlist,
@@ -23,6 +24,27 @@ describe("Database", () => {
 		await tx.objectStore("songs").clear();
 		await tx.objectStore("setlists").clear();
 		await tx.done;
+	});
+
+	it("duplicates full setlist metadata and repeated references without changing the source", async () => {
+		const id = await addSetlist({
+			name: "Original",
+			description: "Venue",
+			tags: ["acoustic"],
+			songIds: ["a", "b", "a"],
+		});
+		const source = await getSetlist(id);
+		const copyId = await duplicateSetlist(id, "Original (copy)");
+		expect(copyId).not.toBe(id);
+		expect(await getSetlist(copyId)).toMatchObject({
+			name: "Original (copy)",
+			description: "Venue",
+			tags: ["acoustic"],
+			songIds: ["a", "b", "a"],
+		});
+		await updateSetlist(copyId, { songIds: ["b"] });
+		expect(await getSetlist(id)).toEqual(source);
+		await expect(duplicateSetlist("missing", "Copy")).rejects.toThrow("Setlist not found");
 	});
 
 	describe("Song Operations", () => {

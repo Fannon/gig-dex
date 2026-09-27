@@ -5,6 +5,7 @@ import "./SongView.scss";
 
 interface SongViewProps {
 	content: string;
+	fitToScreen?: boolean;
 	title?: string;
 	artist?: string;
 	onContentChange?: (content: string) => void;
@@ -13,20 +14,21 @@ interface SongViewProps {
 
 export const SongView = ({
 	content,
+	fitToScreen = true,
 	title: _title,
 	artist: _artist,
 	onContentChange,
 	onKeyChange,
 }: SongViewProps) => {
 	const [transpose, setTranspose] = useState(0);
-	const [fontSize, setFontSize] = useState(16);
-	const [autoSize, setAutoSize] = useState(true);
+	const [fontSize, setFontSize] = useState(fitToScreen ? 16 : 18);
+	const [autoSize, setAutoSize] = useState(fitToScreen);
 	const [showChords, setShowChords] = useState(true);
 	const [chordMode, setChordMode] = useState<ChordMode>("standard");
 	const wrapperRef = useRef<HTMLElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
-	const [layout, setLayout] = useState({ columns: 1, fits: true });
-	const [measuring, setMeasuring] = useState(true);
+	const [layout, setLayout] = useState({ columns: 1, fits: fitToScreen });
+	const [measuring, setMeasuring] = useState(fitToScreen);
 
 	const parsed = useMemo(() => {
 		try {
@@ -60,6 +62,14 @@ export const SongView = ({
 		const wrapper = wrapperRef.current;
 		const contentEl = contentRef.current;
 		if (!wrapper || !contentEl) return;
+		if (!fitToScreen) {
+			contentEl.style.fontSize = `${fontSize}px`;
+			contentEl.style.columnCount = "1";
+			contentEl.style.height = "auto";
+			setLayout((previous) => (previous.fits ? { columns: 1, fits: false } : previous));
+			setMeasuring(false);
+			return;
+		}
 		let frame = 0;
 		let disposed = false;
 		const measure = () => {
@@ -103,7 +113,7 @@ export const SongView = ({
 			observer.disconnect();
 			document.fonts.removeEventListener("loadingdone", schedule);
 		};
-	}, [autoSize, fontSize, parsed.html, parsed.error, showChords]);
+	}, [fitToScreen, autoSize, fontSize, parsed.html, parsed.error, showChords]);
 
 	// Update parent with transposed content if needed
 	useEffect(() => {
@@ -170,15 +180,17 @@ export const SongView = ({
 							A+
 						</button>
 					</div>
-					<button
-						type="button"
-						onClick={toggleAutoSize}
-						className={`song-view__btn song-view__btn--auto ${autoSize ? "song-view__btn--active" : ""}`}
-						title="Auto-fit text to screen"
-						aria-pressed={autoSize}
-					>
-						Auto
-					</button>
+					{fitToScreen && (
+						<button
+							type="button"
+							onClick={toggleAutoSize}
+							className={`song-view__btn song-view__btn--auto ${autoSize ? "song-view__btn--active" : ""}`}
+							title="Auto-fit text to screen"
+							aria-pressed={autoSize}
+						>
+							Auto
+						</button>
+					)}
 				</div>
 
 				<div className="song-view__control-group">

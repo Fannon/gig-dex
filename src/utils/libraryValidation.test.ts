@@ -18,7 +18,13 @@ const song = {
 describe("downloaded library records", () => {
 	it("preserves the full validated song and setlist records", () => {
 		expect(parseSyncedSong(JSON.stringify(song), "record")).toEqual(song);
-		const setlist = { ...common, name: "Set", songIds: ["first", "second", "first"] };
+		const setlist = {
+			...common,
+			name: "Set",
+			tags: ["gig"],
+			description: "Venue",
+			songIds: ["first", "second", "first"],
+		};
 		expect(parseSyncedSetlist(JSON.stringify(setlist), "record")).toEqual(setlist);
 	});
 	it.each([
@@ -35,6 +41,8 @@ describe("downloaded library records", () => {
 	});
 	it.each([
 		{ ...common, name: "Set", songIds: [7] },
+		{ ...common, name: "Set", songIds: [], tags: [42] },
+		{ ...common, name: "Set", songIds: [], description: {} },
 		{ ...common, name: "Set", songIds: [], createdAt: null },
 	])("rejects invalid setlist data: %j", (value) => {
 		expect(() => parseSyncedSetlist(JSON.stringify(value), "record")).toThrow();

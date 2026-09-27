@@ -31,6 +31,7 @@ interface Setlist {
 	id: string;
 	name: string;
 	description?: string;
+	tags?: string[]; // Optional for libraries created before setlist tagging
 	songIds: string[]; // Reference song ids by string
 	lastModified: string;
 	createdAt: string;
@@ -237,6 +238,7 @@ export const addSetlist = async (
 	const currentTime = now();
 	const newSetlist: Setlist = {
 		...setlist,
+		tags: setlist.tags ?? [],
 		id: generateId(),
 		lastModified: currentTime,
 		createdAt: currentTime,
@@ -270,6 +272,14 @@ export const deleteSetlist = async (id: string): Promise<void> => {
 export const getSetlist = async (id: string): Promise<Setlist | undefined> => {
 	const db = await initDB();
 	return db.get("setlists", id);
+};
+
+/** Copy the complete setlist while assigning a fresh identity and timestamps. */
+export const duplicateSetlist = async (id: string, name: string): Promise<string> => {
+	const source = await getSetlist(id);
+	if (!source) throw new Error("Setlist not found");
+	const { id: _id, createdAt: _createdAt, lastModified: _lastModified, ...data } = source;
+	return addSetlist({ ...data, name });
 };
 
 export const getAllSetlists = async (): Promise<Setlist[]> => {

@@ -83,3 +83,17 @@ screenshots to the Playwright report.
 ---
 
 *Made with ☕ and "vibes".*
+
+### Setlist workspace
+
+Setlists use three panels: a library with name/description/tag search, tag filtering
+and sorting; an editable ordered song list; and a scrollable song preview. Edit
+setlist names, tags and descriptions, or duplicate a setlist to preserve its song
+order (including repeats) as a starting point. Add songs from the searchable
+library and move or remove individual occurrences. Smaller screens switch
+between panels using Setlists / Songs / Preview tabs.
+
+Browser checks capture synthetic workspace screenshots at desktop, tablet and
+phone sizes in ignored `reports/setlists/`. Run `npm run test:e2e -- e2e/setlists.spec.ts`.
+To test a deployment base path while leaving your live server running, use
+`VITE_BASE_PATH=/gig-dex/ PLAYWRIGHT_PORT=5176 npm run verify`.
