@@ -124,7 +124,7 @@ test("compact performance header, meter dots, keyboard and swipe navigation", as
 	await expect(page.locator(".tempo-indicator__dots > span")).toHaveCount(6);
 	expect(
 		await page
-			.locator(".performance-page > header")
+			.locator(".performance-page__bar")
 			.evaluate((el) => el.getBoundingClientRect().height),
 	).toBeLessThanOrEqual(72);
 	await expect(page.getByRole("button", { name: /Next song|Previous song/ })).toHaveCount(0);
@@ -145,8 +145,12 @@ test("compact performance header, meter dots, keyboard and swipe navigation", as
 	await page.screenshot({ path: "reports/performance/eight-dots-phone.png" });
 	await page.keyboard.press("ArrowDown");
 	await expect(page.getByRole("heading", { name: "Second synthetic song" })).toBeVisible();
+	await expect(page.locator(".tempo-indicator__dots > span")).toHaveCount(4);
 	await page.keyboard.press("ArrowUp");
 	await expect(page.getByRole("heading", { name: "First synthetic song" })).toBeVisible();
+	await expect(page.locator(".tempo-indicator__dots > span")).toHaveCount(8);
+	await page.reload();
+	await expect(page.locator(".tempo-indicator__dots > span")).toHaveCount(8);
 	const swipe = async (dx: number, dy: number) =>
 		page.locator(".song-view__wrapper").evaluate(
 			(target, { dx, dy }) => {
@@ -176,5 +180,58 @@ test("compact performance header, meter dots, keyboard and swipe navigation", as
 	await page.getByLabel("Beat division").selectOption("6/8");
 	await page.getByRole("button", { name: "Close performance options" }).click();
 	await expect(page.locator(".tempo-indicator__dots > span")).toHaveCount(6);
-	await page.screenshot({ path: "reports/performance/six-dots-desktop.png" });
+	await expect(page.locator(".workspace-topbar .performance-page__bar")).toBeVisible();
+	await expect(page.locator(".performance-page > .performance-page__bar")).toHaveCount(0);
+	await expect(page.locator(".performance-page__bar")).toHaveCount(1);
+	await page.getByRole("button", { name: "Start visual tempo at 120 BPM" }).click();
+	await expect(page.getByRole("button", { name: "Stop visual tempo at 120 BPM" })).toBeVisible();
+	for (const width of [1440, 1200]) {
+		await page.setViewportSize({ width, height: 900 });
+		expect(
+			await page.locator(".workspace-topbar").evaluate((el) => el.getBoundingClientRect().height),
+		).toBe(54);
+		const bar = page.getByRole("toolbar", { name: "Performance controls" });
+		await expect(bar.getByRole("button", { name: "Fullscreen", exact: true })).toBeVisible();
+		await expect(
+			bar.getByRole("button", { name: "Performance options", exact: true }),
+		).toBeVisible();
+		expect(
+			await page.locator(".song-view__wrapper").evaluate((el) => el.getBoundingClientRect().top),
+		).toBe(54);
+		expect(
+			await page.locator(".workspace-topbar").evaluate((el) => el.scrollWidth > el.clientWidth),
+		).toBe(false);
+		await page.screenshot({ path: `reports/performance/navbar-${width}.png` });
+	}
+	await page.setViewportSize({ width: 1024, height: 768 });
+	await expect(page.locator(".performance-page > .performance-page__bar")).toBeVisible();
+	await expect(page.getByRole("button", { name: "Stop visual tempo at 120 BPM" })).toBeVisible();
+	await page.screenshot({ path: "reports/performance/separate-bar-tablet.png" });
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await expect(page.locator(".workspace-topbar .performance-page__bar")).toBeVisible();
+	await expect(page.getByRole("button", { name: "Stop visual tempo at 120 BPM" })).toBeVisible();
+	await page.getByRole("button", { name: "Fullscreen", exact: true }).click();
+	await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+	await expect(page.locator(".performance-page > .performance-page__bar")).toBeVisible();
+	await page.getByRole("button", { name: "Performance options", exact: true }).click();
+	await expect(page.getByRole("dialog", { name: "Performance options" })).toBeVisible();
+	await page.getByRole("button", { name: "Close performance options" }).click();
+	await page.getByRole("button", { name: "Exit fullscreen" }).click();
+	await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
+	await expect(page.locator(".workspace-topbar .performance-page__bar")).toBeVisible();
+	await page.keyboard.press("ArrowRight");
+	await expect(page.getByRole("heading", { name: "Second synthetic song" })).toBeVisible();
+	await page.getByRole("button", { name: "Toggle sidebar" }).click();
+	await expect(page).toHaveURL(/\/song\/[^?]+\?setlist=[^&]+&occurrence=1$/);
+	await expect(page.getByRole("complementary", { name: "Library sidebar" })).toBeVisible();
+	await expect(page.locator(".song-page__title")).toHaveText("Second synthetic song");
+	await expect(page.locator(".performance-page__bar")).toHaveCount(0);
+	await page.getByRole("link", { name: "Perform", exact: true }).click();
+	await expect(page.locator(".performance-page__caption")).toContainText("2/2");
+	await page.keyboard.press("ArrowLeft");
+	await page.getByRole("button", { name: "Toggle sidebar" }).click();
+	await page.getByRole("button", { name: "Edit", exact: true }).click();
+	await expect(page.getByLabel("Time", { exact: true })).toHaveValue("6/8");
+	await page.getByRole("button", { name: "Advanced (ChordPro)" }).click();
+	await expect(page.locator("#advanced-content")).toContainText("{time: 6/8}");
 });

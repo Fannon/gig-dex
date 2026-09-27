@@ -356,11 +356,32 @@ swipes keep scrolling. Reading, wake lock, song controls and optional beat divis
 are in **Performance options**. The tempo indicator defaults to the song's time
 signature (4/4 if absent): 6/8 displays six dots, 8/8 eight. Beat one pulses cyan;
 other beats pulse amber. BPM denotes quarter notes, so eighth-note divisions pulse
-twice per quarter note. A performance override changes only the visual cue; edit
-the song's **Time** field to save its meter. This is a silent visual cue, not an
-audio metronome.
+twice per quarter note. Beat division in performance options saves the current
+song's time signature, including its ChordPro metadata; each song keeps its own
+value. It can also be edited in the song's **Time** field. This is a silent visual
+cue, not an audio metronome.
 
 The simple editor recognizes standalone section headings (including numbered
 verses, Refrain, Pre-Chorus, Interlude and English/German variants), displays the
 same section colors in its live preview, and preserves spaced instrumental
 chord-only lines. Ordinary lyric sentences remain lyrics.
+
+The main navigation is **Songs | Sets | Settings**. On screens at least 1200 CSS
+pixels wide, performance controls share the 54-pixel main navbar, leaving more
+height for the song. Smaller screens and fullscreen use the compact separate
+performance bar. The tempo cue stays enabled while resizing between layouts.
+
+Drag the desktop sidebar edge to resize it; focus the edge and use Left/Right,
+Home or End for keyboard resizing. Width is remembered, with compact + controls.
+**Add to Set** beside Perform appends the selected song to the current set. If
+none is selected, it creates and selects a set named with today's local
+**YYYY-MM-DD** date. Set date editing and display use that format and reject
+impossible dates. The top-left sidebar button exits performance to the current
+song and opens the sidebar, retaining the set occurrence.
+
+Global search (Ctrl+M / Cmd+M) opens beneath the top-right search button with
+larger text. Escape, the close button and clicking outside dismiss it.
+
+Simple-mode conversion keeps consecutive instrumental chord lines together,
+removes blank lines after recognized headings, and limits paragraph gaps to one
+blank line. Leading spaces used for chord alignment are preserved.

@@ -5,6 +5,7 @@ import {
 	DEMO_SONG,
 	getSemitoneDifference,
 	getSongKey,
+	normalizeSimpleSpacing,
 	parseChordPro,
 	simpleToChordPro,
 	transposeChordPro,
@@ -177,4 +178,33 @@ it("colors section comments from legacy songs without promoting ordinary comment
 	).html;
 	expect(element.querySelector(".label.section-chorus")?.textContent).toBe("Chorus Deutsch");
 	expect(element.querySelector(".comment")?.textContent).toBe("Sing softly");
+});
+
+it("normalizes simple spacing while preserving chord columns and lyric paragraph breaks", () => {
+	const input =
+		"\n\nIntro\n\nC G D/F# Em\n\nC G D\n\n\n\n\nChorus\n\n    C             G\nSynthetic lantern line\n\n\nNext lyric stanza\n\n";
+	const normalized = normalizeSimpleSpacing(input);
+	expect(normalized).toBe(
+		"Intro\nC G D/F# Em\nC G D\n\nChorus\n    C             G\nSynthetic lantern line\n\nNext lyric stanza",
+	);
+	const converted = simpleToChordPro(input);
+	const displayed = chordProToSimple(converted);
+	expect(displayed.split("\n").slice(0, 5)).toEqual([
+		"Intro",
+		"C G D/F# Em",
+		"C G D",
+		"",
+		"Chorus",
+	]);
+	expect(displayed).not.toMatch(/\n{3}/);
+	expect(chordProToSimple(simpleToChordPro(displayed))).toBe(displayed);
+	expect(normalizeSimpleSpacing("    C     G\nA lyric\n\n\nAnother stanza")).toBe(
+		"    C     G\nA lyric\n\nAnother stanza",
+	);
+});
+
+it("keeps extended instrumental chords together without treating section names as chords", () => {
+	expect(normalizeSimpleSpacing("Intro\nCMaj7 D/F#\n\nCmMaj7 G7(b9)\n\n\nChorus")).toBe(
+		"Intro\nCMaj7 D/F#\nCmMaj7 G7(b9)\n\nChorus",
+	);
 });

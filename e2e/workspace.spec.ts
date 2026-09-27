@@ -85,13 +85,13 @@ test("transpose persists per repeated occurrence, follows reorder and performanc
 	await page.goto(`./perform/setlist/${list}`);
 	await expect(page.locator(".performance-page__caption")).toContainText("1/2");
 	await page.keyboard.press("ArrowRight");
-	await expect(page.locator(".performance-page header")).toContainText("A#m · +1 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("A#m · +1 st");
 	await page.getByRole("button", { name: "Performance options", exact: true }).click();
 	await page.getByRole("button", { name: "Song controls" }).click();
 	await page.getByRole("button", { name: "+1", exact: true }).click();
-	await expect(page.locator(".performance-page header")).toContainText("Bm · +2 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("Bm · +2 st");
 	await page.reload();
-	await expect(page.locator(".performance-page header")).toContainText("Bm · +2 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("Bm · +2 st");
 	await page.goto(`./setlist/${list}`);
 	await expect(page.locator(".setlists-page__song")).toHaveCount(2);
 	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
@@ -139,15 +139,21 @@ test("sidebar adds and reorders songs, and opens occurrence settings in Songs mo
 	await page.screenshot({ path: "reports/workspace/global-search.png" });
 	await page.keyboard.press("Escape");
 	await page.getByRole("link", { name: "Perform", exact: true }).click();
-	await expect(page.locator(".performance-page header")).toContainText("2/3");
-	await expect(page.locator(".performance-page header")).toContainText("+1 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("2/3");
+	await expect(page.locator(".performance-page__bar")).toContainText("+1 st");
 });
 
 test("setlist date persists, is searchable and survives duplication", async ({ page }) => {
 	const { list } = await seed(page);
 	await page.goto(`./setlist/${list}`);
 	await page.getByRole("button", { name: "Edit details" }).click();
-	await page.getByRole("dialog").getByLabel("Date", { exact: true }).fill("2026-12-24");
+	const date = page.getByRole("dialog").getByLabel("Date", { exact: true });
+	await expect(date).toHaveAttribute("placeholder", "YYYY-MM-DD");
+	await date.fill("2026-02-31");
+	await page.getByRole("button", { name: "Save changes" }).click();
+	await expect(page.getByRole("dialog")).toBeVisible();
+	expect(await date.evaluate((el: HTMLInputElement) => el.checkValidity())).toBe(false);
+	await date.fill("2026-12-24");
 	await page.getByRole("button", { name: "Save changes" }).click();
 	await expect(
 		page.getByRole("region", { name: "Setlist content" }).locator("time"),
@@ -189,7 +195,7 @@ test("sidebar New song clears previous content and dirty navigation remains guar
 	const firstPrompt = page.waitForEvent("dialog").then((prompt) => prompt.dismiss());
 	await page
 		.getByRole("navigation", { name: "Main navigation" })
-		.getByRole("link", { name: "Setlists", exact: true })
+		.getByRole("link", { name: "Sets", exact: true })
 		.click();
 	await firstPrompt;
 	await expect(page).toHaveURL(/\/song\/new$/);
@@ -204,7 +210,7 @@ test("sidebar New song clears previous content and dirty navigation remains guar
 	page.once("dialog", (prompt) => prompt.accept());
 	await page
 		.getByRole("navigation", { name: "Main navigation" })
-		.getByRole("link", { name: "Setlists", exact: true })
+		.getByRole("link", { name: "Sets", exact: true })
 		.click();
 	await expect(page.locator(".setlists-page")).toBeVisible();
 });
@@ -371,4 +377,140 @@ test("simple editor previews section colors, spaced instrumental chords and save
 	await expect(page.locator(".song-view__content .section-chorus")).toHaveText("Chorus");
 	await page.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.locator("#simple-content")).toContainText("C G D/F# Em");
+});
+
+test("sidebar width follows pointer and keyboard resizing, persists, and keeps compact add controls", async ({
+	page,
+}) => {
+	const { song, list } = await seed(page);
+	await page.goto(`./setlist/${list}`);
+	const sidebar = page.getByRole("complementary", { name: "Library sidebar" });
+	const separator = page.getByRole("separator", { name: "Resize sidebar" });
+	await expect(separator).toHaveAttribute("aria-valuenow", "240");
+	const box = await separator.boundingBox();
+	if (!box) throw new Error("Resize handle is unavailable");
+	await page.mouse.move(box.x + box.width / 2, box.y + 100);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width / 2 + 90, box.y + 100);
+	await page.mouse.up();
+	await expect(separator).toHaveAttribute("aria-valuenow", "330");
+	expect(await sidebar.evaluate((el) => el.getBoundingClientRect().width)).toBe(330);
+	await page.reload();
+	await expect(separator).toHaveAttribute("aria-valuenow", "330");
+	await separator.focus();
+	await page.keyboard.press("ArrowLeft");
+	await expect(separator).toHaveAttribute("aria-valuenow", "320");
+	await page.keyboard.press("Home");
+	await expect(separator).toHaveAttribute("aria-valuenow", "200");
+	await page.keyboard.press("End");
+	await expect(separator).toHaveAttribute("aria-valuenow", "480");
+	await page.goto(`./song/${song}`);
+	await expect(separator).toHaveAttribute("aria-valuenow", "480");
+	for (const button of [
+		sidebar.getByRole("link", { name: "Add song", exact: true }),
+		sidebar.getByRole("button", { name: "Add Lantern to current setlist" }),
+	]) {
+		expect(await button.evaluate((el) => el.getBoundingClientRect().height)).toBe(28);
+	}
+	await screenshots();
+	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
+	await page.screenshot({ path: "reports/workspace/adjustable-sidebar.png" });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(separator).not.toBeVisible();
+	expect(await sidebar.evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(
+		390 * 0.85,
+	);
+});
+
+test("Add to Set creates one dated set when none is selected and then appends to the selected set", async ({
+	page,
+}) => {
+	const { song, list } = await seed(page);
+	await page.goto(`./song/${song}`);
+	const action = page.getByRole("button", { name: "Add to Set", exact: true });
+	const perform = page.getByRole("link", { name: "Perform", exact: true });
+	await expect(action).toBeVisible();
+	expect((await action.boundingBox())?.x).toBeLessThan((await perform.boundingBox())?.x ?? 0);
+	const today = await page.evaluate(() => {
+		const now = new Date();
+		return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+	});
+	await action.click();
+	await expect(page.locator(".song-page__set-message")).toHaveText(
+		`Created ${today} and added song`,
+	);
+	await expect(page.getByRole("button", { name: new RegExp(`^Setlist: ${today}`) })).toBeVisible();
+	const rows = page.locator("#sidebar-setlist .library-sidebar__song-row");
+	await expect(rows).toHaveCount(1);
+	await action.click();
+	await expect(rows).toHaveCount(2);
+	await page.reload();
+	await expect(rows).toHaveCount(2);
+	await page.goto(`./setlist/${list}`);
+	await expect(page.getByRole("button", { name: /^Setlist: Lantern Gig/ })).toBeVisible();
+	await page.goto(`./song/${song}`);
+	await action.click();
+	await expect(rows).toHaveCount(3);
+	await expect(page.locator(".song-page__set-message")).toHaveText("Added to Lantern Gig");
+	await screenshots();
+	await page.screenshot({ path: "reports/workspace/add-to-set.png" });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.getByRole("button", { name: "Toggle sidebar" }).click();
+	await expect(action).toBeVisible();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+	await page.screenshot({ path: "reports/workspace/add-to-set-phone.png" });
+});
+
+test("search pops out beneath the top-right button with larger text and outside dismissal", async ({
+	page,
+}) => {
+	await seed(page);
+	await page.getByRole("button", { name: /Search songs & setlists/ }).click();
+	const dialog = page.getByRole("dialog", { name: "Search library" });
+	const input = dialog.getByLabel("Search songs and setlists");
+	await expect(input).toBeFocused();
+	await input.fill("Lantern");
+	await expect(dialog.getByRole("link")).toHaveCount(2);
+	const bounds = await dialog.boundingBox();
+	expect(bounds?.y).toBe(62);
+	expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBe((page.viewportSize()?.width ?? 0) - 16);
+	await expect(input).toHaveCSS("font-size", "18px");
+	await screenshots();
+	await page.screenshot({ path: "reports/workspace/search-popout.png" });
+	await page.mouse.click(30, 100);
+	await expect(dialog).not.toBeVisible();
+	await page.keyboard.press("Control+m");
+	await expect(input).toBeFocused();
+	await page.setViewportSize({ width: 390, height: 844 });
+	const phone = await dialog.boundingBox();
+	expect(phone?.x).toBe(8);
+	expect((phone?.x ?? 0) + (phone?.width ?? 0)).toBe(382);
+	await page.screenshot({ path: "reports/workspace/search-popout-phone.png" });
+	await page.keyboard.press("Escape");
+	await expect(dialog).not.toBeVisible();
+});
+
+test("simple editing keeps consecutive instrumental lines and one section gap across repeated saves", async ({
+	page,
+}) => {
+	await seed(page);
+	await page.goto("./song/new");
+	await page.getByLabel("Title", { exact: true }).fill("Spacing fixture");
+	await page
+		.locator("#simple-content")
+		.fill(
+			"Intro\n\nC G D/F# Em\n\nC G D\n\n\n\n\nChorus\n\n    C        G\nA synthetic lantern line",
+		);
+	await page.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(page.locator(".song-view__content .section-chorus")).toBeVisible();
+	await page.getByRole("button", { name: "Edit", exact: true }).click();
+	const input = page.locator("#simple-content");
+	await expect.poll(() => input.inputValue()).toMatch(/^Intro\nC G D\/F# Em\nC G D\n\nChorus\n/);
+	const first = await input.inputValue();
+	expect(first).not.toMatch(/\n{3}/);
+	await screenshots();
+	await page.screenshot({ path: "reports/workspace/simple-spacing.png" });
+	await page.getByRole("button", { name: "Save", exact: true }).click();
+	await page.getByRole("button", { name: "Edit", exact: true }).click();
+	await expect(input).toHaveValue(first);
 });

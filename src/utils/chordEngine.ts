@@ -149,6 +149,48 @@ export const chordProToText = (chordProText: string): string => {
 	return formatter.format(song);
 };
 
+const simpleChordToken = (token: string) =>
+	/^[A-G](?:#|b)?(?:maj|min|m|M(?:aj)?|dim|aug|sus|add|no|omit|Δ|°|ø|[0-9b#()+-])*(?:\/[A-G](?:#|b)?)?$/.test(
+		token,
+	) && !!Chord.parse(token);
+const simpleChordLine = (line: string) => {
+	const tokens = line.trim().split(/\s+/);
+	return (
+		!!line.trim() &&
+		tokens.some(simpleChordToken) &&
+		tokens.every((token) => token === "|" || token === "||" || simpleChordToken(token))
+	);
+};
+
+/** Keep lyric indentation, one blank paragraph break, and tight instrumental runs. */
+export function normalizeSimpleSpacing(text: string) {
+	const lines = text
+		.replace(/\r\n?/g, "\n")
+		.split("\n")
+		.map((line) => line.trimEnd());
+	const output: string[] = [];
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
+		if (line) {
+			output.push(line);
+			continue;
+		}
+		let nextIndex = index + 1;
+		while (nextIndex < lines.length && !lines[nextIndex]) nextIndex++;
+		const previous = output.at(-1) ?? "";
+		const next = lines[nextIndex] ?? "";
+		if (
+			previous &&
+			next &&
+			!simpleSectionLabel(previous) &&
+			!(simpleChordLine(previous) && simpleChordLine(next))
+		)
+			output.push("");
+		index = nextIndex - 1;
+	}
+	return output.join("\n");
+}
+
 /**
  * Convert ChordPro to simple "chords over words" format
  * This is for the simple editor mode where chords appear on lines above lyrics
@@ -157,7 +199,7 @@ export const chordProToSimple = (chordProText: string): string => {
 	const parser = new ChordProParser();
 	const song = parser.parse(chordProText);
 	const formatter = new ChordsOverWordsFormatter();
-	return formatter.format(song);
+	return normalizeSimpleSpacing(formatter.format(song));
 };
 
 /**
@@ -166,15 +208,8 @@ export const chordProToSimple = (chordProText: string): string => {
  */
 export const simpleToChordPro = (simpleText: string): string => {
 	const parser = new ChordsOverWordsParser();
-	const lines = simpleText.replace(/\r\n?/g, "\n").split("\n");
-	const chordOnly = (line: string) => {
-		const tokens = line.trim().split(/\s+/);
-		return (
-			!!line.trim() &&
-			tokens.some((token) => Chord.parse(token)) &&
-			tokens.every((token) => token === "|" || token === "||" || !!Chord.parse(token))
-		);
-	};
+	const lines = normalizeSimpleSpacing(simpleText).split("\n");
+
 	let sectionOpen = false;
 	const prepared: string[] = [];
 	for (const [index, line] of lines.entries()) {
@@ -188,8 +223,11 @@ export const simpleToChordPro = (simpleText: string): string => {
 			// Standalone instrumental lines need explicit spacing; chord-over-lyric
 			// lines still go through the parser to preserve their column positions.
 			const standalone =
-				chordOnly(line) &&
-				(!next.trim() || !!simpleSectionLabel(next) || chordOnly(next) || /^\s*\{/.test(next));
+				simpleChordLine(line) &&
+				(!next.trim() ||
+					!!simpleSectionLabel(next) ||
+					simpleChordLine(next) ||
+					/^\s*\{/.test(next));
 			prepared.push(
 				standalone
 					? line.replace(/\S+/g, (token) => (Chord.parse(token) ? `[${token}]` : token))

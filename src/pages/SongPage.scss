@@ -532,3 +532,13 @@
 }
 
 .song-page__preview-content { .label { display: block; font-weight: 600; font-size: .8em; text-transform: uppercase; letter-spacing: .06em; margin: .6em 0 .15em; } .chord { padding-right: .2em; } }
+
+.song-page__header { gap: .5rem; padding-inline: .65rem; }
+.song-page__actions { gap: .3rem; }
+.song-page__btn { padding-inline: .55rem; white-space: nowrap; }
+.song-page__set-message { font-size: .75rem; color: var(--text-secondary); }
+@media (max-width: 650px) {
+ .song-page__header { flex-wrap: wrap; .song-page__title-row { flex-basis: calc(100% - 40px); } }
+ .song-page__actions { margin-left: auto; }
+ .song-page__set-message { flex-basis: 100%; }
+}

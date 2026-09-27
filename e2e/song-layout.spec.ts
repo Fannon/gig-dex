@@ -107,10 +107,9 @@ test("splits an oversized section between complete lines", async ({ page }) => {
 	await page.setViewportSize({ width: 1440, height: 900 });
 	await openSong(page, syntheticSongs[2].content);
 	await expectScreenFit(page);
-	const lines = await page.locator(".song-view__content tr:has(.lyrics)").allTextContents();
-	expect(lines).toEqual(
-		Array.from({ length: 32 }, (_, i) => `Line ${i + 1}, the rhythm carries on`),
-	);
+	await expect
+		.poll(() => page.locator(".song-view__content tr:has(.lyrics)").allTextContents())
+		.toEqual(Array.from({ length: 32 }, (_, i) => `Line ${i + 1}, the rhythm carries on`));
 	expect(
 		await page
 			.locator(".song-view__content")

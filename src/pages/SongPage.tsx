@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
-import { addSong, deleteSong, getSong, type Song, updateSong } from "../db";
+import {
+	addSetlist,
+	addSong,
+	deleteSong,
+	getSetlist,
+	getSong,
+	type Song,
+	updateSetlist,
+	updateSong,
+} from "../db";
 import { useSetlistOccurrence } from "../hooks/useSetlistOccurrence";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
+import { localCalendarDate } from "../utils/calendarDate";
 import {
 	chordProToSimple,
 	extractMetadata,
@@ -14,7 +25,7 @@ import {
 	simpleToChordPro,
 	stripMetadata,
 } from "../utils/chordEngine";
-import { occurrenceContent, settingLabel } from "../utils/setlistSettings";
+import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
@@ -22,6 +33,41 @@ type EditorMode = "simple" | "advanced";
 export const SongPage = () => {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const { currentSetlistId, selectCurrentSetlist } = useOutletContext<LibraryWorkspaceContext>();
+	const [addingToSet, setAddingToSet] = useState(false);
+	const [setMessage, setSetMessage] = useState("");
+	const addingRef = useRef(false);
+	const addToSet = async () => {
+		if (!id || isNew || addingRef.current) return;
+		addingRef.current = true;
+		setAddingToSet(true);
+		setSetMessage("");
+		try {
+			const current = currentSetlistId ? await getSetlist(currentSetlistId) : undefined;
+			if (current) {
+				await updateSetlist(current.id, {
+					songIds: [...current.songIds, id],
+					songSettings: [...occurrenceSettings(current), { transpose: 0 }],
+				});
+				setSetMessage(`Added to ${current.name}`);
+			} else {
+				const date = localCalendarDate();
+				const listId = await addSetlist({
+					name: date,
+					date,
+					songIds: [id],
+					songSettings: [{ transpose: 0 }],
+				});
+				selectCurrentSetlist(listId);
+				setSetMessage(`Created ${date} and added song`);
+			}
+		} catch {
+			setSetMessage("Could not add the song to a set. Please try again.");
+		} finally {
+			addingRef.current = false;
+			setAddingToSet(false);
+		}
+	};
 	const [searchParams] = useSearchParams();
 	const occurrenceIndex = Number(searchParams.get("occurrence") ?? 0);
 	const occurrence = useSetlistOccurrence(searchParams.get("setlist"), id, occurrenceIndex);
@@ -93,6 +139,7 @@ export const SongPage = () => {
 		if (openedSongId.current === id) return;
 		openedSongId.current = id;
 		setIsEditing(startInEditMode);
+		setSetMessage("");
 		setDirty(false);
 		if (isNew) {
 			setSong({ title: "", artist: "", content: "", key: "", tags: [] });
@@ -349,9 +396,19 @@ export const SongPage = () => {
 				)}
 
 				{occurrence.error && <p role="alert">{occurrence.error}</p>}
+				{setMessage && <output className="song-page__set-message">{setMessage}</output>}
 				<div className="song-page__actions">
 					{!isEditing && (
 						<>
+							<button
+								type="button"
+								className="song-page__btn song-page__btn--secondary"
+								disabled={addingToSet}
+								onClick={() => void addToSet()}
+								title="Add this song to the current set, or create a dated set"
+							>
+								{addingToSet ? "Adding…" : "Add to Set"}
+							</button>
 							<Link
 								to={
 									occurrence.list

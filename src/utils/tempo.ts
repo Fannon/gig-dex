@@ -15,3 +15,14 @@ export function tempoMeter(value?: string) {
 	return { beats, division, label: `${beats}/${division}` };
 }
 export const tempoPeriod = (bpm: number, division: number) => (60000 / bpm) * (4 / division);
+
+/** Keep the saved song field and its exported ChordPro time directive consistent. */
+export function withSongTime(content: string, time: string) {
+	let found = false;
+	const updated = content.replace(/\{time\s*:[^{}]*\}/gi, () => {
+		if (found) return "";
+		found = true;
+		return `{time: ${time}}`;
+	});
+	return found ? updated : `{time: ${time}}\n${content}`;
+}

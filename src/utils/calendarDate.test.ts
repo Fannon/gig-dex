@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { isCalendarDate } from "./calendarDate";
+import { displayCalendarDate, isCalendarDate, localCalendarDate } from "./calendarDate";
 import { parseSyncedSetlist } from "./libraryValidation";
 
 it("validates calendar dates without rollover or timezone conversion", () => {
@@ -19,4 +19,10 @@ it("validates calendar dates without rollover or timezone conversion", () => {
 	expect(() =>
 		parseSyncedSetlist(JSON.stringify({ ...list, date: "2025-02-29" }), "list"),
 	).toThrow();
+});
+
+it("uses ISO display and the local calendar date for set titles", () => {
+	expect(displayCalendarDate("2026-09-27")).toBe("2026-09-27");
+	expect(localCalendarDate(new Date(2026, 8, 27, 23, 59))).toBe("2026-09-27");
+	expect(localCalendarDate(new Date(2026, 0, 2, 0, 1))).toBe("2026-01-02");
 });

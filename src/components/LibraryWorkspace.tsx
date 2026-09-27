@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
 	getAllSetlists,
@@ -32,9 +32,29 @@ const matches = (text: string, query: string) =>
 		.split(/\s+/)
 		.every((term) => text.toLocaleLowerCase().includes(term));
 
+export interface LibraryWorkspaceContext {
+	performanceHost: HTMLDivElement | null;
+	setPerformanceExit: (url: string | null) => void;
+	currentSetlistId: string | undefined;
+	selectCurrentSetlist: (id: string) => void;
+}
+
 export function LibraryWorkspace() {
 	const location = useLocation();
+	const [performanceHost, setPerformanceHost] = useState<HTMLDivElement | null>(null);
+	const [performanceExit, setPerformanceExit] = useState<string | null>(null);
 	const navigate = useNavigate();
+	const [sidebarWidth, setSidebarWidth] = useState(() => {
+		const saved = Number(readPreference("sidebar-width", "240"));
+		return Number.isFinite(saved) ? Math.max(200, Math.min(480, saved)) : 240;
+	});
+	const resizing = useRef<{ x: number; width: number } | null>(null);
+	const widthRef = useRef(sidebarWidth);
+	const resizeSidebar = (width: number) => {
+		const value = Math.max(200, Math.min(480, width));
+		widthRef.current = value;
+		setSidebarWidth(value);
+	};
 	const [songs, setSongs] = useState<Song[]>([]);
 	const [lists, setLists] = useState<Setlist[]>([]);
 	const [error, setError] = useState("");
@@ -105,6 +125,11 @@ export function LibraryWorkspace() {
 		} else dialog.current?.close();
 	}, [searchOpen]);
 	const current = lists.find((list) => list.id === chosen);
+	const selectCurrentSetlist = (id: string) => {
+		setChosen(id);
+		remember("sidebar-current-setlist", id);
+		refresh();
+	};
 	const changeSetlist = async (songId?: string, from?: number, to?: number, remove?: number) => {
 		if (!current || busy) return;
 		setBusy(true);
@@ -210,13 +235,24 @@ export function LibraryWorkspace() {
 	};
 	return (
 		<>
-			<header className="workspace-topbar">
+			<header className="workspace-topbar" data-performance={performance}>
 				<button
 					type="button"
 					aria-label="Toggle sidebar"
 					aria-controls="library-sidebar"
 					aria-expanded={open && !performance}
 					onClick={() => {
+						if (performance) {
+							setOpen(true);
+							remember("sidebar-open", "true");
+							navigate(
+								performanceExit ??
+									location.pathname
+										.replace("/perform/setlist/", "/setlist/")
+										.replace("/perform/song/", "/song/"),
+							);
+							return;
+						}
 						const value = !open;
 						setOpen(value);
 						remember("sidebar-open", String(value));
@@ -239,10 +275,11 @@ export function LibraryWorkspace() {
 						to="/setlists"
 						className={location.pathname.startsWith("/setlist/") ? "active" : undefined}
 					>
-						Setlists
+						Sets
 					</NavLink>
 					<NavLink to="/settings">Settings</NavLink>
 				</nav>
+				{performance && <div className="workspace-performance" ref={setPerformanceHost} />}
 				<button
 					className="workspace-search-button"
 					type="button"
@@ -251,7 +288,11 @@ export function LibraryWorkspace() {
 					Search songs & setlists <kbd>Ctrl+M</kbd>
 				</button>
 			</header>
-			<div className="workspace-body" data-sidebar={open && !performance}>
+			<div
+				className="workspace-body"
+				data-sidebar={open && !performance}
+				style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+			>
 				{open && !performance && (
 					<>
 						<button
@@ -467,6 +508,48 @@ export function LibraryWorkspace() {
 								)}
 							</section>
 						</aside>
+						{/* biome-ignore lint/a11y/useSemanticElements: Pointer and keyboard resize handle. */}
+						<div
+							className="workspace-sidebar-resize"
+							role="separator"
+							aria-label="Resize sidebar"
+							aria-orientation="vertical"
+							aria-controls="library-sidebar"
+							aria-valuemin={200}
+							aria-valuemax={480}
+							aria-valuenow={sidebarWidth}
+							tabIndex={0}
+							onPointerDown={(event) => {
+								if (event.button !== 0) return;
+								event.preventDefault();
+								resizing.current = { x: event.clientX, width: sidebarWidth };
+								event.currentTarget.setPointerCapture(event.pointerId);
+							}}
+							onPointerMove={(event) => {
+								if (resizing.current)
+									resizeSidebar(resizing.current.width + event.clientX - resizing.current.x);
+							}}
+							onLostPointerCapture={() => {
+								resizing.current = null;
+								remember("sidebar-width", String(widthRef.current));
+							}}
+							onKeyDown={(event) => {
+								const next =
+									event.key === "ArrowLeft"
+										? sidebarWidth - 10
+										: event.key === "ArrowRight"
+											? sidebarWidth + 10
+											: event.key === "Home"
+												? 200
+												: event.key === "End"
+													? 480
+													: undefined;
+								if (next === undefined) return;
+								event.preventDefault();
+								resizeSidebar(next);
+								remember("sidebar-width", String(widthRef.current));
+							}}
+						/>
 					</>
 				)}
 				<div className="app-route">
@@ -477,14 +560,35 @@ export function LibraryWorkspace() {
 							</div>
 						}
 					>
-						<Outlet />
+						<Outlet
+							context={
+								{
+									performanceHost,
+									setPerformanceExit,
+									currentSetlistId: current?.id,
+									selectCurrentSetlist,
+								} satisfies LibraryWorkspaceContext
+							}
+						/>
 					</Suspense>
 				</div>
 			</div>
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: Native dialog Escape and the close button provide keyboard dismissal. */}
 			<dialog
 				ref={dialog}
 				className="workspace-search"
 				aria-label="Search library"
+				onClick={(event) => {
+					if (event.target !== event.currentTarget) return;
+					const bounds = event.currentTarget.getBoundingClientRect();
+					if (
+						event.clientX < bounds.left ||
+						event.clientX > bounds.right ||
+						event.clientY < bounds.top ||
+						event.clientY > bounds.bottom
+					)
+						setSearchOpen(false);
+				}}
 				onCancel={(event) => {
 					event.preventDefault();
 					setSearchOpen(false);

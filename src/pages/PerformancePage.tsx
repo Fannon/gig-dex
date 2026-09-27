@@ -1,17 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
-import { getAllSongs, getSetlist, type Setlist, type Song, updateSetlist } from "../db";
+import { getAllSongs, getSetlist, type Setlist, type Song, updateSetlist, updateSong } from "../db";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { extractMetadata } from "../utils/chordEngine";
 import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import { tempoMeter, withSongTime } from "../utils/tempo";
 import "./PerformancePage.scss";
 
 type Mode = "auto" | "scroll" | "pages";
 export const PerformancePage = () => {
 	const { id, listId } = useParams();
+	const { performanceHost, setPerformanceExit } = useOutletContext<LibraryWorkspaceContext>();
+	const [wide, setWide] = useState(() => window.matchMedia("(min-width: 1200px)").matches);
+	const [tempoRunning, setTempoRunning] = useState(false);
+	useEffect(() => {
+		const media = window.matchMedia("(min-width: 1200px)");
+		const change = () => setWide(media.matches);
+		media.addEventListener("change", change);
+		return () => media.removeEventListener("change", change);
+	}, []);
 	const [params, setParams] = useSearchParams();
 	const requestedIndex = params.has("occurrence") ? Number(params.get("occurrence")) : undefined;
 	const requested = useRef(requestedIndex);
@@ -33,7 +45,7 @@ export const PerformancePage = () => {
 	const [optionsOpen, setOptionsOpen] = useState(false);
 	const optionsDialog = useRef<HTMLDialogElement>(null);
 	const swipe = useRef<{ x: number; y: number } | undefined>(undefined);
-	const [meter, setMeter] = useState<string>();
+	const [savingMeter, setSavingMeter] = useState(false);
 	const [controls, setControls] = useState(false);
 	const [fullscreen, setFullscreen] = useState(false);
 	const sessionKey = `performance:${listId ?? id}`;
@@ -47,6 +59,7 @@ export const PerformancePage = () => {
 			const ordered = ids.map((songId) => library.find((song) => song.id === songId));
 			if (cancelled) return;
 			setSongs(ordered);
+			setTempoRunning(false);
 			setSetlist(list);
 			setOrder(ids);
 			setName(list?.name ?? "Song performance");
@@ -81,6 +94,7 @@ export const PerformancePage = () => {
 		(delta: number) => {
 			const next = Math.max(0, Math.min(songs.length - 1, index + delta));
 			setIndex(next);
+			if (next !== index) setTempoRunning(false);
 			if (params.has("occurrence")) setParams({ occurrence: String(next) }, { replace: true });
 			try {
 				localStorage.setItem(
@@ -132,7 +146,74 @@ export const PerformancePage = () => {
 		}
 	};
 	const song = songs[index];
+	useEffect(() => {
+		const url =
+			listId && song
+				? `/song/${song.id}?setlist=${listId}&occurrence=${index}`
+				: listId
+					? `/setlist/${listId}`
+					: `/song/${id}`;
+		setPerformanceExit(url);
+		return () => setPerformanceExit(null);
+	}, [song, listId, id, index, setPerformanceExit]);
 	const metadata = song ? extractMetadata(song.content) : undefined;
+	const meter = tempoMeter(song?.time ?? metadata?.time).label;
+	const saveMeter = async (time: string) => {
+		if (!song || savingMeter) return;
+		setSavingMeter(true);
+		try {
+			const content = withSongTime(song.content, time);
+			await updateSong(song.id, { time, content });
+			setSongs((previous) =>
+				previous.map((entry) => (entry?.id === song.id ? { ...entry, time, content } : entry)),
+			);
+		} catch {
+			setError("Could not save beat division. Please try again.");
+		} finally {
+			setSavingMeter(false);
+		}
+	};
+	const docked = wide && !fullscreen && performanceHost !== null;
+	const bar = (
+		<div className="performance-page__bar" role="toolbar" aria-label="Performance controls">
+			<Link to={listId ? `/setlist/${listId}` : `/song/${id}`}>← Exit</Link>
+			<div className="performance-page__title">
+				<div className="performance-page__caption">
+					<span title={name}>{name}</span>
+					<small>
+						{" "}
+						· {songs.length ? index + 1 : 0}/{songs.length}
+						{song ? ` · ${settingLabel(song, setlist?.songSettings?.[index])}` : ""}
+					</small>
+				</div>
+				<h1 title={song?.title}>{song?.title ?? (loading ? "Loading…" : "Song unavailable")}</h1>
+			</div>
+			{song && (
+				<TempoIndicator
+					key={`${index}:${song.id}`}
+					bpm={song.tempo ?? metadata?.tempo}
+					time={meter}
+					runningValue={tempoRunning}
+					onRunningChange={setTempoRunning}
+				/>
+			)}
+			<button
+				className="performance-page__fullscreen"
+				type="button"
+				onClick={() => void toggleFullscreen()}
+			>
+				{fullscreen ? "Exit fullscreen" : "Fullscreen"}
+			</button>
+			<button
+				type="button"
+				aria-label="Performance options"
+				title="Performance options"
+				onClick={() => setOptionsOpen(true)}
+			>
+				⚙
+			</button>
+		</div>
+	);
 	return (
 		<div
 			className="performance-page"
@@ -163,42 +244,7 @@ export const PerformancePage = () => {
 			<span className="sr-only" id="performance-navigation-help">
 				Use Left or Up for the previous song, Right or Down for the next song, or swipe left/right.
 			</span>
-			<header>
-				<Link to={listId ? `/setlist/${listId}` : `/song/${id}`}>← Exit</Link>
-				<div className="performance-page__title">
-					<div className="performance-page__caption">
-						<span title={name}>{name}</span>
-						<small>
-							{" "}
-							· {songs.length ? index + 1 : 0}/{songs.length}
-							{song ? ` · ${settingLabel(song, setlist?.songSettings?.[index])}` : ""}
-						</small>
-					</div>
-					<h1 title={song?.title}>{song?.title ?? (loading ? "Loading…" : "Song unavailable")}</h1>
-				</div>
-				{song && (
-					<TempoIndicator
-						key={`${index}:${song.id}`}
-						bpm={song.tempo ?? metadata?.tempo}
-						time={meter ?? song.time ?? metadata?.time}
-					/>
-				)}
-				<button
-					className="performance-page__fullscreen"
-					type="button"
-					onClick={() => void toggleFullscreen()}
-				>
-					{fullscreen ? "Exit fullscreen" : "Fullscreen"}
-				</button>
-				<button
-					type="button"
-					aria-label="Performance options"
-					title="Performance options"
-					onClick={() => setOptionsOpen(true)}
-				>
-					⚙
-				</button>
-			</header>
+			{docked ? createPortal(bar, performanceHost) : bar}
 			<dialog
 				ref={optionsDialog}
 				className="performance-page__options"
@@ -260,18 +306,21 @@ export const PerformancePage = () => {
 					Beat division
 					<select
 						aria-label="Beat division"
-						value={meter ?? "song"}
-						onChange={(event) =>
-							setMeter(event.target.value === "song" ? undefined : event.target.value)
-						}
+						value={meter}
+						disabled={!song || savingMeter}
+						onChange={(event) => void saveMeter(event.target.value)}
 					>
-						<option value="song">Song time ({song?.time ?? metadata?.time ?? "4/4"})</option>
-						{["4/4", "3/4", "2/4", "2/3", "6/8", "8/8", "5/4", "7/8"].map((value) => (
-							<option key={value}>{value}</option>
-						))}
+						{[...new Set([meter, "4/4", "3/4", "2/4", "2/3", "6/8", "8/8", "5/4", "7/8"])].map(
+							(value) => (
+								<option key={value}>{value}</option>
+							),
+						)}
 					</select>
 				</label>
-				<small>Quarter-note BPM. Eighth-note divisions pulse twice per quarter note.</small>
+				<small>
+					Saved for this song. Defaults to 4/4. Quarter-note BPM; eighth-note divisions pulse twice
+					per quarter note.
+				</small>
 				<button
 					type="button"
 					aria-pressed={controls}

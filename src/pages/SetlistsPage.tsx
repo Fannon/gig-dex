@@ -13,7 +13,7 @@ import {
 	updateSetlist,
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
-import { displayCalendarDate } from "../utils/calendarDate";
+import { displayCalendarDate, isCalendarDate } from "../utils/calendarDate";
 import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import "./SetlistsPage.scss";
 
@@ -164,6 +164,8 @@ export const SetlistsPage = () => {
 	const saveDraft = () =>
 		mutate(async () => {
 			if (!draft?.name.trim()) return;
+			if (draft.date && !isCalendarDate(draft.date))
+				throw new Error("Enter a valid date as YYYY-MM-DD.");
 			const data = {
 				name: draft.name.trim(),
 				tags: [
@@ -228,7 +230,7 @@ export const SetlistsPage = () => {
 	return (
 		<div className="setlists-page" data-panel={panel}>
 			<header className="setlists-page__header">
-				<h1>Setlists</h1>
+				<h1>Sets</h1>
 				<button
 					type="button"
 					className="setlists-page__add primary"
@@ -245,7 +247,7 @@ export const SetlistsPage = () => {
 			<nav className="setlists-page__tabs" aria-label="Setlist panels">
 				{(
 					[
-						["library", "Setlists"],
+						["library", "Sets"],
 						["content", "Songs"],
 						["preview", "Preview"],
 					] as const
@@ -543,9 +545,19 @@ export const SetlistsPage = () => {
 						<label>
 							Date
 							<input
-								type="date"
+								type="text"
+								placeholder="YYYY-MM-DD"
+								inputMode="numeric"
+								pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+								maxLength={10}
 								value={draft.date}
-								onChange={(event) => setDraft({ ...draft, date: event.target.value })}
+								onChange={(event) => {
+									const date = event.target.value;
+									event.target.setCustomValidity(
+										date && !isCalendarDate(date) ? "Enter a valid date as YYYY-MM-DD." : "",
+									);
+									setDraft({ ...draft, date });
+								}}
 							/>
 						</label>
 						<label>

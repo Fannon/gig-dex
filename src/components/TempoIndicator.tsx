@@ -3,9 +3,20 @@ import { tempoMeter, tempoPeriod } from "../utils/tempo";
 import "./TempoIndicator.scss";
 
 /** Silent beat cue, derived from a monotonic clock rather than accumulating timer drift. */
-export const TempoIndicator = ({ bpm, time }: { bpm?: number; time?: string }) => {
+export const TempoIndicator = ({
+	bpm,
+	time,
+	runningValue,
+	onRunningChange,
+}: {
+	bpm?: number;
+	time?: string;
+	runningValue?: boolean;
+	onRunningChange?: (running: boolean) => void;
+}) => {
 	const { beats, division, label } = tempoMeter(time);
-	const [running, setRunning] = useState(false);
+	const [localRunning, setRunning] = useState(false);
+	const running = runningValue ?? localRunning;
 	const [beat, setBeat] = useState(0);
 	const start = useRef(0);
 	const valid = typeof bpm === "number" && Number.isFinite(bpm) && bpm > 0 && bpm <= 400;
@@ -32,7 +43,10 @@ export const TempoIndicator = ({ bpm, time }: { bpm?: number; time?: string }) =
 			aria-pressed={running}
 			title={`${label}: ${beats} beats per bar; quarter-note BPM`}
 			data-meter={label}
-			onClick={() => setRunning((value) => !value)}
+			onClick={() => {
+				if (onRunningChange) onRunningChange(!running);
+				else setRunning(!running);
+			}}
 		>
 			<span className="tempo-indicator__label">
 				{bpm} BPM<small>{label}</small>
