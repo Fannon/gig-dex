@@ -2,23 +2,23 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Setlists Page", () => {
 	test("should navigate to setlists page", async ({ page }) => {
-		await page.goto("/");
+		await page.goto("./");
 
 		await page.getByRole("link", { name: /Setlists/i }).click();
-		await expect(page).toHaveURL("/setlists");
+		await expect(page).toHaveURL("./setlists");
 		// Use first() to avoid strict mode violation with multiple matching headings
 		await expect(page.locator(".setlists-page__header h1")).toContainText("Setlists");
 	});
 
 	test("should show empty state", async ({ page }) => {
-		await page.goto("/setlists");
+		await page.goto("./setlists");
 
 		await expect(page.getByText("No setlists yet")).toBeVisible();
 		await expect(page.getByRole("button", { name: "Create Setlist" })).toBeVisible();
 	});
 
 	test("should create a new setlist", async ({ page }) => {
-		await page.goto("/setlists");
+		await page.goto("./setlists");
 
 		// Open create modal
 		await page.locator(".setlists-page__add").click();
@@ -35,7 +35,7 @@ test.describe("Setlists Page", () => {
 	});
 
 	test("should navigate to setlist detail", async ({ page }) => {
-		await page.goto("/setlists");
+		await page.goto("./setlists");
 
 		// Create setlist
 		await page.locator(".setlists-page__add").click();
@@ -52,7 +52,7 @@ test.describe("Setlists Page", () => {
 	});
 
 	test("should delete a setlist", async ({ page }) => {
-		await page.goto("/setlists");
+		await page.goto("./setlists");
 
 		// Create setlist
 		await page.locator(".setlists-page__add").click();
@@ -76,7 +76,7 @@ test.describe("Setlists Page", () => {
 test.describe("Setlist Detail Page", () => {
 	test.beforeEach(async ({ page }) => {
 		// Setup: Create a song and a setlist
-		await page.goto("/");
+		await page.goto("./");
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
 		await expect(page.locator(".song-card")).toBeVisible();
 

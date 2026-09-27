@@ -6,6 +6,9 @@ const base = process.env.VITE_BASE_PATH || "/";
 
 export default defineConfig({
 	base,
+	server: {
+		watch: { ignored: ["**/reports/**", "**/tmp/**", "**/coverage/**"] },
+	},
 	plugins: [
 		react(),
 		VitePWA({

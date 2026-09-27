@@ -35,6 +35,9 @@ This adds the production/PWA build and Playwright E2E tests. Playwright starts
 Vite itself; install its browser if needed with `npx playwright install chromium`.
 Report environment blockers and distinguish checks that passed from checks that
 could not run. Do not claim a browser check passed based only on unit tests.
+Use relative URLs such as `./settings` in browser tests so they respect the
+configured base URL. For routing or deployment changes, also verify with
+`VITE_BASE_PATH=/gig-dex/ npm run verify`, matching the CI configuration.
 
 ## Song display visual checks
 
@@ -57,6 +60,11 @@ not. The script exits nonzero for clipping, page overflow, or browser errors.
 
 The utility starts its own Vite server on port 5174, or accepts `--url` for an
 existing **development** server. Its browser context has isolated IndexedDB.
+Avoid changing application sources during an audit. If interrupted, `--start N`
+continues from the Nth selected song into a separate output directory. Combine
+batch measurements only when previously checked rendering behavior is unchanged;
+confirm every selected song/viewport occurs once before claiming full coverage.
+Invalid ChordPro is reported separately and shown as escaped raw text for repair.
 Only synthetic lyrics belong in committed fixtures. Personal songs and all
 screenshots/reports stay under ignored `tmp/` or `reports/`; never stage those
 artifacts or copy their lyrics into source files or review reports.

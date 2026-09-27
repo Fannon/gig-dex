@@ -10,12 +10,16 @@ const { values } = parseArgs({
 		input: { type: "string" },
 		output: { type: "string", default: "reports/song-layout" },
 		limit: { type: "string", default: "6" },
+		start: { type: "string", default: "1" },
 		url: { type: "string" },
 		"audit-only": { type: "boolean", default: false },
 	},
 });
 const limit = Number(values.limit);
+const start = Number(values.start);
 if (!Number.isInteger(limit) || limit < 0) throw new Error("--limit must be a nonnegative integer");
+if (!Number.isInteger(start) || start < 1)
+	throw new Error("--start must be a positive song number");
 // Keep lyrics and screenshots out of source control, including when using private imports.
 const output = path.resolve(values.output);
 const allowed = ["reports", "tmp"].some((dir) => {
@@ -34,6 +38,7 @@ if (values.input) {
 		names.map(async (name) => ({
 			title: name.replace(/\.[^.]+$/, ""),
 			content: await readFile(path.join(values.input, name), "utf8"),
+			source: path.join(values.input, name),
 		})),
 	);
 	songs.sort((a, b) => a.content.length - b.content.length);
@@ -45,6 +50,9 @@ if (values.input) {
 	}
 }
 if (!songs.length) throw new Error("No ChordPro songs found");
+const totalSongs = songs.length;
+songs = songs.slice(start - 1);
+if (!songs.length) throw new Error("--start is beyond the selected songs");
 
 const viewports = [
 	{ name: "desktop", width: 1440, height: 900 },
@@ -92,7 +100,14 @@ try {
 			const { addSong } = await import(`${base}src/db.ts`);
 			const ids = [];
 			for (const song of songs)
-				ids.push(await addSong({ ...song, artist: "Layout review", tags: [] }));
+				ids.push(
+					await addSong({
+						title: song.title,
+						content: song.content,
+						artist: "Layout review",
+						tags: [],
+					}),
+				);
 			return ids;
 		},
 		{ songs, base: new URL(url).pathname },
@@ -150,6 +165,7 @@ try {
 					),
 				);
 				return {
+					invalid: !!content.querySelector(".song-view__raw"),
 					fontSize: parseFloat(getComputedStyle(content).fontSize),
 					columns: getComputedStyle(content).columnCount,
 					layout: document.querySelector(".song-view").getAttribute("data-layout") || "legacy",
@@ -160,17 +176,18 @@ try {
 						document.documentElement.scrollHeight > innerHeight + 1,
 				};
 			});
-			const screenshot = `${String(index + 1).padStart(3, "0")}-${viewport.name}.png`;
+			const screenshot = `${String(index + start).padStart(3, "0")}-${viewport.name}.png`;
 			if (!values["audit-only"])
 				await page.screenshot({ path: path.join(output, screenshot), fullPage: false });
 			results.push({
-				song: index + 1,
+				song: index + start,
+				source: songs[index].source ?? null,
 				viewport: viewport.name,
 				...metrics,
 				screenshot: values["audit-only"] ? null : screenshot,
 			});
 		}
-		console.log(`Reviewed song ${index + 1}/${songs.length}`);
+		console.log(`Reviewed song ${index + start}/${totalSongs}`);
 		await writeFile(
 			path.join(output, "metrics.json"),
 			JSON.stringify({ results, errors }, null, 2),
@@ -192,7 +209,7 @@ try {
 		(r) => r.pageOverflow || (r.outside > 0 && r.layout !== "scroll"),
 	);
 	console.log(
-		`${results.length} layouts, ${failures.length} clipped layouts, ${results.filter((r) => r.layout === "scroll").length} scroll fallbacks, ${errors.length} browser errors. Report: ${output}/index.html`,
+		`${results.length} layouts, ${failures.length} clipped layouts, ${results.filter((r) => r.layout === "scroll").length} scroll fallbacks, ${new Set(results.filter((r) => r.invalid).map((r) => r.song)).size} invalid songs shown as raw text, ${errors.length} browser errors. Report: ${output}/index.html`,
 	);
 	if (failures.length || errors.length) process.exitCode = 1;
 } finally {

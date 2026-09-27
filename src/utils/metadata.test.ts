@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { extractMetadata, injectMetadata, type SongMetadata, stripMetadata } from "./chordEngine";
 
 describe("Metadata Handling", () => {
+	it("extracts metadata despite broken chord markup so the song can be repaired", () => {
+		expect(
+			extractMetadata("{title: Broken test}\n{composer: Test composer}\nBroken [C\ntext"),
+		).toMatchObject({
+			title: "Broken test",
+			composer: "Test composer",
+		});
+	});
 	it("should extract all supported metadata", () => {
 		const chordPro = `
 {title: Amazing Grace}

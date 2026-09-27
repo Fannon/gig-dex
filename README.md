@@ -70,6 +70,9 @@ Use `--url http://localhost:5173/` to reuse a running Vite development server.
 `VITE_BASE_PATH` is supported. `--limit` defaults to six files sampled across
 file sizes; zero checks all files. Outputs are restricted to ignored `reports/`
 or `tmp/` directories and include an HTML gallery, PNGs, and `metrics.json`.
+`--start N` starts at the Nth selected song (one-based), allowing interrupted
+audits to continue into a separate output directory. The metrics identify
+invalid ChordPro songs that use the safe raw-text recovery view.
 The command fails for clipping, page overflow, or browser errors. Scroll
 fallbacks are reported separately. Inspect PNGs as well as the measurements.
 

@@ -31,4 +31,8 @@ export const syntheticSongs = [
 			(_, i) => `[C]Line ${i + 1}, a [G]long collection of words`,
 		).join("\n"),
 	},
+	{
+		title: "Malformed ChordPro",
+		content: "{title: Malformed ChordPro}\n[C]An unfinished [G\nA second line",
+	},
 ];

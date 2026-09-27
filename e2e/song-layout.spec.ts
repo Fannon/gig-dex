@@ -171,3 +171,17 @@ test("preserves extended metadata across editor mode switches and saving", async
 	await page.getByRole("button", { name: "Advanced (ChordPro)" }).click();
 	await expect(page.locator("textarea")).toHaveValue(/\{copyright: Test Copyright\}/);
 });
+
+test("keeps malformed songs readable and lets the editor repair them", async ({ page }) => {
+	await openSong(page, "{composer: Test Composer}\nBroken [C\ntext");
+	await expect(page.getByRole("alert")).toContainText("invalid ChordPro");
+	await expect(page.locator(".song-view__raw")).toContainText("Broken [C");
+	await page.getByRole("button", { name: "+1", exact: true }).click();
+	await expect(page.getByRole("alert")).toBeVisible();
+	await page.getByRole("button", { name: "Edit", exact: true }).click();
+	await page.locator("textarea").fill("{composer: Test Composer}\n[C]Repaired text");
+	await page.getByRole("button", { name: "Save", exact: true }).click();
+	await expectScreenFit(page);
+	await expect(page.getByRole("alert")).toHaveCount(0);
+	await expect(page.locator(".song-view__content")).toContainText("Repaired text");
+});

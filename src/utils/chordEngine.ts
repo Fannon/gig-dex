@@ -171,7 +171,18 @@ export interface SongMetadata {
  */
 export const extractMetadata = (chordProText: string): SongMetadata => {
 	const parser = new ChordProParser();
-	const song = parser.parse(chordProText);
+	let song: ReturnType<typeof parser.parse>;
+	try {
+		song = parser.parse(chordProText);
+	} catch {
+		// Broken lyric/chord markup must not prevent metadata preservation or repair.
+		song = parser.parse(
+			chordProText
+				.split("\n")
+				.filter((line) => /^\s*\{[^{}]*\}\s*$/.test(line))
+				.join("\n"),
+		);
+	}
 
 	let artist: string | undefined;
 	if (song.artist) {

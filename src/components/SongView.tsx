@@ -28,16 +28,26 @@ export const SongView = ({
 	const [layout, setLayout] = useState({ columns: 1, fits: true });
 	const [measuring, setMeasuring] = useState(true);
 
-	// Transpose the content
-	const transposedContent = useMemo(() => {
-		if (transpose === 0) return content;
-		return transposeChordPro(content, transpose);
-	}, [content, transpose]);
-
-	// Parse to HTML
 	const parsed = useMemo(() => {
-		return parseChordPro(transposedContent, { mode: chordMode });
-	}, [transposedContent, chordMode]);
+		try {
+			const transposedContent = transpose === 0 ? content : transposeChordPro(content, transpose);
+			return {
+				...parseChordPro(transposedContent, { mode: chordMode }),
+				transposedContent,
+				error: null,
+			};
+		} catch {
+			return {
+				title: null,
+				artist: null,
+				key: null,
+				tempo: null,
+				html: "",
+				transposedContent: content,
+				error: "This song contains invalid ChordPro. Edit it to fix its formatting.",
+			};
+		}
+	}, [content, transpose, chordMode]);
 
 	useEffect(() => {
 		onKeyChange?.(parsed.key);
@@ -56,15 +66,17 @@ export const SongView = ({
 			if (disposed || !wrapper.clientWidth || !wrapper.clientHeight) return;
 			contentEl.style.height = "100%";
 			const maxColumns = Math.max(1, Math.min(6, Math.floor(wrapper.clientWidth / 160)));
-			const result = findSongLayout(
-				maxColumns,
-				(size, columns) => {
-					contentEl.style.fontSize = `${size}px`;
-					contentEl.style.columnCount = String(columns);
-					return songContentFits(contentEl);
-				},
-				autoSize ? undefined : fontSize,
-			);
+			const result = parsed.error
+				? { fontSize: autoSize ? 18 : fontSize, columns: 1, fits: false }
+				: findSongLayout(
+						maxColumns,
+						(size, columns) => {
+							contentEl.style.fontSize = `${size}px`;
+							contentEl.style.columnCount = String(columns);
+							return songContentFits(contentEl);
+						},
+						autoSize ? undefined : fontSize,
+					);
 			contentEl.style.fontSize = `${result.fontSize}px`;
 			contentEl.style.columnCount = String(result.columns);
 			contentEl.style.height = result.fits ? "100%" : "auto";
@@ -91,14 +103,14 @@ export const SongView = ({
 			observer.disconnect();
 			document.fonts.removeEventListener("loadingdone", schedule);
 		};
-	}, [autoSize, fontSize, parsed.html, showChords]);
+	}, [autoSize, fontSize, parsed.html, parsed.error, showChords]);
 
 	// Update parent with transposed content if needed
 	useEffect(() => {
-		if (transpose !== 0 && onContentChange) {
-			onContentChange(transposedContent);
+		if (!parsed.error && transpose !== 0 && onContentChange) {
+			onContentChange(parsed.transposedContent);
 		}
-	}, [transpose, transposedContent, onContentChange]);
+	}, [transpose, parsed.transposedContent, parsed.error, onContentChange]);
 
 	const handleTranspose = (delta: number) => {
 		setTranspose((prev) => {
@@ -116,6 +128,16 @@ export const SongView = ({
 
 	const toggleAutoSize = () => {
 		setAutoSize((prev) => !prev);
+	};
+
+	const contentProps = {
+		className: `song-view__content ${!showChords ? "song-view__content--hide-chords" : ""}`,
+		ref: contentRef,
+		style: {
+			fontSize: `${fontSize}px`,
+			columnCount: layout.columns,
+			height: layout.fits ? "100%" : "auto",
+		},
 	};
 
 	return (
@@ -213,17 +235,20 @@ export const SongView = ({
 				tabIndex={layout.fits ? undefined : 0}
 				aria-label="Song lyrics and chords"
 			>
-				<div
-					className={`song-view__content ${!showChords ? "song-view__content--hide-chords" : ""}`}
-					ref={contentRef}
-					style={{
-						fontSize: `${fontSize}px`,
-						columnCount: layout.columns,
-						height: layout.fits ? "100%" : "auto",
-					}}
-					// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
-					dangerouslySetInnerHTML={{ __html: parsed.html }}
-				/>
+				{parsed.error ? (
+					<div {...contentProps}>
+						<p className="song-view__error" role="alert">
+							{parsed.error}
+						</p>
+						<pre className="song-view__raw">{content}</pre>
+					</div>
+				) : (
+					<div
+						{...contentProps}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
+						dangerouslySetInnerHTML={{ __html: parsed.html }}
+					/>
+				)}
 			</section>
 		</div>
 	);
