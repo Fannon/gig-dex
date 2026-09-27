@@ -301,14 +301,17 @@ test("sidebar drag adds, reorders repeated occurrences and removes only the chos
 	await rows.nth(0).getByRole("link").dragTo(page.locator(".library-sidebar__drop-end"));
 	await expect(rows.nth(2)).toContainText("T+1");
 	await expect(page).toHaveURL(/occurrence=2$/);
-	await rows.nth(0).getByRole("button", { name: "Remove setlist song 1", exact: true }).click();
+	await rows.nth(0).getByRole("link").focus();
+	await page.keyboard.press("Alt+Delete");
 	await expect(rows).toHaveCount(2);
 	await expect(page).toHaveURL(/occurrence=1$/);
 	await expect(rows.nth(1)).toContainText("T+1");
-	await rows.nth(1).getByRole("button", { name: "Remove setlist song 2", exact: true }).click();
+	await rows.nth(1).getByRole("link").focus();
+	await page.keyboard.press("Alt+Delete");
 	await expect(page).toHaveURL(new RegExp(`/song/${song}$`));
 	await expect(rows).toHaveCount(1);
-	await rows.nth(0).getByRole("button", { name: "Remove setlist song 1", exact: true }).click();
+	await rows.nth(0).getByRole("link").focus();
+	await page.keyboard.press("Alt+Delete");
 	await expect(rows).toHaveCount(0);
 	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
 	await page

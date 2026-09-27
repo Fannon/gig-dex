@@ -464,9 +464,13 @@ export function LibraryWorkspace() {
 																);
 															}}
 															onDragEnd={finishDrag}
-															title="Drag to reorder; Alt+Up/Down also moves this entry"
-															aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+															title="Drag to reorder; Alt+Up/Down moves, Alt+Delete removes this entry"
+															aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+Delete"
 															onKeyDown={(event) => {
+																if (event.altKey && event.key === "Delete") {
+																	event.preventDefault();
+																	void changeSetlist(undefined, undefined, undefined, index);
+																}
 																const delta =
 																	event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
 																if (event.altKey && delta) {
@@ -485,18 +489,6 @@ export function LibraryWorkspace() {
 																{settingLabel(songMap.get(id), current.songSettings?.[index])}
 															</small>
 														</Link>
-														<button
-															type="button"
-															className="library-sidebar__remove"
-															disabled={busy}
-															aria-label={`Remove setlist song ${index + 1}`}
-															title="Remove from setlist"
-															onClick={() =>
-																void changeSetlist(undefined, undefined, undefined, index)
-															}
-														>
-															×
-														</button>
 													</div>
 												))}
 												{!current.songIds.length && <p>Drag songs here or use Add to Set.</p>}
@@ -505,6 +497,36 @@ export function LibraryWorkspace() {
 													data-active={dropSlot === current.songIds.length}
 												>
 													Drop here to append
+												</div>
+												{/* biome-ignore lint/a11y/noStaticElementInteractions: Alt+Delete on an entry provides a keyboard alternative. */}
+												<div
+													className="library-sidebar__drop-remove"
+													data-active={dropSlot === -1}
+													onDragOver={(event) => {
+														if (
+															(!dragged.current &&
+																!event.dataTransfer.types.includes(songDragType)) ||
+															busy
+														)
+															return;
+														event.preventDefault();
+														event.stopPropagation();
+														setDropSlot(-1);
+													}}
+													onDrop={(event) => {
+														event.preventDefault();
+														event.stopPropagation();
+														const source = readSongDrag(event);
+														finishDrag();
+														if (
+															source?.listId === current.id &&
+															source.index !== undefined &&
+															current.songIds[source.index] === source.songId
+														)
+															void changeSetlist(undefined, undefined, undefined, source.index);
+													}}
+												>
+													Drop here to remove
 												</div>
 											</div>
 										) : (

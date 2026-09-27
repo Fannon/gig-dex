@@ -39,7 +39,7 @@ type EditorMode = "simple" | "advanced";
 export const SongPage = () => {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
-	const { currentSetlistId, currentSetlist, selectCurrentSetlist } =
+	const { currentSetlistId, currentSetlist, setlists, selectCurrentSetlist } =
 		useOutletContext<LibraryWorkspaceContext>();
 	const [addingToSet, setAddingToSet] = useState(false);
 	const [setMessage, setSetMessage] = useState("");
@@ -50,11 +50,13 @@ export const SongPage = () => {
 		setAddingToSet(true);
 		setSetMessage("");
 		try {
+			const savedSong = await getSong(id);
+			if (!savedSong) throw new Error("Song no longer exists");
 			const current = currentSetlistId ? await getSetlist(currentSetlistId) : undefined;
 			if (current) {
 				await updateSetlist(current.id, {
 					songIds: [...current.songIds, id],
-					songSettings: [...occurrenceSettings(current), defaultSongSetting(await getSong(id))],
+					songSettings: [...occurrenceSettings(current), defaultSongSetting(savedSong)],
 				});
 				setSetMessage(`Added to ${current.name}`);
 			} else {
@@ -63,7 +65,7 @@ export const SongPage = () => {
 					name: date,
 					date,
 					songIds: [id],
-					songSettings: [defaultSongSetting(await getSong(id))],
+					songSettings: [defaultSongSetting(savedSong)],
 				});
 				selectCurrentSetlist(listId);
 				setSetMessage(`Created ${date} and added song`);
@@ -412,6 +414,12 @@ export const SongPage = () => {
 						<h1 className="song-page__title">{song.title || "Untitled"}</h1>
 						{occurrence.list && <span className="song-page__meta-tag">{occurrence.list.name}</span>}
 						{song.artist && <span className="song-page__artist">by {song.artist}</span>}
+						<Link
+							className="song-page__set-count"
+							to={`/setlists?q=${encodeURIComponent(id ?? "")}`}
+						>
+							In {setlists.filter((list) => list.songIds.includes(id ?? "")).length} Sets
+						</Link>
 						<span className="song-page__meta-tag">
 							{settingLabel(
 								song as Song,

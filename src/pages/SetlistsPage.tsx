@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { WorkspaceDialog } from "../components/WorkspaceDialog";
 import {
@@ -7,19 +7,22 @@ import {
 	duplicateSetlist,
 	getAllSetlists,
 	getAllSongs,
+	getSetlist,
+	getSong,
 	type Setlist,
 	type SetlistSongSettings,
 	type Song,
 	updateSetlist,
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
-import { displayCalendarDate, isCalendarDate } from "../utils/calendarDate";
+import { displayCalendarDate, isCalendarDate, localCalendarDate } from "../utils/calendarDate";
 import {
 	defaultSongSetting,
 	occurrenceContent,
 	occurrenceSettings,
 	settingLabel,
 } from "../utils/setlistSettings";
+import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
 import "./SetlistsPage.scss";
 
 const SongView = lazy(() =>
@@ -27,7 +30,14 @@ const SongView = lazy(() =>
 );
 
 type Panel = "library" | "content" | "preview";
-type Draft = { id?: string; name: string; tags: string; description: string; date: string };
+type Draft = {
+	id?: string;
+	name: string;
+	tags: string;
+	description: string;
+	date: string;
+	initialDate?: string;
+};
 const emptyDraft: Draft = { name: "", tags: "", description: "", date: "" };
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
@@ -41,7 +51,9 @@ export const SetlistsPage = () => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
-	const [search, setSearch] = useState("");
+	const busyRef = useRef(false);
+	const [dropSlot, setDropSlot] = useState<number | null>(null);
+	const [search, setSearch] = useState(searchParams.get("q") ?? "");
 	const [tag, setTag] = useState("");
 	const [sort, setSort] = useState("updated");
 	const [panel, setPanel] = useState<Panel>("library");
@@ -50,6 +62,10 @@ export const SetlistsPage = () => {
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [addingSongs, setAddingSongs] = useState(false);
 	const [songSearch, setSongSearch] = useState("");
+	const routeQuery = searchParams.get("q") ?? "";
+	useEffect(() => {
+		setSearch(routeQuery);
+	}, [routeQuery]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -85,25 +101,39 @@ export const SetlistsPage = () => {
 			return b.songIds.length - a.songIds.length || collator.compare(a.name, b.name);
 		return b.lastModified.localeCompare(a.lastModified) || collator.compare(a.name, b.name);
 	});
-	const selected = setlists.find((list) => list.id === id) ?? (!id ? ordered[0] : undefined);
 	const tags = [...new Set(setlists.flatMap((list) => list.tags ?? []))].sort(collator.compare);
 	const terms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
 	const filtered = ordered.filter((list) => {
 		const text = [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])]
 			.join(" ")
 			.toLocaleLowerCase();
-		return (!tag || list.tags?.includes(tag)) && terms.every((term) => text.includes(term));
+		return (
+			(!tag || list.tags?.includes(tag)) &&
+			terms.every((term) =>
+				/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(term)
+					? list.songIds.some((songId) => songId.toLowerCase() === term)
+					: text.includes(term),
+			)
+		);
 	});
+	const selected = setlists.find((list) => list.id === id) ?? (!id ? filtered[0] : undefined);
 	const songMap = new Map(songs.map((song) => [song.id, song]));
 	const preview = selected ? songMap.get(selected.songIds[songIndex]) : undefined;
+	useEffect(() => {
+		setSongIndex((index) => Math.max(0, Math.min(index, (selected?.songIds.length ?? 1) - 1)));
+	}, [selected?.songIds.length]);
 	const originalDraft = draft?.id ? setlists.find((list) => list.id === draft.id) : undefined;
 	const dirtyDraft =
 		!!draft &&
 		(draft.name !== (originalDraft?.name ?? "") ||
 			draft.tags !== (originalDraft?.tags?.join(", ") ?? "") ||
 			draft.description !== (originalDraft?.description ?? "") ||
-			draft.date !== (originalDraft?.date ?? ""));
+			draft.date !== (originalDraft?.date ?? draft.initialDate ?? ""));
 	const allowLeave = useUnsavedEdits(dirtyDraft);
+	const openNewDraft = () => {
+		const date = localCalendarDate();
+		setDraft({ ...emptyDraft, date, initialDate: date });
+	};
 	const closeDraft = () => {
 		if (!dirtyDraft || confirm("Discard unsaved changes?")) {
 			allowLeave();
@@ -136,7 +166,8 @@ export const SetlistsPage = () => {
 	}, [id, routeSongIndex, searchParams]);
 
 	const mutate = async (action: () => Promise<void>) => {
-		if (busy) return;
+		if (busyRef.current) return;
+		busyRef.current = true;
 		setBusy(true);
 		setError("");
 		try {
@@ -144,6 +175,7 @@ export const SetlistsPage = () => {
 		} catch {
 			setError("Could not save this change. Please try again.");
 		} finally {
+			busyRef.current = false;
 			setBusy(false);
 		}
 	};
@@ -165,7 +197,10 @@ export const SetlistsPage = () => {
 	const saveTranspose = (transpose: number) =>
 		mutate(async () => {
 			if (!selected) return;
-			const settings: SetlistSongSettings[] = occurrenceSettings(selected);
+			const latest = await getSetlist(selected.id);
+			if (!latest || latest.songIds[songIndex] !== selected.songIds[songIndex])
+				throw new Error("Set changed");
+			const settings: SetlistSongSettings[] = occurrenceSettings(latest);
 			settings[songIndex] = { ...settings[songIndex], transpose };
 			await updateSetlist(selected.id, { songSettings: settings });
 			setSetlists(await getAllSetlists());
@@ -232,19 +267,68 @@ export const SetlistsPage = () => {
 			const settings = occurrenceSettings(selected);
 			const [setting] = settings.splice(from, 1);
 			settings.splice(to, 0, setting);
-			const next = songIndex === from ? to : songIndex === to ? from : songIndex;
+			const next =
+				songIndex === from
+					? to
+					: from < songIndex && songIndex <= to
+						? songIndex - 1
+						: to <= songIndex && songIndex < from
+							? songIndex + 1
+							: songIndex;
 			await saveSongs(ids, next, settings);
 		});
+
+	const dropSong = (event: React.DragEvent, slot: number) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setDropSlot(null);
+		const source = readSongDrag(event);
+		if (!selected || !source) return;
+		void mutate(async () => {
+			const latest = await getSetlist(selected.id);
+			if (!latest) throw new Error("Set no longer exists");
+			const ids = [...latest.songIds];
+			const settings = occurrenceSettings(latest);
+			let next = songIndex;
+			if (source.listId === latest.id && source.index !== undefined) {
+				if (ids[source.index] !== source.songId) throw new Error("Set order changed during drag");
+				const to = Math.min(slot > source.index ? slot - 1 : slot, ids.length - 1);
+				if (to === source.index) return;
+				const [moved] = ids.splice(source.index, 1);
+				ids.splice(to, 0, moved);
+				const [setting] = settings.splice(source.index, 1);
+				settings.splice(to, 0, setting);
+				next =
+					songIndex === source.index
+						? to
+						: source.index < songIndex && songIndex <= to
+							? songIndex - 1
+							: to <= songIndex && songIndex < source.index
+								? songIndex + 1
+								: songIndex;
+			} else {
+				const added = await getSong(source.songId);
+				if (!added) throw new Error("Song no longer exists");
+				const to = Math.max(0, Math.min(slot, ids.length));
+				ids.splice(to, 0, added.id);
+				settings.splice(to, 0, defaultSongSetting(added));
+				if (ids.length > 1 && songIndex >= to) next++;
+			}
+			await saveSongs(ids, next, settings);
+		});
+	};
+	const dragOver = (event: React.DragEvent, slot: number) => {
+		if (busyRef.current || !event.dataTransfer.types.includes(songDragType)) return;
+		event.preventDefault();
+		event.stopPropagation();
+		setDropSlot(slot);
+	};
 
 	return (
 		<div className="setlists-page" data-panel={panel}>
 			<header className="setlists-page__header">
 				<h1>Sets</h1>
-				<button
-					type="button"
-					className="setlists-page__add primary"
-					onClick={() => setDraft({ ...emptyDraft })}
-				>
+				<button type="button" className="setlists-page__add primary" onClick={() => openNewDraft()}>
 					New setlist
 				</button>
 			</header>
@@ -325,11 +409,7 @@ export const SetlistsPage = () => {
 							<div className="setlists-page__empty">
 								<h3>No setlists yet</h3>
 								<p>Create a setlist for your next gig.</p>
-								<button
-									type="button"
-									className="primary"
-									onClick={() => setDraft({ ...emptyDraft })}
-								>
+								<button type="button" className="primary" onClick={() => openNewDraft()}>
 									Create Setlist
 								</button>
 							</div>
@@ -423,7 +503,14 @@ export const SetlistsPage = () => {
 									Add songs
 								</button>
 							</div>
-							<ol className="setlists-page__songs">
+							<ol
+								className="setlists-page__songs"
+								onDragOver={(event) => dragOver(event, selected.songIds.length)}
+								onDrop={(event) => dropSong(event, selected.songIds.length)}
+								onDragLeave={(event) => {
+									if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropSlot(null);
+								}}
+							>
 								{!selected.songIds.length && (
 									<li className="setlists-page__empty">No songs in this setlist</li>
 								)}
@@ -435,10 +522,32 @@ export const SetlistsPage = () => {
 											key={`${songId}-${index}`}
 											className="setlists-page__song"
 											data-selected={songIndex === index}
+											data-drop-before={dropSlot === index}
+											data-drop-after={
+												index === selected.songIds.length - 1 && dropSlot === index + 1
+											}
 										>
 											<button
 												type="button"
 												className="setlists-page__song-select"
+												draggable={!busy}
+												title="Drag to reorder"
+												onDragStart={(event) =>
+													writeSongDrag(
+														event,
+														{ songId, listId: selected.id, index },
+														song?.title ?? "Song",
+													)
+												}
+												onDragEnd={() => setDropSlot(null)}
+												onDragOver={(event) => {
+													const box = event.currentTarget.closest("li")?.getBoundingClientRect();
+													dragOver(
+														event,
+														index + (box && event.clientY > box.y + box.height / 2 ? 1 : 0),
+													);
+												}}
+												onDrop={(event) => dropSong(event, dropSlot ?? index)}
 												onClick={() => {
 													setSongIndex(index);
 													setPanel("preview");
@@ -492,6 +601,37 @@ export const SetlistsPage = () => {
 										</li>
 									);
 								})}
+								<li
+									className="setlists-page__drop-end"
+									data-active={dropSlot === selected.songIds.length}
+								>
+									Drop here to append a song
+								</li>
+								<li
+									className="setlists-page__drop-remove"
+									onDragOver={(event) => dragOver(event, -1)}
+									data-active={dropSlot === -1}
+									onDrop={(event) => {
+										event.preventDefault();
+										event.stopPropagation();
+										setDropSlot(null);
+										const source = readSongDrag(event);
+										if (source?.listId !== selected.id || source.index === undefined) return;
+										const removedIndex = source.index;
+										void mutate(async () => {
+											const latest = await getSetlist(selected.id);
+											if (!latest || latest.songIds[removedIndex] !== source.songId)
+												throw new Error("Set order changed during drag");
+											await saveSongs(
+												latest.songIds.filter((_, i) => i !== source.index),
+												songIndex > removedIndex ? songIndex - 1 : songIndex,
+												occurrenceSettings(latest).filter((_, i) => i !== source.index),
+											);
+										});
+									}}
+								>
+									Drop here to remove
+								</li>
 							</ol>
 						</>
 					) : (
@@ -506,14 +646,17 @@ export const SetlistsPage = () => {
 					{preview ? (
 						<>
 							<header className="setlists-page__preview-header">
-								<div className="setlists-page__eyebrow">SONG PREVIEW</div>
+								<div className="setlists-page__preview-heading">
+									<div className="setlists-page__eyebrow">SONG PREVIEW</div>
+									<Link to={`/song/${preview.id}?setlist=${selected?.id}&occurrence=${songIndex}`}>
+										Open song ↗
+									</Link>
+								</div>
 								<h2>{preview.title}</h2>
 								<p>
 									{preview.artist}
 									{previewKey ? ` · ${previewKey}` : ""}
 								</p>
-
-								<Link to={`/song/${preview.id}`}>Open song ↗</Link>
 							</header>
 							<Suspense fallback={<output className="setlists-page__empty">Loading song…</output>}>
 								<SongView

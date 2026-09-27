@@ -13,8 +13,8 @@ entries with no saved settings continue to use zero transposition.
 
 **Remove from Set** removes one occurrence, preferring the occurrence currently
 being read when it belongs to the selected set. It leaves the song in the library.
-The sidebar also has a compact removal button, drag reordering, and **Alt+Up/Down**
-when an occurrence link is focused. Drop after the last entry to append.
+The sidebar has drop targets for adding/removing, drag reordering, and **Alt+Up/Down**
+when an occurrence link is focused. **Alt+Delete** removes that entry. Drop after the last entry to append.
 
 **Alternative title** edits the existing ChordPro subtitle field. Sidebar search,
 global search (**Ctrl+K / Cmd+K**), and the Sets song picker include this field.
