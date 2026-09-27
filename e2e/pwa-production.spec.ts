@@ -172,3 +172,56 @@ test("an interrupted update leaves the previous app and songs usable offline", a
 		await fixture.close();
 	}
 });
+
+test("update shows progress and an already-updated worker can restart another idle tab", async ({
+	page,
+	context,
+}) => {
+	test.skip(!process.env.PLAYWRIGHT_URL, "Requires a completed production build.");
+	const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
+	try {
+		// Make the activation interval observable without mocking the service worker lifecycle.
+		await page.addInitScript(() => {
+			const postMessage = ServiceWorker.prototype.postMessage;
+			ServiceWorker.prototype.postMessage = function (message) {
+				if (message?.type === "SKIP_WAITING") {
+					setTimeout(() => postMessage.call(this, message), 500);
+				} else postMessage.call(this, message);
+			};
+		});
+		await page.goto(fixture.url);
+		await page.getByRole("button", { name: "Add Demo Song" }).click();
+		await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+		const other = await context.newPage();
+		await other.goto(fixture.url);
+		await expect.poll(() => other.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+		fixture.upgrade();
+		await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
+		await page.getByRole("button", { name: "Update and restart" }).click();
+		await expect(page.getByRole("button", { name: "Updating…", exact: true })).toBeDisabled();
+		await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute(
+			"content",
+			"B",
+		);
+		await expect(page.getByRole("button", { name: "Update and restart" })).toHaveCount(0);
+		// The worker is already active; this tab still has deployment A loaded.
+		await expect(other.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute(
+			"content",
+			"A",
+		);
+		expect(
+			await other.evaluate(async () => (await navigator.serviceWorker.ready).waiting),
+		).toBeNull();
+		await other.getByRole("button", { name: "Update and restart" }).click();
+		await expect(other.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute(
+			"content",
+			"B",
+		);
+		await expect(other.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
+		await expect(other.getByRole("alert")).toHaveCount(0);
+		await other.close();
+		await page.close();
+	} finally {
+		await fixture.close();
+	}
+});

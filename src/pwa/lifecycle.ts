@@ -8,6 +8,7 @@ export interface PwaState {
 	ready: boolean;
 	online: boolean;
 	update: boolean;
+	updating: boolean;
 	blocked: boolean;
 	installable: boolean;
 	error: string;
@@ -16,6 +17,7 @@ let state: PwaState = {
 	ready: false,
 	online: navigator.onLine,
 	update: false,
+	updating: false,
 	blocked: false,
 	installable: false,
 	error: "",
@@ -150,35 +152,59 @@ export async function installPwa() {
 	}
 }
 export async function applyPwaUpdate() {
-	if (state.blocked) return;
+	if (state.blocked || state.updating) return;
+	patch({ updating: true, error: "" });
 	const apply = async () => {
 		if (state.blocked) return;
 		if (reloadPending) {
 			window.location.reload();
 			return;
 		}
+		// Re-read the registration: another tab may have activated the advertised update.
+		registration =
+			(await navigator.serviceWorker.getRegistration(import.meta.env.BASE_URL)) || registration;
+		if (state.blocked) return;
+		if (reloadPending) {
+			window.location.reload();
+			return;
+		}
 		const worker = registration?.waiting;
-		if (!worker) return;
+		if (!worker) {
+			patch({
+				update: false,
+				error: "No pending update was found. Check for updates in Settings.",
+			});
+			return;
+		}
 		await new Promise<void>((resolve, reject) => {
-			const timeout = window.setTimeout(() => {
-				worker.removeEventListener("statechange", changed);
-				reject(new Error("Update activation timed out"));
-			}, 15000);
-			const changed = () => {
-				if (worker.state !== "activated" && worker.state !== "redundant") return;
+			const container = navigator.serviceWorker;
+			const cleanup = () => {
 				window.clearTimeout(timeout);
+				container.removeEventListener("controllerchange", controlled);
 				worker.removeEventListener("statechange", changed);
-				if (worker.state === "redundant") {
-					reject(new Error("Update failed"));
-					return;
-				}
+			};
+			const controlled = () => {
+				// Activation alone does not guarantee the next navigation uses the new app.
+				if (container.controller !== worker) return;
+				cleanup();
 				reloadPending = true;
 				if (!state.blocked) window.location.reload();
 				else patch({ update: true });
 				resolve();
 			};
+			const changed = () => {
+				if (worker.state !== "redundant") return;
+				cleanup();
+				reject(new Error("Update failed"));
+			};
+			const timeout = window.setTimeout(() => {
+				cleanup();
+				reject(new Error("Update activation timed out"));
+			}, 15000);
+			container.addEventListener("controllerchange", controlled);
 			worker.addEventListener("statechange", changed);
 			worker.postMessage({ type: "SKIP_WAITING" });
+			controlled();
 		});
 	};
 	try {
@@ -193,7 +219,9 @@ export async function applyPwaUpdate() {
 		else if (window.confirm("Close other Gig-Dex tabs before updating. Restart now?"))
 			await apply();
 	} catch {
-		patch({ error: "Update could not start. Try again after saving your work." });
+		patch({ error: "The update did not finish. Check your connection and try again." });
+	} finally {
+		patch({ updating: false });
 	}
 }
 

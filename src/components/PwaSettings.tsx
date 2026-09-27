@@ -110,10 +110,10 @@ export function PwaSettings() {
 				{state.update && (
 					<button
 						type="button"
-						disabled={busy || state.blocked}
+						disabled={busy || state.blocked || state.updating}
 						onClick={() => void run(applyPwaUpdate)}
 					>
-						Update and restart
+						{state.updating ? "Updating…" : "Update and restart"}
 					</button>
 				)}
 				<button type="button" disabled={busy} onClick={() => void refresh()}>

@@ -17,8 +17,12 @@ export function PwaStatus() {
 						Update available
 						{state.blocked ? " · save edits or finish the current operation to restart" : ""}
 					</span>
-					<button type="button" disabled={state.blocked} onClick={() => void applyPwaUpdate()}>
-						Update and restart
+					<button
+						type="button"
+						disabled={state.blocked || state.updating}
+						onClick={() => void applyPwaUpdate()}
+					>
+						{state.updating ? "Updating…" : "Update and restart"}
 					</button>
 				</>
 			)}

@@ -100,3 +100,112 @@ it("does not activate a waiting update while busy locally or in another tab", as
 	expect(worker.postMessage).not.toHaveBeenCalled();
 	expect(result.current.error).toContain("other Gig-Dex tabs");
 });
+
+async function updateFixture(waiting = true) {
+	vi.stubEnv("PROD", true);
+	const worker = Object.assign(new EventTarget(), {
+		state: "installed",
+		postMessage: vi.fn(),
+	});
+	const registration = Object.assign(new EventTarget(), {
+		waiting: waiting ? worker : null,
+		update: vi.fn(),
+	});
+	const container = Object.assign(new EventTarget(), {
+		register: vi.fn().mockResolvedValue(registration),
+		getRegistration: vi.fn().mockResolvedValue(registration),
+		ready: Promise.resolve(registration),
+		controller: new EventTarget(),
+	});
+	Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: container });
+	Object.defineProperty(navigator, "locks", {
+		configurable: true,
+		value: { request: vi.fn(async (_name, _options, callback) => callback({})) },
+	});
+	const reload = vi.fn();
+	vi.stubGlobal(
+		"window",
+		new Proxy(window, {
+			get: (target, key) => (key === "location" ? { reload } : Reflect.get(target, key)),
+		}),
+	);
+	const pwa = await import("./lifecycle");
+	const { result } = renderHook(pwa.usePwaState);
+	act(pwa.startPwa);
+	await waitFor(() => expect(result.current.ready).toBe(true));
+	return { pwa, result, worker, registration, container, reload };
+}
+
+it("restarts only after the new worker controls the page and ignores duplicate update clicks", async () => {
+	const { pwa, result, worker, container, reload } = await updateFixture();
+	let pending: Promise<void>;
+	await act(async () => {
+		pending = pwa.applyPwaUpdate();
+		await Promise.resolve();
+	});
+	expect(result.current.updating).toBe(true);
+	expect(worker.postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
+	await act(pwa.applyPwaUpdate);
+	expect(worker.postMessage).toHaveBeenCalledTimes(1);
+	act(() => {
+		worker.state = "activated";
+		worker.dispatchEvent(new Event("statechange"));
+		container.dispatchEvent(new Event("controllerchange"));
+	});
+	expect(reload).not.toHaveBeenCalled();
+	await act(async () => {
+		container.controller = worker;
+		container.dispatchEvent(new Event("controllerchange"));
+		await pending;
+	});
+	expect(reload).toHaveBeenCalledTimes(1);
+	expect(result.current.updating).toBe(false);
+});
+
+it("reports a disappeared waiting worker instead of leaving an inert update button", async () => {
+	const { pwa, result, registration, reload } = await updateFixture();
+	registration.waiting = null;
+	await act(pwa.applyPwaUpdate);
+	expect(result.current.update).toBe(false);
+	expect(result.current.updating).toBe(false);
+	expect(result.current.error).toContain("No pending update");
+	expect(reload).not.toHaveBeenCalled();
+});
+
+it("shows a retryable failure when activation times out and releases the update lock", async () => {
+	const { pwa, result, reload } = await updateFixture();
+	const setTimeout = window.setTimeout.bind(window);
+	vi.spyOn(window, "setTimeout").mockImplementation(
+		(callback, delay, ...args) =>
+			setTimeout(callback, delay === 15000 ? 0 : delay, ...args) as unknown as ReturnType<
+				typeof window.setTimeout
+			>,
+	);
+	await act(pwa.applyPwaUpdate);
+	expect(result.current.updating).toBe(false);
+	expect(result.current.error).toContain("did not finish");
+	expect(reload).not.toHaveBeenCalled();
+});
+
+it("does not activate when editing starts while refreshing the registration", async () => {
+	const { pwa, result, registration, worker, container } = await updateFixture();
+	let refreshed = (_value: typeof registration) => {};
+	container.getRegistration.mockImplementation(
+		() =>
+			new Promise((resolve) => {
+				refreshed = resolve;
+			}),
+	);
+	let pending: Promise<void>;
+	let release = () => {};
+	await act(async () => {
+		pending = pwa.applyPwaUpdate();
+		await Promise.resolve();
+		release = pwa.blockPwaUpdate();
+		refreshed(registration);
+		await pending;
+	});
+	expect(worker.postMessage).not.toHaveBeenCalled();
+	expect(result.current.updating).toBe(false);
+	act(release);
+});
