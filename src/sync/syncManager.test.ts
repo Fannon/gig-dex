@@ -249,6 +249,34 @@ describe("SyncManager", () => {
 			await syncManager.sync();
 
 			expect(mockSaveSong).not.toHaveBeenCalled();
+			expect(syncManager.getStatus().error).not.toBeNull();
+			expect(syncManager.getStatus().lastSyncTime).toBeNull();
+		});
+		it("rejects well-formed JSON with invalid song fields or mismatched identity", async () => {
+			vi.mocked(mockProvider.listFiles).mockResolvedValue([
+				{
+					id: "expected",
+					title: "Song",
+					type: "song",
+					gdriveId: "remote",
+					lastModified: "2026-02-03T10:00:00Z",
+				},
+			]);
+			vi.mocked(mockProvider.downloadFile).mockResolvedValue(
+				JSON.stringify({
+					id: "other",
+					title: "Invalid",
+					artist: "Test",
+					content: "[C]Text",
+					tags: [],
+					lastModified: "2026-02-03T10:00:00Z",
+					createdAt: "2026-02-03T10:00:00Z",
+				}),
+			);
+			await syncManager.sync();
+			expect(mockSaveSong).not.toHaveBeenCalled();
+			expect(syncManager.getStatus().error).toBe("Invalid remote song data");
+			expect(localStorage.getItem("last_sync_time")).toBeNull();
 		});
 	});
 });

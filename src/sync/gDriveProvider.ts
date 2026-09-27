@@ -18,6 +18,7 @@ interface GDriveFile {
 	properties?: {
 		internalId?: string;
 		type?: string;
+		lastModified?: string;
 	};
 }
 
@@ -178,18 +179,39 @@ export class GoogleDriveProvider implements SyncProvider {
 	async listFiles(): Promise<SyncMetadata[]> {
 		const folderId = await this.getOrCreateSyncFolder();
 		const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-		const response = await this.fetchWithAuth(
-			`${GOOGLE_DRIVE_API_BASE}/files?q=${query}&fields=files(id, name, modifiedTime, properties)`,
-		);
-		const data: { files?: GDriveFile[] } = await response.json();
-
-		return (data.files || []).map((file) => ({
-			id: file.properties?.internalId || file.id,
-			lastModified: file.modifiedTime,
-			title: file.name,
-			type: file.properties?.type === "setlist" ? ("setlist" as const) : ("song" as const),
-			gdriveId: file.id,
-		}));
+		const files: GDriveFile[] = [];
+		let pageToken: string | undefined;
+		do {
+			const response = await this.fetchWithAuth(
+				`${GOOGLE_DRIVE_API_BASE}/files?q=${query}&fields=nextPageToken,files(id,name,modifiedTime,properties)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
+			);
+			const data: { files?: GDriveFile[]; nextPageToken?: string } = await response.json();
+			files.push(...(data.files || []));
+			pageToken = data.nextPageToken;
+		} while (pageToken);
+		const result: SyncMetadata[] = [];
+		for (const file of files) {
+			if (!file.properties?.internalId || !["song", "setlist"].includes(file.properties.type || ""))
+				continue;
+			let lastModified = file.properties.lastModified;
+			if (!lastModified) {
+				// Older uploads only had Drive's upload time, which must not win
+				// over a newer local edit. Read the actual record modification time.
+				const record = JSON.parse(await this.downloadFile(file.id));
+				lastModified = record.lastModified;
+			}
+			if (typeof lastModified !== "string" || !Number.isFinite(Date.parse(lastModified))) {
+				throw new Error("Invalid remote modification time");
+			}
+			result.push({
+				id: file.properties.internalId,
+				lastModified,
+				title: file.name,
+				type: file.properties.type === "setlist" ? "setlist" : "song",
+				gdriveId: file.id,
+			});
+		}
+		return result;
 	}
 
 	async downloadFile(gdriveId: string): Promise<string> {
@@ -220,6 +242,7 @@ export class GoogleDriveProvider implements SyncProvider {
 			properties: {
 				internalId: metadata.id,
 				type: metadata.type,
+				lastModified: metadata.lastModified,
 			},
 			parents: existingFile ? undefined : [folderId],
 		};

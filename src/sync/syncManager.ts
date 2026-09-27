@@ -1,4 +1,5 @@
 import { getAllSetlists, getAllSongs, type Setlist, type Song, saveSetlist, saveSong } from "../db";
+import { parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import type { SyncMetadata, SyncProvider, SyncStatus } from "./types";
 
 export class SyncManager {
@@ -50,7 +51,7 @@ export class SyncManager {
 					await this.pushSong(song);
 				} else if (new Date(remote.lastModified) > new Date(song.lastModified)) {
 					if (remote.gdriveId) {
-						await this.pullSong(remote.gdriveId);
+						await this.pullSong(remote.gdriveId, remote.id);
 					}
 				}
 				remoteMap.delete(song.id);
@@ -63,7 +64,7 @@ export class SyncManager {
 					await this.pushSetlist(setlist);
 				} else if (new Date(remote.lastModified) > new Date(setlist.lastModified)) {
 					if (remote.gdriveId) {
-						await this.pullSetlist(remote.gdriveId);
+						await this.pullSetlist(remote.gdriveId, remote.id);
 					}
 				}
 				remoteMap.delete(setlist.id);
@@ -73,9 +74,9 @@ export class SyncManager {
 			for (const remote of remoteMap.values()) {
 				if (remote.gdriveId) {
 					if (remote.type === "song") {
-						await this.pullSong(remote.gdriveId);
+						await this.pullSong(remote.gdriveId, remote.id);
 					} else {
-						await this.pullSetlist(remote.gdriveId);
+						await this.pullSetlist(remote.gdriveId, remote.id);
 					}
 				}
 			}
@@ -110,23 +111,13 @@ export class SyncManager {
 		await this.provider.uploadFile(metadata, JSON.stringify(setlist));
 	}
 
-	private async pullSong(gdriveId: string) {
+	private async pullSong(gdriveId: string, expectedId: string) {
 		const content = await this.provider.downloadFile(gdriveId);
-		try {
-			const song: Song = JSON.parse(content);
-			await saveSong(song);
-		} catch (e) {
-			console.error("Failed to parse pulled song", e);
-		}
+		await saveSong(parseSyncedSong(content, expectedId));
 	}
 
-	private async pullSetlist(gdriveId: string) {
+	private async pullSetlist(gdriveId: string, expectedId: string) {
 		const content = await this.provider.downloadFile(gdriveId);
-		try {
-			const setlist: Setlist = JSON.parse(content);
-			await saveSetlist(setlist);
-		} catch (e) {
-			console.error("Failed to parse pulled setlist", e);
-		}
+		await saveSetlist(parseSyncedSetlist(content, expectedId));
 	}
 }

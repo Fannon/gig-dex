@@ -59,39 +59,98 @@ interface GigDexDB extends DBSchema {
 const DB_NAME = "GigDexDB";
 const DB_VERSION = 2; // Bumped version for schema change
 
-let dbInstance: IDBPDatabase<GigDexDB> | null = null;
+type LegacySong = Omit<Song, "id" | "lastModified" | "createdAt"> & {
+	id: number;
+	lastUpdated: Date;
+	createdAt: Date;
+};
+type LegacySetlist = Omit<Setlist, "id" | "songIds" | "lastModified" | "createdAt"> & {
+	id: number;
+	songIds: number[];
+	lastUpdated: Date;
+	createdAt: Date;
+};
+
+function createStores(db: IDBPDatabase<GigDexDB>) {
+	const songs = db.createObjectStore("songs", { keyPath: "id" });
+	songs.createIndex("by-title", "title");
+	songs.createIndex("by-artist", "artist");
+	songs.createIndex("by-updated", "lastModified");
+	const setlists = db.createObjectStore("setlists", { keyPath: "id" });
+	setlists.createIndex("by-name", "name");
+	setlists.createIndex("by-updated", "lastModified");
+}
+
+let dbPromise: Promise<IDBPDatabase<GigDexDB>> | null = null;
 
 export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
-	if (dbInstance) return dbInstance;
+	if (dbPromise) return dbPromise;
 
-	dbInstance = await openDB<GigDexDB>(DB_NAME, DB_VERSION, {
-		upgrade(db, oldVersion) {
-			// Wipe old stores if upgrading from version 1 (numeric IDs to string IDs)
-			if (oldVersion < 2) {
-				if (db.objectStoreNames.contains("songs")) db.deleteObjectStore("songs");
-				if (db.objectStoreNames.contains("setlists")) db.deleteObjectStore("setlists");
+	dbPromise = openDB<GigDexDB>(DB_NAME, DB_VERSION, {
+		upgrade(db, oldVersion, _newVersion, transaction) {
+			if (oldVersion === 0) {
+				createStores(db);
+				return;
 			}
-
-			// Songs store
-			if (!db.objectStoreNames.contains("songs")) {
-				const songsStore = db.createObjectStore("songs", { keyPath: "id" });
-				songsStore.createIndex("by-title", "title");
-				songsStore.createIndex("by-artist", "artist");
-				songsStore.createIndex("by-updated", "lastModified");
-			}
-
-			// Setlists store
-			if (!db.objectStoreNames.contains("setlists")) {
-				const setlistsStore = db.createObjectStore("setlists", {
-					keyPath: "id",
-				});
-				setlistsStore.createIndex("by-name", "name");
-				setlistsStore.createIndex("by-updated", "lastModified");
-			}
+			if (oldVersion !== 1) return;
+			// openDB reports aborted upgrades to the caller; also consume the
+			// transaction promise so rollback does not create an unhandled rejection.
+			void transaction.done.catch(() => {});
+			// Read before replacing the stores. All writes remain in the upgrade
+			// transaction, so a failed conversion rolls back to the intact v1 data.
+			const migrate = async () => {
+				const [oldSongs, oldSetlists] = await Promise.all([
+					transaction.objectStore("songs").getAll() as unknown as Promise<LegacySong[]>,
+					transaction.objectStore("setlists").getAll() as unknown as Promise<LegacySetlist[]>,
+				]);
+				const songIds = new Map(oldSongs.map((song) => [song.id, crypto.randomUUID()]));
+				db.deleteObjectStore("songs");
+				db.deleteObjectStore("setlists");
+				createStores(db);
+				for (const { id, lastUpdated, createdAt, ...song } of oldSongs) {
+					const newId = songIds.get(id);
+					if (!newId) throw new Error("Missing migrated song ID");
+					await transaction.objectStore("songs").put({
+						...song,
+						id: newId,
+						lastModified: new Date(lastUpdated).toISOString(),
+						createdAt: new Date(createdAt).toISOString(),
+					});
+				}
+				for (const {
+					id: _id,
+					songIds: oldIds,
+					lastUpdated,
+					createdAt,
+					...setlist
+				} of oldSetlists) {
+					await transaction.objectStore("setlists").put({
+						...setlist,
+						id: crypto.randomUUID(),
+						songIds: oldIds.flatMap((id) => {
+							const newId = songIds.get(id);
+							return newId ? [newId] : [];
+						}),
+						lastModified: new Date(lastUpdated).toISOString(),
+						createdAt: new Date(createdAt).toISOString(),
+					});
+				}
+			};
+			void migrate().catch(() => transaction.abort());
 		},
+		blocking() {
+			void dbPromise?.then((db) => db.close());
+			dbPromise = null;
+		},
+		terminated() {
+			dbPromise = null;
+		},
+	}).catch((error) => {
+		dbPromise = null;
+		throw error;
 	});
 
-	return dbInstance;
+	return dbPromise;
 };
 
 // Helper to generate IDs and timestamps
