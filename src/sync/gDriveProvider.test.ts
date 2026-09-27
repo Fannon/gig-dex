@@ -67,14 +67,57 @@ describe("Drive synchronization metadata", () => {
 	});
 	it("persists the edit timestamp alongside the record identity on upload", async () => {
 		respond({ files: [{ id: "folder" }] });
-		respond({ files: [] });
 		respond({ id: "uploaded" });
 		await new GoogleDriveProvider().uploadFile(
 			{ id: "song-1", title: "Test", type: "song", lastModified: "2025-01-01T00:00:00Z" },
 			"{}",
 		);
-		expect(String(mockFetch.mock.calls[2][1]?.body)).toContain(
+		expect(String(mockFetch.mock.calls[1][1]?.body)).toContain(
 			'"lastModified":"2025-01-01T00:00:00Z"',
 		);
 	});
+});
+
+it("lists all concurrent branches and drops only their referenced ancestors", async () => {
+	respond({ files: [{ id: "folder" }] });
+	respond({
+		files: [
+			{
+				id: "ancestor",
+				name: "Old",
+				properties: {
+					internalId: "song",
+					type: "song",
+					revision: "r1",
+					lastModified: "2025-01-01T00:00:00Z",
+				},
+			},
+			{
+				id: "a",
+				name: "A",
+				properties: {
+					internalId: "song",
+					type: "song",
+					revision: "r2",
+					parent0: "r1",
+					lastModified: "2026-01-01T00:00:00Z",
+				},
+			},
+			{
+				id: "b",
+				name: "B",
+				properties: {
+					internalId: "song",
+					type: "song",
+					revision: "r3",
+					parent0: "r1",
+					lastModified: "2024-01-01T00:00:00Z",
+				},
+			},
+		],
+	});
+	expect((await new GoogleDriveProvider().listFiles()).map((file) => file.revision)).toEqual([
+		"r2",
+		"r3",
+	]);
 });

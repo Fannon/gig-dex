@@ -1,0 +1,10 @@
+.conflict-review {
+  > p { color: #b0b0c4; font-size: .9rem; }
+  article { border: 1px solid #fbbf2440; border-radius: 10px; padding: 1rem; margin: 1rem 0; }
+  h3 { margin: 0 0 .75rem; font-size: 1rem; }
+  details { font-size: .85rem; margin-bottom: .75rem; }
+  summary { cursor: pointer; color: #c2bbfc; }
+  pre { max-height: 18rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: .75rem; background: #0003; }
+  &__actions { display: flex; flex-wrap: wrap; gap: .5rem; button { padding: .6rem .8rem; font-size: .8rem; background: #6152dd; border-radius: 6px; &:disabled { opacity: .4; } } }
+  [role=alert] { color: #fca5a5; }
+}

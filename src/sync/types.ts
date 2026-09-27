@@ -3,6 +3,8 @@ export interface SyncMetadata {
 	lastModified: string;
 	title: string;
 	type: "song" | "setlist";
+	revision?: string;
+	parents?: string[];
 	gdriveId?: string; // Internal Google Drive file ID, used for downloading
 }
 
@@ -29,4 +31,5 @@ export interface SyncStatus {
 	lastSyncTime: string | null;
 	isSyncing: boolean;
 	error: string | null;
+	conflictCount?: number;
 }

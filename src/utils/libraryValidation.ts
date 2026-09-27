@@ -52,3 +52,18 @@ export function parseSyncedSetlist(content: string, expectedId: string): Setlist
 	}
 	return value as unknown as Setlist;
 }
+
+export function parseDeletion(
+	value: unknown,
+	expectedId: string,
+	type: "song" | "setlist",
+): import("../sync/records").DeletionRecord {
+	if (
+		!validCommon(value, expectedId) ||
+		value.deleted !== true ||
+		value.type !== type ||
+		typeof value.title !== "string"
+	)
+		throw new Error("Invalid deletion record.");
+	return value as unknown as import("../sync/records").DeletionRecord;
+}

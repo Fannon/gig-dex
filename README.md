@@ -111,3 +111,24 @@ Import multiple ChordPro files from Settings. Source text and extended metadata
 are preserved, identical source text is skipped, and the results identify each
 file's status. Malformed chord markup is retained as raw text for editing; empty
 files are rejected. Private song inputs and generated screenshots remain ignored.
+
+### Sync deletions and conflicts
+
+Sync now records deletions durably and exchanges them across devices. Competing
+edits, including deletion versus editing, are retained for review in Settings.
+Expand each version and keep this device's version, a remote version, or separate
+copies. Resolution is saved locally; sync again to share the choice. Local edits
+made during sync or after conflict detection are protected from being overwritten.
+Backups also contain deletion records and unresolved conflict snapshots.
+
+Drive uploads append immutable revisions with parent links. Concurrent uploads
+remain separate branches, and sync joins reviewed branches instead of overwriting
+one by upload time. Revision history is retained in the Drive folder and will grow;
+retention/compaction is a future feature. All devices should use the updated app;
+legacy clients still use the old timestamp-based algorithm. API behavior is tested
+with mocked HTTP and two simulated devices using real IndexedDB. Live OAuth/Drive
+verification remains necessary with a configured account.
+
+Revision joins respect [Drive's custom property limits](https://developers.google.com/workspace/drive/api/guides/properties);
+large joins use intermediate revisions. Normal local editing and previewing do
+not connect to Drive.

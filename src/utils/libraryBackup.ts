@@ -1,6 +1,14 @@
 import { initDB, type Setlist, type Song } from "../db";
+import {
+	type DeletionRecord,
+	isDeletion,
+	type LibraryRecord,
+	recordKey,
+	type SyncConflict,
+} from "../sync/records";
 import { extractMetadata, parseChordPro } from "./chordEngine";
-import { parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
+import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
+import { stableStringify } from "./recordFingerprint";
 
 export interface LibraryBackup {
 	format: "gig-dex";
@@ -8,6 +16,8 @@ export interface LibraryBackup {
 	exportedAt: string;
 	songs: Song[];
 	setlists: Setlist[];
+	tombstones?: DeletionRecord[];
+	conflicts?: SyncConflict[];
 }
 
 export function parseBackup(content: string): LibraryBackup {
@@ -16,6 +26,8 @@ export function parseBackup(content: string): LibraryBackup {
 		!value ||
 		value.format !== "gig-dex" ||
 		value.version !== 1 ||
+		typeof value.exportedAt !== "string" ||
+		!Number.isFinite(Date.parse(value.exportedAt)) ||
 		!Array.isArray(value.songs) ||
 		!Array.isArray(value.setlists)
 	)
@@ -37,29 +49,78 @@ export function parseBackup(content: string): LibraryBackup {
 	const songIds = new Set(songs.map((song) => song.id));
 	if (setlists.some((list) => list.songIds.some((id) => !songIds.has(id))))
 		throw new Error("Backup contains setlist references to missing songs.");
-	return { format: "gig-dex", version: 1, exportedAt: value.exportedAt, songs, setlists };
+	if (
+		(value.tombstones !== undefined && !Array.isArray(value.tombstones)) ||
+		(value.conflicts !== undefined && !Array.isArray(value.conflicts))
+	)
+		throw new Error("Invalid backup sync records.");
+	const tombstones: DeletionRecord[] = (value.tombstones ?? []).map((item: DeletionRecord) => {
+		const record = parseDeletion(item, item?.id, item?.type);
+		if (ids.has(record.id) || !["song", "setlist"].includes(record.type))
+			throw new Error("Duplicate backup deletion ID.");
+		ids.add(record.id);
+		return record;
+	});
+	const parseRecord = (record: LibraryRecord, id: string, type: "song" | "setlist") =>
+		isDeletion(record)
+			? parseDeletion(record, id, type)
+			: type === "song"
+				? parseSyncedSong(JSON.stringify(record), id)
+				: parseSyncedSetlist(JSON.stringify(record), id);
+	const conflicts: SyncConflict[] = (value.conflicts ?? []).map((conflict: SyncConflict) => {
+		if (
+			!conflict ||
+			!["song", "setlist"].includes(conflict.type) ||
+			typeof conflict.recordId !== "string" ||
+			conflict.id !== recordKey(conflict.type, conflict.recordId) ||
+			!Array.isArray(conflict.remote) ||
+			!conflict.remote.length
+		)
+			throw new Error("Invalid backup conflict.");
+		return {
+			...conflict,
+			local: conflict.local
+				? parseRecord(conflict.local, conflict.recordId, conflict.type)
+				: undefined,
+			remote: conflict.remote.map((version) => {
+				if (typeof version.revision !== "string") throw new Error("Invalid conflict revision.");
+				return {
+					revision: version.revision,
+					record: parseRecord(version.record, conflict.recordId, conflict.type),
+				};
+			}),
+		};
+	});
+	return {
+		format: "gig-dex",
+		version: 1,
+		exportedAt: value.exportedAt,
+		songs,
+		setlists,
+		tombstones,
+		conflicts,
+	};
 }
 
 export async function exportLibrary(): Promise<LibraryBackup> {
 	const db = await initDB();
-	const tx = db.transaction(["songs", "setlists"], "readonly");
-	const [songs, setlists] = await Promise.all([
+	const tx = db.transaction(["songs", "setlists", "tombstones", "syncConflicts"], "readonly");
+	const [songs, setlists, tombstones, conflicts] = await Promise.all([
 		tx.objectStore("songs").getAll(),
 		tx.objectStore("setlists").getAll(),
+		tx.objectStore("tombstones").getAll(),
+		tx.objectStore("syncConflicts").getAll(),
 	]);
 	await tx.done;
-	return { format: "gig-dex", version: 1, exportedAt: new Date().toISOString(), songs, setlists };
-}
-
-function fingerprint(value: unknown): string {
-	if (Array.isArray(value)) return `[${value.map(fingerprint).join(",")}]`;
-	if (value && typeof value === "object")
-		return `{${Object.entries(value)
-			.filter(([, item]) => item !== undefined)
-			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([key, item]) => `${JSON.stringify(key)}:${fingerprint(item)}`)
-			.join(",")}}`;
-	return JSON.stringify(value);
+	return {
+		format: "gig-dex",
+		version: 1,
+		exportedAt: new Date().toISOString(),
+		songs,
+		setlists,
+		tombstones,
+		conflicts,
+	};
 }
 
 /** Validate before writing, then restore both stores in a single transaction. */
@@ -69,7 +130,10 @@ export async function restoreLibrary(
 ): Promise<void> {
 	const valid = parseBackup(JSON.stringify(backup));
 	const db = await initDB();
-	const tx = db.transaction(["songs", "setlists"], "readwrite");
+	const tx = db.transaction(
+		["songs", "setlists", "tombstones", "syncConflicts", "syncBases"],
+		"readwrite",
+	);
 	void tx.done.catch(() => {});
 	try {
 		const songStore = tx.objectStore("songs");
@@ -78,19 +142,37 @@ export async function restoreLibrary(
 			songStore.getAll(),
 			listStore.getAll(),
 		]);
+		const deleted = new Set((await tx.objectStore("tombstones").getAll()).map((item) => item.id));
+		const now = new Date().toISOString();
 		if (mode === "replace") {
+			const retained = new Set([...valid.songs, ...valid.setlists].map((record) => record.id));
+			for (const record of [...existingSongs, ...existingLists]) {
+				if (!retained.has(record.id))
+					await tx.objectStore("tombstones").put({
+						id: record.id,
+						type: "name" in record ? "setlist" : "song",
+						deleted: true,
+						title: "name" in record ? record.name : record.title,
+						createdAt: record.createdAt,
+						lastModified: now,
+					});
+			}
+			await tx.objectStore("syncConflicts").clear();
 			await songStore.clear();
 			await listStore.clear();
 		}
 		const songMap = new Map(existingSongs.map((song) => [song.id, song]));
 		const listMap = new Map(existingLists.map((list) => [list.id, list]));
 		const remap = new Map<string, string>();
-		const now = new Date().toISOString();
 		for (const song of valid.songs) {
 			const existing = mode === "merge" ? songMap.get(song.id) : undefined;
-			const changed = !!existing && fingerprint(song) !== fingerprint(existing);
+			const changed =
+				mode === "merge" &&
+				(deleted.has(song.id) ||
+					(!!existing && stableStringify(song) !== stableStringify(existing)));
 			const id = changed ? crypto.randomUUID() : song.id;
 			remap.set(song.id, id);
+			await tx.objectStore("tombstones").delete(id);
 			if (!existing || changed)
 				await songStore.put({
 					...song,
@@ -101,13 +183,44 @@ export async function restoreLibrary(
 		for (const list of valid.setlists) {
 			const updated = { ...list, songIds: list.songIds.map((id) => remap.get(id) ?? id) };
 			const existing = mode === "merge" ? listMap.get(list.id) : undefined;
-			const changed = !!existing && fingerprint(updated) !== fingerprint(existing);
+			const changed =
+				mode === "merge" &&
+				(deleted.has(list.id) ||
+					(!!existing && stableStringify(updated) !== stableStringify(existing)));
+			const id = changed ? crypto.randomUUID() : list.id;
+			remap.set(list.id, id);
+			await tx.objectStore("tombstones").delete(id);
 			if (!existing || changed)
 				await listStore.put({
 					...updated,
-					id: changed ? crypto.randomUUID() : list.id,
+					id,
 					lastModified: mode === "replace" || changed ? now : list.lastModified,
 				});
+		}
+		for (const deletion of valid.tombstones ?? []) {
+			const active = await tx
+				.objectStore(deletion.type === "song" ? "songs" : "setlists")
+				.get(deletion.id);
+			if (!active) await tx.objectStore("tombstones").put(deletion);
+		}
+		for (const conflict of valid.conflicts ?? []) {
+			const id = remap.get(conflict.recordId) ?? conflict.recordId;
+			const key = recordKey(conflict.type, id);
+			const local =
+				(await tx.objectStore("tombstones").get(id)) ??
+				(await tx.objectStore(conflict.type === "song" ? "songs" : "setlists").get(id));
+			const existing = await tx.objectStore("syncConflicts").get(key);
+			const versions = [
+				...(existing?.remote ?? []),
+				...conflict.remote.map((version) => ({ ...version, record: { ...version.record, id } })),
+			];
+			await tx.objectStore("syncConflicts").put({
+				...conflict,
+				id: key,
+				recordId: id,
+				local,
+				remote: [...new Map(versions.map((version) => [version.revision, version])).values()],
+			});
 		}
 		await tx.done;
 	} catch (error) {

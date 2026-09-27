@@ -4,7 +4,13 @@ import { exportLibrary, importChordPro, parseBackup, restoreLibrary } from "./li
 
 beforeEach(async () => {
 	const db = await initDB();
-	const tx = db.transaction(["songs", "setlists"], "readwrite");
+	const tx = db.transaction(
+		["songs", "setlists", "tombstones", "syncBases", "syncConflicts"],
+		"readwrite",
+	);
+	await tx.objectStore("tombstones").clear();
+	await tx.objectStore("syncBases").clear();
+	await tx.objectStore("syncConflicts").clear();
 	await tx.objectStore("songs").clear();
 	await tx.objectStore("setlists").clear();
 	await tx.done;
@@ -107,4 +113,34 @@ describe("library backups and imports", () => {
 			tags: ["acoustic", "gig"],
 		});
 	});
+});
+
+it("backs up deletions and conflict snapshots, restores active records without reviving local deletions in merge mode", async () => {
+	const { deleteSong } = await import("../db");
+	const { saveConflict, getSyncConflicts } = await import("../sync/syncStore");
+	const id = await seed();
+	const backup = await exportLibrary();
+	const local = backup.songs[0];
+	await saveConflict({
+		id: `song:${id}`,
+		recordId: id,
+		type: "song",
+		local,
+		remote: [{ revision: "remote", record: { ...local, content: "[G]Remote" } }],
+		createdAt: new Date().toISOString(),
+	});
+	const withConflict = await exportLibrary();
+	expect(parseBackup(JSON.stringify(withConflict)).conflicts).toHaveLength(1);
+	await restoreLibrary(withConflict, "replace");
+	expect(await getSyncConflicts()).toHaveLength(1);
+	await deleteSong(id);
+	const deletedBackup = await exportLibrary();
+	expect(parseBackup(JSON.stringify(deletedBackup)).tombstones).toHaveLength(1);
+	await restoreLibrary(backup, "merge");
+	const [restored] = await getAllSongs();
+	expect(restored.id).not.toBe(id);
+	expect((await (await initDB()).getAll("tombstones"))[0].id).toBe(id);
+	await restoreLibrary(backup, "replace");
+	expect((await getAllSongs())[0].id).toBe(id);
+	expect(await (await initDB()).get("tombstones", id)).toBeUndefined();
 });

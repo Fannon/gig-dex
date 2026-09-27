@@ -20,7 +20,13 @@ describe("Database", () => {
 	beforeEach(async () => {
 		// Clear IndexedDB before each test
 		const db = await initDB();
-		const tx = db.transaction(["songs", "setlists"], "readwrite");
+		const tx = db.transaction(
+			["songs", "setlists", "tombstones", "syncBases", "syncConflicts"],
+			"readwrite",
+		);
+		await tx.objectStore("tombstones").clear();
+		await tx.objectStore("syncBases").clear();
+		await tx.objectStore("syncConflicts").clear();
 		await tx.objectStore("songs").clear();
 		await tx.objectStore("setlists").clear();
 		await tx.done;

@@ -1,0 +1,39 @@
+import { expect, test } from "@playwright/test";
+
+test("review preserved sync versions and keep both as independent songs", async ({ page }) => {
+	await page.goto("./");
+	await page.evaluate(async () => {
+		const base = new URL(".", location.href).pathname;
+		const { addSong, getSong } = await import(`${base}src/db.ts`);
+		const { saveConflict } = await import(`${base}src/sync/syncStore.ts`);
+		const id = await addSong({
+			title: "Harbor",
+			artist: "Artist",
+			content: "[C]Local rehearsal words",
+			tags: ["gig"],
+		});
+		const local = await getSong(id);
+		await saveConflict({
+			id: `song:${id}`,
+			recordId: id,
+			type: "song",
+			local,
+			remote: [
+				{ revision: "remote-1", record: { ...local, content: "[G]Remote rehearsal words" } },
+			],
+			createdAt: new Date().toISOString(),
+		});
+	});
+	await page.goto("./settings");
+	await expect(page.getByRole("heading", { name: "Sync conflicts" })).toBeVisible();
+	await page.getByText("This device: Harbor", { exact: true }).click();
+	await expect(page.getByText("[C]Local rehearsal words", { exact: true })).toBeVisible();
+	await page.getByText("Remote version 1: Harbor", { exact: true }).click();
+	await expect(page.getByText("[G]Remote rehearsal words", { exact: true })).toBeVisible();
+	await page.getByRole("button", { name: "Keep both as separate copies" }).click();
+	await expect(page.getByText(/Resolution saved/)).toBeVisible();
+	await page.goto("./");
+	await expect(page.locator(".song-card__title")).toHaveCount(2);
+	await expect(page.getByText("Harbor (remote copy)", { exact: true })).toBeVisible();
+	await expect(page.getByText("Harbor", { exact: true })).toBeVisible();
+});

@@ -1,5 +1,6 @@
 import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
+import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 
 // Database schema types
 // Contains ALL ChordPro metadata fields for full compatibility
@@ -38,6 +39,9 @@ interface Setlist {
 }
 
 interface GigDexDB extends DBSchema {
+	tombstones: { key: string; value: DeletionRecord };
+	syncBases: { key: string; value: SyncBase };
+	syncConflicts: { key: string; value: SyncConflict };
 	songs: {
 		key: string;
 		value: Song;
@@ -58,7 +62,7 @@ interface GigDexDB extends DBSchema {
 }
 
 const DB_NAME = "GigDexDB";
-const DB_VERSION = 2; // Bumped version for schema change
+const DB_VERSION = 3; // Adds durable deletion records, sync ancestry, and conflict review
 
 type LegacySong = Omit<Song, "id" | "lastModified" | "createdAt"> & {
 	id: number;
@@ -89,6 +93,11 @@ export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
 
 	dbPromise = openDB<GigDexDB>(DB_NAME, DB_VERSION, {
 		upgrade(db, oldVersion, _newVersion, transaction) {
+			if (oldVersion < 3) {
+				db.createObjectStore("tombstones", { keyPath: "id" });
+				db.createObjectStore("syncBases", { keyPath: "id" });
+				db.createObjectStore("syncConflicts", { keyPath: "id" });
+			}
 			if (oldVersion === 0) {
 				createStores(db);
 				return;
@@ -193,7 +202,17 @@ export const saveSong = async (song: Song): Promise<void> => {
 
 export const deleteSong = async (id: string): Promise<void> => {
 	const db = await initDB();
-	const tx = db.transaction(["songs", "setlists"], "readwrite");
+	const tx = db.transaction(["songs", "setlists", "tombstones"], "readwrite");
+	const song = await tx.objectStore("songs").get(id);
+	if (song)
+		await tx.objectStore("tombstones").put({
+			id,
+			type: "song",
+			deleted: true,
+			title: song.title,
+			createdAt: song.createdAt,
+			lastModified: now(),
+		});
 	await tx.objectStore("songs").delete(id);
 
 	const setlists = await tx.objectStore("setlists").getAll();
@@ -266,7 +285,19 @@ export const saveSetlist = async (setlist: Setlist): Promise<void> => {
 
 export const deleteSetlist = async (id: string): Promise<void> => {
 	const db = await initDB();
-	await db.delete("setlists", id);
+	const tx = db.transaction(["setlists", "tombstones"], "readwrite");
+	const list = await tx.objectStore("setlists").get(id);
+	if (list)
+		await tx.objectStore("tombstones").put({
+			id,
+			type: "setlist",
+			deleted: true,
+			title: list.name,
+			createdAt: list.createdAt,
+			lastModified: now(),
+		});
+	await tx.objectStore("setlists").delete(id);
+	await tx.done;
 };
 
 export const getSetlist = async (id: string): Promise<Setlist | undefined> => {

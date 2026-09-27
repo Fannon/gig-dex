@@ -15,10 +15,13 @@ interface GDriveFile {
 	id: string;
 	name: string;
 	modifiedTime: string;
+	version?: string;
 	properties?: {
 		internalId?: string;
 		type?: string;
 		lastModified?: string;
+		revision?: string;
+		[key: string]: string | undefined;
 	};
 }
 
@@ -183,7 +186,7 @@ export class GoogleDriveProvider implements SyncProvider {
 		let pageToken: string | undefined;
 		do {
 			const response = await this.fetchWithAuth(
-				`${GOOGLE_DRIVE_API_BASE}/files?q=${query}&fields=nextPageToken,files(id,name,modifiedTime,properties)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
+				`${GOOGLE_DRIVE_API_BASE}/files?q=${query}&fields=nextPageToken,files(id,name,modifiedTime,version,properties)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
 			);
 			const data: { files?: GDriveFile[]; nextPageToken?: string } = await response.json();
 			files.push(...(data.files || []));
@@ -209,9 +212,24 @@ export class GoogleDriveProvider implements SyncProvider {
 				title: file.name,
 				type: file.properties.type === "setlist" ? "setlist" : "song",
 				gdriveId: file.id,
+				revision:
+					file.properties.revision ??
+					`legacy-${file.id}-${file.version ?? file.modifiedTime ?? "0"}`,
+				parents: Object.entries(file.properties)
+					.filter(([key]) => /^parent\d+$/.test(key))
+					.map(([, parent]) => parent)
+					.filter((parent): parent is string => typeof parent === "string"),
 			});
 		}
-		return result;
+		if (result.some((file) => file.parents?.includes(file.revision ?? "")))
+			throw new Error("Invalid cyclic sync ancestry.");
+		// Keep all branches; only referenced ancestors are superseded. No clock winner.
+		const ancestors = new Set(
+			result.flatMap((file) =>
+				(file.parents ?? []).map((revision) => `${file.type}:${file.id}:${revision}`),
+			),
+		);
+		return result.filter((file) => !ancestors.has(`${file.type}:${file.id}:${file.revision}`));
 	}
 
 	async downloadFile(gdriveId: string): Promise<string> {
@@ -224,14 +242,9 @@ export class GoogleDriveProvider implements SyncProvider {
 	async uploadFile(metadata: SyncMetadata, content: string): Promise<void> {
 		const folderId = await this.getOrCreateSyncFolder();
 
-		// Check if file exists
-		const query = encodeURIComponent(
-			`'${folderId}' in parents and properties has { key='internalId' and value='${metadata.id}' } and trashed = false`,
-		);
-		const searchResponse = await this.fetchWithAuth(`${GOOGLE_DRIVE_API_BASE}/files?q=${query}`);
-		const searchData = await searchResponse.json();
-		const existingFile = searchData.files?.[0];
-
+		// Append a revision instead of overwriting: racing uploads remain recoverable.
+		if ((metadata.parents?.length ?? 0) > 26)
+			throw new Error("Too many competing sync revisions. Contact support before retrying.");
 		// Sanitize filename: YYYY-MM-DD_HH-mm_Title
 		const datePrefix = metadata.lastModified.substring(0, 16).replace(/[:T]/g, "-");
 		const sanitizedTitle = metadata.title.replace(/[^a-z0-9]/gi, "_").substring(0, 50);
@@ -243,8 +256,12 @@ export class GoogleDriveProvider implements SyncProvider {
 				internalId: metadata.id,
 				type: metadata.type,
 				lastModified: metadata.lastModified,
+				revision: metadata.revision,
+				...Object.fromEntries(
+					(metadata.parents ?? []).map((parent, index) => [`parent${index}`, parent]),
+				),
 			},
-			parents: existingFile ? undefined : [folderId],
+			parents: [folderId],
 		};
 
 		const boundary = "foo_bar_baz";
@@ -257,12 +274,10 @@ export class GoogleDriveProvider implements SyncProvider {
 			`${content}\r\n` +
 			`--${boundary}--`;
 
-		const url = existingFile
-			? `${GOOGLE_DRIVE_UPLOAD_BASE}/files/${existingFile.id}?uploadType=multipart`
-			: `${GOOGLE_DRIVE_UPLOAD_BASE}/files?uploadType=multipart`;
+		const url = `${GOOGLE_DRIVE_UPLOAD_BASE}/files?uploadType=multipart`;
 
 		await this.fetchWithAuth(url, {
-			method: existingFile ? "PATCH" : "POST",
+			method: "POST",
 			headers: {
 				"Content-Type": `multipart/related; boundary=${boundary}`,
 			},

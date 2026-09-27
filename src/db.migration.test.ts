@@ -83,3 +83,37 @@ describe("database migration", () => {
 		}
 	});
 });
+
+it("adds sync stores to an existing v2 library without changing records", async () => {
+	const db = await openDB("GigDexDB", 2, {
+		upgrade(db) {
+			const songs = db.createObjectStore("songs", { keyPath: "id" });
+			songs.createIndex("by-title", "title");
+			songs.createIndex("by-artist", "artist");
+			songs.createIndex("by-updated", "lastModified");
+			const lists = db.createObjectStore("setlists", { keyPath: "id" });
+			lists.createIndex("by-name", "name");
+			lists.createIndex("by-updated", "lastModified");
+		},
+	});
+	const song = {
+		id: "old",
+		title: "Stored",
+		artist: "Artist",
+		content: "[C]Original",
+		tags: ["test"],
+		createdAt: "2025-01-01T00:00:00Z",
+		lastModified: "2025-01-01T00:00:00Z",
+	};
+	await db.put("songs", song);
+	db.close();
+	const { initDB } = await import("./db");
+	const upgraded = await initDB();
+	try {
+		expect(await upgraded.get("songs", "old")).toEqual(song);
+		expect(upgraded.objectStoreNames.contains("syncConflicts")).toBe(true);
+		expect(upgraded.objectStoreNames.contains("tombstones")).toBe(true);
+	} finally {
+		upgraded.close();
+	}
+});

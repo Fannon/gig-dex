@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
 import { gDriveProvider, isGDriveAuthenticated, isGDriveEnabled, syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
@@ -23,7 +24,9 @@ export const SettingsPage = () => {
 
 	const handleConnectGDrive = async () => {
 		try {
-			await syncManager.sync();
+			const pending = syncManager.sync();
+			setSyncStatus(syncManager.getStatus());
+			await pending;
 			setSyncStatus(syncManager.getStatus());
 			setIsGdriveConnected(!!localStorage.getItem("gdrive_access_token"));
 		} catch (error) {
@@ -32,7 +35,9 @@ export const SettingsPage = () => {
 	};
 
 	const handleSync = async () => {
-		await syncManager.sync();
+		const pending = syncManager.sync();
+		setSyncStatus(syncManager.getStatus());
+		await pending;
 		setSyncStatus(syncManager.getStatus());
 	};
 
@@ -65,6 +70,7 @@ export const SettingsPage = () => {
 
 			<main className="settings-page__content">
 				<DataManagement />
+				<ConflictReview status={syncStatus} />
 
 				<section className="settings-page__section">
 					<h2>Cloud Sync</h2>
