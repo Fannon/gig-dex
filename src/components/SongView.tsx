@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
 import { readingHtml } from "../utils/readingLayout";
-import { findSongLayout, songContentFits } from "../utils/songLayout";
+import { createSongFitChecker, findSongLayout } from "../utils/songLayout";
 import "./SongView.scss";
 
 interface SongViewProps {
@@ -37,6 +37,8 @@ export const SongView = ({
 	const [chordMode, setChordMode] = useState<ChordMode>("standard");
 	const wrapperRef = useRef<HTMLElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
+	const lastFit = useRef<{ key: string; html: string } | null>(null);
+	const fontEpoch = useRef(0);
 	const [layout, setLayout] = useState({ columns: 1, fits: fitToScreen });
 	const [measuring, setMeasuring] = useState(fitToScreen);
 
@@ -75,7 +77,6 @@ export const SongView = ({
 
 	// Measure the real chord/lyric tables at each candidate size and column count.
 	// Refit before paint, on container changes, and after fonts finish loading.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: Markup and chord visibility change the measured DOM.
 	useLayoutEffect(() => {
 		const wrapper = wrapperRef.current;
 		const contentEl = contentRef.current;
@@ -92,11 +93,23 @@ export const SongView = ({
 		let disposed = false;
 		const measure = () => {
 			if (disposed || !wrapper.clientWidth || !wrapper.clientHeight) return;
+			const key = [
+				wrapper.clientWidth,
+				wrapper.clientHeight,
+				autoSize ? "auto" : fontSize,
+				minimumFontSize,
+				showChords,
+				wrapLines,
+				fontEpoch.current,
+			].join(":");
+			if (lastFit.current?.key === key && lastFit.current.html === parsed.html) return;
+			lastFit.current = { key, html: parsed.html };
 			const started = performance.now();
 			let candidates = 0;
 			contentEl.classList.remove("song-view__content--reading");
 			if (contentEl.querySelector(".reading-line")) contentEl.innerHTML = parsed.html;
 			contentEl.style.height = "100%";
+			const fits = createSongFitChecker(contentEl);
 			const maxColumns = Math.max(1, Math.min(6, Math.floor(wrapper.clientWidth / 160)));
 			const result = parsed.error
 				? { fontSize: autoSize ? Math.max(18, minimumFontSize) : fontSize, columns: 1, fits: false }
@@ -106,7 +119,7 @@ export const SongView = ({
 							candidates++;
 							contentEl.style.fontSize = `${size}px`;
 							contentEl.style.columnCount = String(columns);
-							return songContentFits(contentEl);
+							return fits();
 						},
 						autoSize ? undefined : fontSize,
 						minimumFontSize,
@@ -136,13 +149,21 @@ export const SongView = ({
 		measure();
 		const observer = new ResizeObserver(schedule);
 		observer.observe(wrapper);
-		void document.fonts.ready.then(schedule);
-		document.fonts.addEventListener("loadingdone", schedule);
+		const fontsWereLoading = document.fonts.status === "loading";
+		const fontsLoaded = () => {
+			fontEpoch.current++;
+			schedule();
+		};
+		void document.fonts.ready.then(() => {
+			if (fontsWereLoading) fontsLoaded();
+			else schedule();
+		});
+		document.fonts.addEventListener("loadingdone", fontsLoaded);
 		return () => {
 			disposed = true;
 			cancelAnimationFrame(frame);
 			observer.disconnect();
-			document.fonts.removeEventListener("loadingdone", schedule);
+			document.fonts.removeEventListener("loadingdone", fontsLoaded);
 		};
 	}, [
 		fitToScreen,

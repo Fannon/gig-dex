@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { SongView } from "../components/SongView";
 import { WorkspaceDialog } from "../components/WorkspaceDialog";
 import {
 	addSetlist,
@@ -13,6 +12,10 @@ import {
 	updateSetlist,
 } from "../db";
 import "./SetlistsPage.scss";
+
+const SongView = lazy(() =>
+	import("../components/SongView").then((module) => ({ default: module.SongView })),
+);
 
 type Panel = "library" | "content" | "preview";
 type Draft = { id?: string; name: string; tags: string; description: string };
@@ -438,12 +441,14 @@ export const SetlistsPage = () => {
 								</p>
 								<Link to={`/song/${preview.id}`}>Open song ↗</Link>
 							</header>
-							<SongView
-								key={preview.id}
-								content={preview.content}
-								fitToScreen={false}
-								onKeyChange={setPreviewKey}
-							/>
+							<Suspense fallback={<output className="setlists-page__empty">Loading song…</output>}>
+								<SongView
+									key={preview.id}
+									content={preview.content}
+									fitToScreen={false}
+									onKeyChange={setPreviewKey}
+								/>
+							</Suspense>
 						</>
 					) : (
 						<div className="setlists-page__empty">

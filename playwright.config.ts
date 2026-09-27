@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const base = process.env.VITE_BASE_PATH || "/";
 const port = Number(process.env.PLAYWRIGHT_PORT || 5173);
-const baseURL = `http://localhost:${port}${base}`;
+const baseURL = process.env.PLAYWRIGHT_URL || `http://localhost:${port}${base}`;
 
 export default defineConfig({
 	testDir: "./e2e",
@@ -23,10 +23,12 @@ export default defineConfig({
 			use: { ...devices["Desktop Chrome"] },
 		},
 	],
-	webServer: {
-		command: `npm run dev -- --port ${port} --strictPort`,
-		url: baseURL,
-		reuseExistingServer: !process.env.CI,
-		timeout: 120 * 1000,
-	},
+	webServer: process.env.PLAYWRIGHT_URL
+		? undefined
+		: {
+				command: `npm run dev -- --port ${port} --strictPort`,
+				url: baseURL,
+				reuseExistingServer: !process.env.CI,
+				timeout: 120 * 1000,
+			},
 });

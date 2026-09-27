@@ -6,6 +6,9 @@ const base = process.env.VITE_BASE_PATH || "/";
 
 export default defineConfig({
 	base,
+	// ChordSheetJS eagerly imports jsPDF. Our named HTML/parser imports never use
+	// PDF APIs, so omit that dependency’s unused initialization from the browser build.
+	build: { rollupOptions: { treeshake: { moduleSideEffects: (id) => !id.includes("/jspdf/") } } },
 	server: {
 		watch: { ignored: ["**/reports/**", "**/tmp/**", "**/coverage/**"] },
 	},
@@ -21,7 +24,7 @@ export default defineConfig({
 				theme_color: "#4F46E5",
 				background_color: "#0f0f23",
 				display: "standalone",
-				orientation: "portrait",
+				orientation: "any",
 				scope: base,
 				start_url: base,
 				icons: [

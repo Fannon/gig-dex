@@ -6,7 +6,6 @@ import {
 	recordKey,
 	type SyncConflict,
 } from "../sync/records";
-import { extractMetadata, parseChordPro } from "./chordEngine";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
 import { stableStringify } from "./recordFingerprint";
 
@@ -241,6 +240,7 @@ export interface ImportResult {
 export async function importChordPro(
 	files: { name: string; content: string }[],
 ): Promise<ImportResult[]> {
+	const { extractMetadata, parseChordPro } = await import("./chordEngine");
 	// Parse outside the transaction; keep original source for full directive preservation.
 	const drafts: {
 		song: Omit<Song, "id" | "createdAt" | "lastModified">;

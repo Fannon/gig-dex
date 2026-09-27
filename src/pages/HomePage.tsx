@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { SongCard } from "../components/SongCard";
 import { addSong, deleteSong, getAllSongs, type Song } from "../db";
-import { DEMO_SONG } from "../utils/chordEngine";
+import { DEMO_SONG } from "../utils/demoSong";
 import "./HomePage.scss";
 
 export const HomePage = () => {

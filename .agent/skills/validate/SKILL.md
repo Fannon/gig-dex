@@ -69,3 +69,25 @@ Invalid ChordPro is reported separately and shown as escaped raw text for repair
 Only synthetic lyrics belong in committed fixtures. Personal songs and all
 screenshots/reports stay under ignored `tmp/` or `reports/`; never stage those
 artifacts or copy their lyrics into source files or review reports.
+
+## Loading, offline behavior, and performance
+
+After changing lazy routes or bundling, verify the production build itself:
+
+```bash
+npm run build
+npm run preview -- --port 5177
+# In another terminal:
+PLAYWRIGHT_URL=http://localhost:5177/ npm run test:e2e -- e2e/production.spec.ts
+```
+
+This checks deferred chord loading and offline reopening through the service
+worker. Stop this preview before another build changes `dist/`; keep the user's
+live-reload instance running when requested. The production test is skipped in
+the regular development suite, so report its result separately.
+
+Compare screenshot metrics on matching inputs/viewports before claiming fitting
+improvements. Report fitting passes as well as duration, and confirm font sizes,
+column counts and fallback behavior remain equivalent. Inspect wide-line phone
+reading and the final line of a scrolled song. Unbroken words may still need
+horizontal scrolling; wrapping must preserve all lyric text and chord positions.

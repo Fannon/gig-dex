@@ -146,3 +146,22 @@ inline style attributes cannot enter the live song DOM. Display font and color
 come from the app's controls and stylesheet. Source ChordPro remains unchanged.
 Screenshot metrics include fitting time, candidate count and fitting pass count
 for performance comparisons on the same songs and viewports.
+
+### Loading and fitting performance
+
+Pages load on demand. The song library's demo text is separate from the chord
+engine; empty setlist and settings pages do not load it. Parser/HTML imports are
+named, and the build omits unused jsPDF initialization. PDF APIs are not supported
+by this build configuration; revisit that setting before introducing PDF export.
+The main JS is about 244kB and the deferred chord engine about 277kB, with no PDF
+chunks or large-chunk warning. PWA precaching retains all routes for offline use.
+
+Fitting caches unchanged geometry and inputs, reuses table nodes, and rejects
+impossible widths/heights before forcing column fragmentation. Font loading,
+content, chord controls, minimum size and real container changes invalidate the
+cache. Literal tab tables are included in bounds checks. Synthetic screenshot
+metrics compare the same songs/viewports; timings depend on the host.
+
+For production loading/offline verification, build and start `npm run preview --
+--port 5177`, then run `PLAYWRIGHT_URL=http://localhost:5177/ npm run test:e2e --
+e2e/production.spec.ts`. Stop the preview before rebuilding for another base path.

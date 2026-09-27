@@ -233,3 +233,36 @@ test("wraps wide phone lyrics at word boundaries with all chords preserved and r
 		contentType: "image/png",
 	});
 });
+
+test("reuses fitting results for unchanged geometry and checks literal tab blocks", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await openSong(page, syntheticSongs[1].content);
+	await expectScreenFit(page);
+	await page.evaluate(
+		() =>
+			new Promise<void>((resolve) =>
+				requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+			),
+	);
+	const runs = await page.locator(".song-view__content").getAttribute("data-fit-runs");
+	await page.evaluate(() => {
+		window.dispatchEvent(new Event("resize"));
+	});
+	await page.evaluate(
+		() =>
+			new Promise<void>((resolve) =>
+				requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+			),
+	);
+	await expect(page.locator(".song-view__content")).toHaveAttribute("data-fit-runs", runs ?? "");
+	await page.goto("./song/new");
+	await page.locator('input[placeholder="Song title"]').fill("Tab block");
+	await page.getByRole("button", { name: "Advanced (ChordPro)" }).click();
+	await page
+		.locator("#advanced-content")
+		.fill(`{start_of_tab}\n${"Original tab notation ".repeat(50)}\n{end_of_tab}`);
+	await page.getByRole("button", { name: "Save", exact: true }).click();
+	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", "scroll");
+});

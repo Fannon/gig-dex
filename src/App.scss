@@ -8,3 +8,5 @@ html, body, #root {
   margin: 0;
   padding: 0;
 }
+
+.app-loading { min-height: 100dvh; display: grid; place-items: center; color: #c2bbfc; }

@@ -154,7 +154,7 @@ try {
 				const wrapper = document.querySelector(".song-view__wrapper");
 				const content = document.querySelector(".song-view__content");
 				const bounds = wrapper.getBoundingClientRect();
-				const rows = [...content.querySelectorAll("table.row")];
+				const rows = [...content.querySelectorAll("table, .reading-line, .chord-word")];
 				const outside = rows.filter((row) =>
 					[...row.getClientRects()].some(
 						(r) =>
