@@ -49,10 +49,12 @@ export function PwaSettings() {
 		window.addEventListener("focus", update);
 		window.addEventListener("gigdex-backup-export", update);
 		window.addEventListener("gigdex-library-change", update);
+		window.addEventListener("gig-dex-library-changed", update);
 		return () => {
 			window.removeEventListener("focus", update);
 			window.removeEventListener("gigdex-backup-export", update);
 			window.removeEventListener("gigdex-library-change", update);
+			window.removeEventListener("gig-dex-library-changed", update);
 			window.clearTimeout(timer);
 		};
 	}, [refresh]);
@@ -71,53 +73,6 @@ export function PwaSettings() {
 	return (
 		<section className="settings-page__section pwa-settings" aria-label="Offline app">
 			<h2>Offline & installation</h2>
-			<dl>
-				<dt>App download</dt>
-				<dd>
-					{state.ready
-						? "Ready to open offline"
-						: import.meta.env.DEV
-							? "Development server — offline installation requires the production app"
-							: "Preparing offline app…"}
-				</dd>
-				<dt>Connection</dt>
-				<dd>
-					{state.online
-						? "Device reports online · cloud availability depends on the host"
-						: "Offline · cloud sync needs a connection"}
-				</dd>
-				<dt>Local library</dt>
-				<dd>{library}</dd>
-				<dt>Storage protection</dt>
-				<dd>
-					{persistent === true
-						? "Persistent storage granted"
-						: persistent === false
-							? "Standard browser storage"
-							: "Unavailable in this browser"}
-				</dd>
-				{storage?.usage !== undefined && (
-					<>
-						<dt>Storage used</dt>
-						<dd>
-							{formatBytes(storage.usage)}
-							{storage.quota ? ` of ${formatBytes(storage.quota)} estimated quota` : ""}
-						</dd>
-					</>
-				)}
-				<dt>Last backup export</dt>
-				<dd>
-					{backup ? new Date(backup).toLocaleString() : "No backup exported on this device yet"}
-				</dd>
-			</dl>
-			<p>
-				Your local library is available without cloud sync. Missing songs must be imported or synced
-				before a gig. Cloud sync status and last successful sync are shown below.
-			</p>
-			<p>
-				Keep an exported backup outside the app. Clearing site/app data removes local songs even
-				when persistent storage is granted.
-			</p>
 			<div className="pwa-settings__actions">
 				{persistent === false && typeof navigator.storage?.persist === "function" && (
 					<button
@@ -167,6 +122,56 @@ export function PwaSettings() {
 			</div>
 			{state.error && <p role="alert">{state.error}</p>}
 			{message && <output>{message}</output>}
+			<details className="pwa-settings__diagnostics">
+				<summary>Offline status & storage</summary>
+				<dl>
+					<dt>App download</dt>
+					<dd>
+						{state.ready
+							? "Ready to open offline"
+							: import.meta.env.DEV
+								? "Development server — offline installation requires the production app"
+								: "Preparing offline app…"}
+					</dd>
+					<dt>Connection</dt>
+					<dd>
+						{state.online
+							? "Device reports online · cloud availability depends on the host"
+							: "Offline · cloud sync needs a connection"}
+					</dd>
+					<dt>Local library</dt>
+					<dd>{library}</dd>
+					<dt>Storage protection</dt>
+					<dd>
+						{persistent === true
+							? "Persistent storage granted"
+							: persistent === false
+								? "Standard browser storage"
+								: "Unavailable in this browser"}
+					</dd>
+					{storage?.usage !== undefined && (
+						<>
+							<dt>Storage used</dt>
+							<dd>
+								{formatBytes(storage.usage)}
+								{storage.quota ? ` of ${formatBytes(storage.quota)} estimated quota` : ""}
+							</dd>
+						</>
+					)}
+					<dt>Last backup export</dt>
+					<dd>
+						{backup ? new Date(backup).toLocaleString() : "No backup exported on this device yet"}
+					</dd>
+				</dl>
+				<p>
+					Your local library is available without cloud sync. Missing songs must be imported or
+					synced before a gig. Cloud sync status and last successful sync are shown below.
+				</p>
+				<p>
+					Keep an exported backup outside the app. Clearing site/app data removes local songs even
+					when persistent storage is granted.
+				</p>
+			</details>
 			<details>
 				<summary>Install on an Android tablet</summary>
 				<p>

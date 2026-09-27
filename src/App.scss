@@ -9,10 +9,40 @@ html, body, #root {
   padding: 0;
 }
 
-.app-loading { min-height: 100dvh; display: grid; place-items: center; color: #c2bbfc; }
+.app-loading { min-height: 100%; display: grid; place-items: center; color: #c2bbfc; }
 
 .app-shell { height: 100dvh; display: flex; flex-direction: column; }
 .app-route { flex: 1; min-height: 0; overflow: auto;
   > .song-page, > .setlists-page { height: 100%; }
   > .home-page, > .settings-page { min-height: 100%; }
+}
+
+.app-workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+:root[data-reading-theme=black] {
+ --bg-primary: #000; --bg-secondary: #0b0b0b; --bg-elevated: #181818;
+ .app-shell, .app-route, .song-page, .home-page, .settings-page, .setlists-page, .performance-page, .song-view__wrapper { background: #000; }
+ .workspace-topbar, .library-sidebar, .workspace-search, .performance-page__options, .setlists-page__modal { background: #0b0b0b; }
+ .song-view__controls, .song-page__header, .setlists-page__header { background: #111; }
+}
+:root[data-reading-theme=light] {
+ --bg-primary: #f7f6f2; --bg-secondary: #efeee9; --bg-elevated: #e6e4dd;
+ --text-primary: #292b31; --text-secondary: #60616b; --text-muted: #747580;
+ --border-color: #d5d2dc; --color-accent: #5745aa;
+ .app-shell { color: #292b31; }
+ .app-shell, .app-route, .song-page, .home-page, .settings-page, .setlists-page, .performance-page, .song-view__wrapper { background: #f7f6f2; color: #292b31; }
+ .workspace-topbar, .library-sidebar, .workspace-search, .performance-page__options, .setlists-page__modal, .song-view__controls, .song-page__header, .setlists-page__header { background: #efeee9; color: #292b31; border-color: #d5d2dc; }
+ .app-shell :is(h1,h2,h3,p,label,small,span,dt,dd,summary,output) { color: #50515d; }
+ .app-shell :is(h1,h2,h3,strong) { color: #292b31; }
+ .app-shell .workspace-topbar .workspace-brand { color: #292b31; background: none; -webkit-text-fill-color: currentColor; }
+ .app-shell a { color: #5541a1; }
+ .app-shell :is(button,input,select,textarea) { background: #e8e6ed; color: #292b31; border-color: #c6c2d3; }
+ .app-shell :is(button,a):focus-visible { outline: 2px solid #6d54b8; outline-offset: 2px; }
+ .app-shell .workspace-topbar nav a.active, .app-shell .library-sidebar__links a[aria-current=page], .app-shell .setlists-page__item[aria-pressed=true], .app-shell .setlists-page__song[data-selected=true] { background: #ddd6ed; color: #392663; }
+ .app-shell :is(.song-page__btn--primary, .setlists-page__add, .setlists-page .primary, .home-page__demo-btn) { background: #6752a9; color: #f7f6f2; }
+ .app-shell :is(.song-view__content, .song-page__preview-content) { color: #292b31; .lyrics { color: #292b31; } .chord { color: #875714; } .comment { color: #66606c; }
+  .label.section-verse { color: #5548a0; } .label.section-chorus { color: #087f75; } .label.section-prechorus { color: #28649a; } .label.section-bridge { color: #924195; } .label.section-intro { color: #715da0; } .label.section-outro { color: #8c641c; } .label.section-instrumental { color: #a15a2b; }
+ }
+ .app-shell .workspace-search__type { background: #ded8ed; color: #493977; &[data-type=Setlist] { background: #d4e6df; color: #256153; } }
+ .app-shell .tempo-indicator__dots > span { background: #a6a1b1; &.active { background: #a86515; } &[data-first=true].active { background: #007d8f; } }
 }

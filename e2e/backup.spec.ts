@@ -53,7 +53,7 @@ test("import multiple songs, report duplicates and invalid content, export and r
 	await page.goto("./setlists");
 	await expect(page.locator(".setlists-page__song")).toHaveCount(2);
 	await page.goto("./");
-	await expect(page.locator(".song-card")).toHaveCount(2);
+	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 });
 
 test("replace restore requires confirmation and restores an empty library", async ({ page }) => {

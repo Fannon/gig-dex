@@ -1,19 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
-import { getAllSongs, getSetlist, type Song } from "../db";
+import { getAllSongs, getSetlist, type Setlist, type Song, updateSetlist } from "../db";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { extractMetadata } from "../utils/chordEngine";
+import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import "./PerformancePage.scss";
 
 type Mode = "auto" | "scroll" | "pages";
 export const PerformancePage = () => {
 	const { id, listId } = useParams();
+	const [params, setParams] = useSearchParams();
+	const requestedIndex = params.has("occurrence") ? Number(params.get("occurrence")) : undefined;
+	const requested = useRef(requestedIndex);
+	requested.current = requestedIndex;
 	const awake = useWakeLock();
 	useEffect(() => blockPwaUpdate(), []);
 	const root = useRef<HTMLDivElement>(null);
+	const [setlist, setSetlist] = useState<Setlist>();
 	const [songs, setSongs] = useState<(Song | undefined)[]>([]);
 	const [order, setOrder] = useState<string[]>([]);
 	const [name, setName] = useState("");
@@ -24,6 +30,10 @@ export const PerformancePage = () => {
 		const saved = localStorage.getItem("performance_mode");
 		return saved === "scroll" || saved === "pages" ? saved : "auto";
 	});
+	const [optionsOpen, setOptionsOpen] = useState(false);
+	const optionsDialog = useRef<HTMLDialogElement>(null);
+	const swipe = useRef<{ x: number; y: number } | undefined>(undefined);
+	const [meter, setMeter] = useState<string>();
 	const [controls, setControls] = useState(false);
 	const [fullscreen, setFullscreen] = useState(false);
 	const sessionKey = `performance:${listId ?? id}`;
@@ -37,6 +47,7 @@ export const PerformancePage = () => {
 			const ordered = ids.map((songId) => library.find((song) => song.id === songId));
 			if (cancelled) return;
 			setSongs(ordered);
+			setSetlist(list);
 			setOrder(ids);
 			setName(list?.name ?? "Song performance");
 			let saved = 0;
@@ -46,6 +57,8 @@ export const PerformancePage = () => {
 			} catch {
 				/* Ignore stale preferences. */
 			}
+			if (requested.current !== undefined && Number.isInteger(requested.current))
+				saved = requested.current;
 			setIndex(Number.isInteger(saved) ? Math.max(0, Math.min(ids.length - 1, saved)) : 0);
 			setLoading(false);
 		};
@@ -64,18 +77,51 @@ export const PerformancePage = () => {
 		document.addEventListener("fullscreenchange", change);
 		return () => document.removeEventListener("fullscreenchange", change);
 	}, []);
-	const move = (delta: number) => {
-		const next = Math.max(0, Math.min(songs.length - 1, index + delta));
-		setIndex(next);
-		try {
-			localStorage.setItem(
-				sessionKey,
-				JSON.stringify({ order: JSON.stringify(order), index: next }),
-			);
-		} catch {
-			/* Optional preference. */
-		}
-	};
+	const move = useCallback(
+		(delta: number) => {
+			const next = Math.max(0, Math.min(songs.length - 1, index + delta));
+			setIndex(next);
+			if (params.has("occurrence")) setParams({ occurrence: String(next) }, { replace: true });
+			try {
+				localStorage.setItem(
+					sessionKey,
+					JSON.stringify({ order: JSON.stringify(order), index: next }),
+				);
+			} catch {
+				/* Optional preference. */
+			}
+		},
+		[songs.length, index, params, setParams, sessionKey, order],
+	);
+	useEffect(() => {
+		const keydown = (event: KeyboardEvent) => {
+			if (
+				event.altKey ||
+				event.ctrlKey ||
+				event.metaKey ||
+				optionsOpen ||
+				document.querySelector("dialog[open]") ||
+				(event.target instanceof HTMLElement &&
+					event.target.closest("input, textarea, select, [contenteditable=true]"))
+			)
+				return;
+			const delta = ["ArrowRight", "ArrowDown"].includes(event.key)
+				? 1
+				: ["ArrowLeft", "ArrowUp"].includes(event.key)
+					? -1
+					: 0;
+			if (delta) {
+				event.preventDefault();
+				move(delta);
+			}
+		};
+		window.addEventListener("keydown", keydown);
+		return () => window.removeEventListener("keydown", keydown);
+	}, [move, optionsOpen]);
+	useEffect(() => {
+		if (optionsOpen) optionsDialog.current?.showModal();
+		else optionsDialog.current?.close();
+	}, [optionsOpen]);
 	const toggleFullscreen = async () => {
 		try {
 			if (document.fullscreenElement) await document.exitFullscreen();
@@ -88,21 +134,100 @@ export const PerformancePage = () => {
 	const song = songs[index];
 	const metadata = song ? extractMetadata(song.content) : undefined;
 	return (
-		<div className="performance-page" ref={root}>
+		<div
+			className="performance-page"
+			ref={root}
+			aria-describedby="performance-navigation-help"
+			onTouchStart={(event) => {
+				swipe.current = undefined;
+				if (
+					event.touches.length !== 1 ||
+					(event.target instanceof HTMLElement &&
+						event.target.closest("button, input, select, textarea, dialog, .song-view__controls"))
+				)
+					return;
+				swipe.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+			}}
+			onTouchCancel={() => {
+				swipe.current = undefined;
+			}}
+			onTouchEnd={(event) => {
+				const start = swipe.current;
+				swipe.current = undefined;
+				if (!start || !event.changedTouches[0] || optionsOpen) return;
+				const dx = event.changedTouches[0].clientX - start.x;
+				const dy = event.changedTouches[0].clientY - start.y;
+				if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 2) move(dx < 0 ? 1 : -1);
+			}}
+		>
+			<span className="sr-only" id="performance-navigation-help">
+				Use Left or Up for the previous song, Right or Down for the next song, or swipe left/right.
+			</span>
 			<header>
 				<Link to={listId ? `/setlist/${listId}` : `/song/${id}`}>← Exit</Link>
-				<div>
-					<span>
-						{name} · {songs.length ? index + 1 : 0}/{songs.length}
-					</span>
-					<h1>{song?.title ?? (loading ? "Loading…" : "Song unavailable")}</h1>
+				<div className="performance-page__title">
+					<div className="performance-page__caption">
+						<span title={name}>{name}</span>
+						<small>
+							{" "}
+							· {songs.length ? index + 1 : 0}/{songs.length}
+							{song ? ` · ${settingLabel(song, setlist?.songSettings?.[index])}` : ""}
+						</small>
+					</div>
+					<h1 title={song?.title}>{song?.title ?? (loading ? "Loading…" : "Song unavailable")}</h1>
 				</div>
-				{song && <TempoIndicator key={`${index}:${song.id}`} bpm={song.tempo ?? metadata?.tempo} />}
-				<button type="button" onClick={() => void toggleFullscreen()}>
+				{song && (
+					<TempoIndicator
+						key={`${index}:${song.id}`}
+						bpm={song.tempo ?? metadata?.tempo}
+						time={meter ?? song.time ?? metadata?.time}
+					/>
+				)}
+				<button
+					className="performance-page__fullscreen"
+					type="button"
+					onClick={() => void toggleFullscreen()}
+				>
 					{fullscreen ? "Exit fullscreen" : "Fullscreen"}
 				</button>
+				<button
+					type="button"
+					aria-label="Performance options"
+					title="Performance options"
+					onClick={() => setOptionsOpen(true)}
+				>
+					⚙
+				</button>
 			</header>
-			<div className="performance-page__options">
+			<dialog
+				ref={optionsDialog}
+				className="performance-page__options"
+				aria-label="Performance options"
+				onCancel={(event) => {
+					event.preventDefault();
+					setOptionsOpen(false);
+				}}
+			>
+				<div className="performance-page__options-heading">
+					<strong>Performance options</strong>
+					<button
+						type="button"
+						aria-label="Close performance options"
+						onClick={() => setOptionsOpen(false)}
+					>
+						×
+					</button>
+				</div>
+				<button
+					className="performance-page__mobile-fullscreen"
+					type="button"
+					onClick={() => {
+						setOptionsOpen(false);
+						void toggleFullscreen();
+					}}
+				>
+					{fullscreen ? "Exit fullscreen" : "Fullscreen"}
+				</button>
 				<button type="button" aria-pressed={awake.enabled} onClick={awake.toggle}>
 					Keep screen awake
 				</button>
@@ -123,6 +248,7 @@ export const PerformancePage = () => {
 							const value = event.target.value as Mode;
 							setMode(value);
 							localStorage.setItem("performance_mode", value);
+							setOptionsOpen(false);
 						}}
 					>
 						<option value="auto">Fit screen</option>
@@ -130,19 +256,50 @@ export const PerformancePage = () => {
 						<option value="pages">Pages</option>
 					</select>
 				</label>
+				<label>
+					Beat division
+					<select
+						aria-label="Beat division"
+						value={meter ?? "song"}
+						onChange={(event) =>
+							setMeter(event.target.value === "song" ? undefined : event.target.value)
+						}
+					>
+						<option value="song">Song time ({song?.time ?? metadata?.time ?? "4/4"})</option>
+						{["4/4", "3/4", "2/4", "2/3", "6/8", "8/8", "5/4", "7/8"].map((value) => (
+							<option key={value}>{value}</option>
+						))}
+					</select>
+				</label>
+				<small>Quarter-note BPM. Eighth-note divisions pulse twice per quarter note.</small>
 				<button
 					type="button"
 					aria-pressed={controls}
-					onClick={() => setControls((value) => !value)}
+					onClick={() => {
+						setControls((value) => !value);
+						setOptionsOpen(false);
+					}}
 				>
 					Song controls
 				</button>
-			</div>
+			</dialog>
 			{error && <p role="alert">{error}</p>}
 			{song ? (
 				<SongView
 					key={`${sessionKey}:${index}:${song.id}:${mode}`}
-					content={song.content}
+					content={occurrenceContent(song, setlist?.songSettings?.[index])}
+					transposeValue={setlist ? (setlist.songSettings?.[index]?.transpose ?? 0) : undefined}
+					onTransposeChange={
+						setlist
+							? (transpose) => {
+									const settings = occurrenceSettings(setlist);
+									settings[index] = { ...settings[index], transpose };
+									void updateSetlist(setlist.id, { songSettings: settings })
+										.then(() => setSetlist({ ...setlist, songSettings: settings }))
+										.catch(() => setError("Could not save transpose. Please try again."));
+								}
+							: undefined
+					}
 					fitToScreen={mode === "auto"}
 					readingKey={`${sessionKey}:${index}:${song.id}`}
 					paginated={mode === "pages"}
@@ -153,22 +310,10 @@ export const PerformancePage = () => {
 					{loading
 						? "Loading your songs…"
 						: songs.length
-							? "This song is missing from your library. Use Next song to continue."
+							? "This song is missing from your library. Use arrow keys or swipe to continue."
 							: "This setlist has no songs yet."}
 				</p>
 			)}
-			<nav className="performance-page__navigation" aria-label="Setlist performance">
-				<button type="button" onClick={() => move(-1)} disabled={index <= 0}>
-					← Previous song
-				</button>
-				<button
-					type="button"
-					onClick={() => move(1)}
-					disabled={index >= songs.length - 1 || !songs.length}
-				>
-					Next song →
-				</button>
-			</nav>
 		</div>
 	);
 };

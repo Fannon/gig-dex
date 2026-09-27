@@ -1,5 +1,6 @@
-import { lazy, Suspense } from "react";
-import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
+import { lazy } from "react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { LibraryWorkspace } from "./components/LibraryWorkspace";
 import { PwaRecovery } from "./components/PwaRecovery";
 import { PwaStatus } from "./components/PwaStatus";
 import { HomePage } from "./pages/HomePage";
@@ -25,16 +26,8 @@ const router = createBrowserRouter(
 			element: (
 				<div className="app-shell">
 					<PwaStatus />
-					<div className="app-route">
-						<Suspense
-							fallback={
-								<div className="app-loading">
-									<output>Loading…</output>
-								</div>
-							}
-						>
-							<Outlet />
-						</Suspense>
+					<div className="app-workspace">
+						<LibraryWorkspace />
 					</div>
 				</div>
 			),

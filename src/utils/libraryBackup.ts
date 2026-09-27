@@ -1,4 +1,4 @@
-import { initDB, type Setlist, type Song } from "../db";
+import { initDB, notifyLibraryChanged, type Setlist, type Song } from "../db";
 import {
 	type DeletionRecord,
 	isDeletion,
@@ -225,6 +225,7 @@ export async function restoreLibrary(
 			});
 		}
 		await tx.done;
+		notifyLibraryChanged();
 	} catch (error) {
 		try {
 			tx.abort();
@@ -315,6 +316,7 @@ export async function importChordPro(
 			results.push({ file: draft.file, status: "imported", message: draft.warning || "Imported." });
 		}
 		await tx.done;
+		notifyLibraryChanged();
 	} catch (error) {
 		try {
 			tx.abort();

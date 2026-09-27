@@ -6,10 +6,9 @@ test.describe("Song Page", () => {
 
 		// Add demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await expect(page.locator(".song-card")).toBeVisible();
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toBeVisible();
 
 		// Click on song card
-		await page.locator(".song-card").click();
 
 		// Verify song page loaded
 		await expect(page.locator(".song-page__title")).toContainText("Amazing Grace");
@@ -22,7 +21,6 @@ test.describe("Song Page", () => {
 
 		// Add and navigate to demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await page.locator(".song-card").click();
 
 		// Get initial key display
 		await expect(page.locator(".song-page__meta-tag")).toContainText("Key: G");
@@ -50,7 +48,6 @@ test.describe("Song Page", () => {
 
 		// Add and navigate to demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await page.locator(".song-card").click();
 
 		// Get current font size value
 		const fontSizeValue = page
@@ -71,7 +68,6 @@ test.describe("Song Page", () => {
 
 		// Add and navigate to demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await page.locator(".song-card").click();
 
 		// Chords should be visible initially
 		const content = page.locator(".song-view__content");
@@ -114,7 +110,6 @@ test.describe("Song Page", () => {
 
 		// Add demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await page.locator(".song-card").click();
 
 		// Click edit button
 		await page.getByRole("button", { name: "Edit" }).click();
@@ -137,7 +132,6 @@ test.describe("Song Page", () => {
 
 		// Add and navigate to demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await page.locator(".song-card").click();
 
 		// Click back button
 		await page.locator(".song-page__back").click();

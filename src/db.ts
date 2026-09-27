@@ -29,12 +29,19 @@ interface Song {
 	createdAt: string;
 }
 
+export interface SetlistSongSettings {
+	transpose: number;
+	capo?: number;
+}
+
 interface Setlist {
+	date?: string; // YYYY-MM-DD, the gig/rehearsal date, independent of timezone
 	id: string;
 	name: string;
 	description?: string;
 	tags?: string[]; // Optional for libraries created before setlist tagging
 	songIds: string[]; // Reference song ids by string
+	songSettings?: SetlistSongSettings[]; // Parallel occurrence settings; absent entries use defaults
 	lastModified: string;
 	createdAt: string;
 }
@@ -166,6 +173,10 @@ export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
 	return dbPromise;
 };
 
+export const notifyLibraryChanged = () => {
+	if (typeof window !== "undefined") window.dispatchEvent(new Event("gig-dex-library-changed"));
+};
+
 // Helper to generate IDs and timestamps
 const generateId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -183,6 +194,7 @@ export const addSong = async (
 		createdAt: currentTime,
 	};
 	await db.add("songs", newSong);
+	notifyLibraryChanged();
 	return newSong.id;
 };
 
@@ -196,11 +208,13 @@ export const updateSong = async (id: string, updates: Partial<Song>): Promise<vo
 		...updates,
 		lastModified: now(),
 	});
+	notifyLibraryChanged();
 };
 
 export const saveSong = async (song: Song): Promise<void> => {
 	const db = await initDB();
 	await db.put("songs", song);
+	notifyLibraryChanged();
 };
 
 export const deleteSong = async (id: string): Promise<void> => {
@@ -224,11 +238,13 @@ export const deleteSong = async (id: string): Promise<void> => {
 		await tx.objectStore("setlists").put({
 			...setlist,
 			songIds: setlist.songIds.filter((songId) => songId !== id),
+			songSettings: setlist.songSettings?.filter((_, index) => setlist.songIds[index] !== id),
 			lastModified: now(),
 		});
 	}
 
 	await tx.done;
+	notifyLibraryChanged();
 };
 
 export const getSong = async (id: string): Promise<Song | undefined> => {
@@ -266,6 +282,7 @@ export const addSetlist = async (
 		createdAt: currentTime,
 	};
 	await db.add("setlists", newSetlist);
+	notifyLibraryChanged();
 	return newSetlist.id;
 };
 
@@ -279,11 +296,13 @@ export const updateSetlist = async (id: string, updates: Partial<Setlist>): Prom
 		...updates,
 		lastModified: now(),
 	});
+	notifyLibraryChanged();
 };
 
 export const saveSetlist = async (setlist: Setlist): Promise<void> => {
 	const db = await initDB();
 	await db.put("setlists", setlist);
+	notifyLibraryChanged();
 };
 
 export const deleteSetlist = async (id: string): Promise<void> => {
@@ -301,6 +320,7 @@ export const deleteSetlist = async (id: string): Promise<void> => {
 		});
 	await tx.objectStore("setlists").delete(id);
 	await tx.done;
+	notifyLibraryChanged();
 };
 
 export const getSetlist = async (id: string): Promise<Setlist | undefined> => {

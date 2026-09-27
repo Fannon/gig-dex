@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
-import { addSong, getSong, type Song, updateSong } from "../db";
+import { addSong, deleteSong, getSong, type Song, updateSong } from "../db";
+import { useSetlistOccurrence } from "../hooks/useSetlistOccurrence";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import {
 	chordProToSimple,
@@ -13,6 +14,7 @@ import {
 	simpleToChordPro,
 	stripMetadata,
 } from "../utils/chordEngine";
+import { occurrenceContent, settingLabel } from "../utils/setlistSettings";
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
@@ -21,6 +23,8 @@ export const SongPage = () => {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
+	const occurrenceIndex = Number(searchParams.get("occurrence") ?? 0);
+	const occurrence = useSetlistOccurrence(searchParams.get("setlist"), id, occurrenceIndex);
 	const isNew = id === "new";
 	const startInEditMode = isNew || searchParams.get("edit") === "true";
 
@@ -84,11 +88,22 @@ export const SongPage = () => {
 		[navigate],
 	);
 
+	const openedSongId = useRef<string | undefined>(undefined);
 	useEffect(() => {
-		if (!isNew && id) {
-			loadSong(id);
+		if (openedSongId.current === id) return;
+		openedSongId.current = id;
+		setIsEditing(startInEditMode);
+		setDirty(false);
+		if (isNew) {
+			setSong({ title: "", artist: "", content: "", key: "", tags: [] });
+			setSimpleContent("");
+			setTagInput("");
+			setLoading(false);
+		} else if (id) {
+			setLoading(true);
+			void loadSong(id);
 		}
-	}, [id, isNew, loadSong]);
+	}, [id, isNew, startInEditMode, loadSong]);
 
 	// Parse the simple content to show a live preview
 	const previewHtml = useMemo(() => {
@@ -299,12 +314,21 @@ export const SongPage = () => {
 				{!isEditing && (
 					<div className="song-page__title-row">
 						<h1 className="song-page__title">{song.title || "Untitled"}</h1>
+						{occurrence.list && (
+							<span className="song-page__meta-tag">
+								{occurrence.list.name} · {settingLabel(song as Song, occurrence.setting)}
+							</span>
+						)}
 						{song.artist && <span className="song-page__artist">by {song.artist}</span>}
 						{(displayKey || song.key) && (
 							<span className="song-page__meta-tag">Key: {displayKey || song.key}</span>
 						)}
-						<TempoIndicator bpm={song.tempo} />
-						{song.capo && <span className="song-page__meta-tag">Capo {song.capo}</span>}
+						<TempoIndicator bpm={song.tempo} time={song.time} />
+						{!!(occurrence.setting?.capo ?? song.capo) && (
+							<span className="song-page__meta-tag">
+								Capo {occurrence.setting?.capo ?? song.capo}
+							</span>
+						)}
 						{song.time && <span className="song-page__meta-tag">{song.time}</span>}
 						{song.tags && song.tags.length > 0 && (
 							<div className="song-page__tags-inline">
@@ -324,11 +348,37 @@ export const SongPage = () => {
 					</div>
 				)}
 
+				{occurrence.error && <p role="alert">{occurrence.error}</p>}
 				<div className="song-page__actions">
 					{!isEditing && (
-						<Link to={`/perform/song/${id}`} className="song-page__btn song-page__btn--secondary">
-							Perform
-						</Link>
+						<>
+							<Link
+								to={
+									occurrence.list
+										? `/perform/setlist/${occurrence.list.id}?occurrence=${occurrenceIndex}`
+										: `/perform/song/${id}`
+								}
+								className="song-page__btn song-page__btn--secondary"
+							>
+								Perform
+							</Link>
+							<button
+								type="button"
+								className="song-page__btn song-page__btn--secondary"
+								onClick={() => {
+									if (
+										!id ||
+										!confirm(`Delete “${song.title}”? It will also be removed from setlists.`)
+									)
+										return;
+									void deleteSong(id)
+										.then(() => navigate("/"))
+										.catch(() => alert("Could not delete the song. Please try again."));
+								}}
+							>
+								Delete
+							</button>
+						</>
 					)}
 					{isEditing ? (
 						<>
@@ -596,9 +646,21 @@ That [G]saved a [Em]wretch like [D]me
 				</div>
 			) : (
 				<SongView
-					readingKey={`song:${id}`}
-					key={id}
-					content={song.content || ""}
+					readingKey={
+						occurrence.list
+							? `setlist:${occurrence.list.id}:${occurrenceIndex}:${id}`
+							: `song:${id}`
+					}
+					key={`${id}:${searchParams.get("setlist")}:${occurrenceIndex}`}
+					content={
+						occurrence.list
+							? occurrenceContent(song as Song, occurrence.setting)
+							: song.content || ""
+					}
+					transposeValue={occurrence.list ? (occurrence.setting?.transpose ?? 0) : undefined}
+					onTransposeChange={
+						occurrence.list ? (value) => void occurrence.transpose(value) : undefined
+					}
 					title={song.title}
 					artist={song.artist}
 					onKeyChange={setDisplayKey}

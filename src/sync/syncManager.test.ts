@@ -77,7 +77,13 @@ describe("durable sync with real IndexedDB", () => {
 		const cloud = new Cloud();
 		const manager = new SyncManager(cloud);
 		const id = await seed();
-		await addSetlist({ name: "Gig", tags: ["live"], songIds: [id, id] });
+		await addSetlist({
+			name: "Gig",
+			tags: ["live"],
+			date: "2026-12-24",
+			songIds: [id, id],
+			songSettings: [{ transpose: 2, capo: 3 }, { transpose: -1 }],
+		});
 		await manager.sync();
 		expect(manager.getStatus().error).toBeNull();
 		expect(cloud.files).toHaveLength(2);
@@ -85,7 +91,11 @@ describe("durable sync with real IndexedDB", () => {
 		await clear();
 		await new SyncManager(cloud).sync();
 		expect(await getAllSongs()).toHaveLength(1);
-		expect((await getAllSetlists())[0].songIds).toEqual([id, id]);
+		expect((await getAllSetlists())[0]).toMatchObject({
+			songIds: [id, id],
+			date: "2026-12-24",
+			songSettings: [{ transpose: 2, capo: 3 }, { transpose: -1 }],
+		});
 		const song = await getSong(id);
 		if (!song) throw new Error("Missing song");
 		await saveSong({ ...song, content: "[G]Remote edit", lastModified: "2000-01-01T00:00:00Z" });

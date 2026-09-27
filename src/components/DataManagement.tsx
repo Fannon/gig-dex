@@ -34,7 +34,7 @@ export const DataManagement = () => {
 	};
 	return (
 		<section className="settings-page__section data-management">
-			<h2>Data Management</h2>
+			<h2>Import & backups</h2>
 			<button
 				type="button"
 				className="settings-page__option"

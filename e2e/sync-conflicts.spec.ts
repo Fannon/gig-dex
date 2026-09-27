@@ -42,7 +42,9 @@ test("review preserved sync versions and keep both as independent songs", async 
 	await page.getByRole("button", { name: "Keep both as separate copies" }).click();
 	await expect(page.getByText(/Resolution saved/)).toBeVisible();
 	await page.goto("./");
-	await expect(page.locator(".song-card__title")).toHaveCount(2);
-	await expect(page.getByText("Harbor (remote copy)", { exact: true })).toBeVisible();
-	await expect(page.getByText("Harbor", { exact: true })).toBeVisible();
+	await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveCount(2);
+	await expect(
+		page.locator("#sidebar-songs").getByText("Harbor (remote copy)", { exact: true }),
+	).toBeVisible();
+	await expect(page.locator("#sidebar-songs").getByText("Harbor", { exact: true })).toBeVisible();
 });

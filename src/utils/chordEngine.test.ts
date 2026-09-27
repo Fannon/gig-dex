@@ -148,3 +148,33 @@ it("renders user lyrics, titles, comments and labels as literal text without exe
 	expect(element.textContent).toContain("Words <img src=x onerror=alert(1)> & symbols");
 	expect(parsed.title).toBe("<img src=x onerror=alert(1)>");
 });
+
+it("recognizes complete simple section headings and retains instrumental chord spacing", () => {
+	const simple =
+		"Intro\n\nC G D/F# Em\n\nChorus\n    C             G\nA synthetic lantern line\nVerse1\nAm    E\nAnother synthetic line\nInterlude\nC Em C D Em\n\nOutro\nG C\n";
+	const converted = simpleToChordPro(simple);
+	expect(converted).toContain("{start_of_verse: Intro}");
+	expect(converted).toContain("[C] [G] [D/F#] [Em]");
+	expect(converted).toContain("[C] [Em] [C] [D] [Em]");
+	const element = document.createElement("div");
+	element.innerHTML = parseChordPro(converted).html;
+	expect(Array.from(element.querySelectorAll(".label"), (el) => el.textContent)).toEqual([
+		"Intro",
+		"Chorus",
+		"Verse1",
+		"Interlude",
+		"Outro",
+	]);
+	expect(element.querySelector(".section-chorus")).not.toBeNull();
+	expect(chordProToSimple(converted)).toContain("C G D/F# Em");
+	expect(simpleToChordPro(chordProToSimple(converted))).toContain("{start_of_verse: Chorus}");
+});
+
+it("colors section comments from legacy songs without promoting ordinary comments", () => {
+	const element = document.createElement("div");
+	element.innerHTML = parseChordPro(
+		"{comment: Chorus Deutsch}\n[C]Synthetic line\n{comment: Sing softly}",
+	).html;
+	expect(element.querySelector(".label.section-chorus")?.textContent).toBe("Chorus Deutsch");
+	expect(element.querySelector(".comment")?.textContent).toBe("Sing softly");
+});

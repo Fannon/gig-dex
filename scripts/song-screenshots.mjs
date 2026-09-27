@@ -118,6 +118,13 @@ try {
 		await page.evaluate(() => document.fonts.ready);
 		for (const viewport of viewports) {
 			await page.setViewportSize(viewport);
+			// Desktop preferences persist across resizes; hide the phone drawer so
+			// the screenshot reviews the song rather than an overlaid sidebar.
+			const toggle = page.getByRole("button", { name: "Toggle sidebar", exact: true });
+			if (await toggle.count()) {
+				const expanded = (await toggle.getAttribute("aria-expanded")) === "true";
+				if (expanded !== viewport.width > 800) await toggle.click();
+			}
 			if ((await page.locator(".song-view").getAttribute("data-layout")) === null) {
 				await page.waitForTimeout(250); // Legacy renderer used a 150ms debounce.
 			}

@@ -1,41 +1,45 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { CloudSync } from "../components/CloudSync";
 import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
 import { PwaSettings } from "../components/PwaSettings";
 import { syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
+import { applyReadingTheme, type ReadingTheme, savedReadingTheme } from "../utils/readingTheme";
 import "./SettingsPage.scss";
 
 export const SettingsPage = () => {
+	const [readingTheme, setReadingTheme] = useState(savedReadingTheme);
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>(syncManager.getStatus());
 
 	return (
 		<div className="settings-page">
-			<header className="settings-page__header">
-				<Link to="/" className="settings-page__back" aria-label="Go back">
-					<svg
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						aria-hidden="true"
-					>
-						<path d="M19 12H5M12 19l-7-7 7-7" />
-					</svg>
-				</Link>
-				<h1>Settings</h1>
-			</header>
-
 			<main className="settings-page__content">
-				<PwaSettings />
+				<h1>Settings</h1>
+				<section className="settings-page__section">
+					<h2>Appearance</h2>
+					<label>
+						Theme{" "}
+						<select
+							aria-label="Theme"
+							value={readingTheme}
+							onChange={(event) => {
+								const theme = event.target.value as ReadingTheme;
+								setReadingTheme(theme);
+								applyReadingTheme(theme);
+							}}
+						>
+							<option value="violet">Dark violet</option>
+							<option value="black">Pure black</option>
+							<option value="light">Light</option>
+						</select>
+					</label>
+				</section>
 				<DataManagement />
-				<ConflictReview status={syncStatus} />
 
 				<CloudSync onStatus={setSyncStatus} />
+				<ConflictReview status={syncStatus} />
+				<PwaSettings />
 
 				<section className="settings-page__section">
 					<h2>About</h2>

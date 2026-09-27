@@ -2,6 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
+import { savedReadingTheme } from "./utils/readingTheme";
+
+document.documentElement.dataset.readingTheme = savedReadingTheme();
+
 import { initDB } from "./db";
 import { startPwa } from "./pwa/lifecycle";
 

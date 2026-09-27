@@ -38,6 +38,7 @@ describe("Database", () => {
 			description: "Venue",
 			tags: ["acoustic"],
 			songIds: ["a", "b", "a"],
+			songSettings: [{ transpose: 2 }, { transpose: -1, capo: 3 }, { transpose: 0 }],
 		});
 		const source = await getSetlist(id);
 		const copyId = await duplicateSetlist(id, "Original (copy)");
@@ -47,10 +48,25 @@ describe("Database", () => {
 			description: "Venue",
 			tags: ["acoustic"],
 			songIds: ["a", "b", "a"],
+			songSettings: [{ transpose: 2 }, { transpose: -1, capo: 3 }, { transpose: 0 }],
 		});
-		await updateSetlist(copyId, { songIds: ["b"] });
+		await updateSetlist(copyId, { songIds: ["b"], songSettings: [{ transpose: -1, capo: 3 }] });
 		expect(await getSetlist(id)).toEqual(source);
 		await expect(duplicateSetlist("missing", "Copy")).rejects.toThrow("Setlist not found");
+	});
+
+	it("deleting repeated songs preserves surviving occurrence settings", async () => {
+		const id = await addSong({ title: "Remove", artist: "", content: "[C]Test", tags: [] });
+		const list = await addSetlist({
+			name: "Test",
+			songIds: [id, "other", id],
+			songSettings: [{ transpose: 2 }, { transpose: -3, capo: 2 }, { transpose: 4 }],
+		});
+		await deleteSong(id);
+		expect(await getSetlist(list)).toMatchObject({
+			songIds: ["other"],
+			songSettings: [{ transpose: -3, capo: 2 }],
+		});
 	});
 
 	describe("Song Operations", () => {

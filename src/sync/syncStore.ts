@@ -1,5 +1,5 @@
 import type { IDBPTransaction } from "idb";
-import { initDB, type Setlist, type Song } from "../db";
+import { initDB, notifyLibraryChanged, type Setlist, type Song } from "../db";
 import { recordFingerprint, stableStringify } from "../utils/recordFingerprint";
 import {
 	isDeletion,
@@ -36,6 +36,9 @@ async function write(tx: Transaction, type: RecordType, record: LibraryRecord) {
 					await tx.objectStore("setlists").put({
 						...list,
 						songIds: list.songIds.filter((id) => id !== record.id),
+						songSettings: list.songSettings?.filter(
+							(_, index) => list.songIds[index] !== record.id,
+						),
 						lastModified: new Date().toISOString(),
 					});
 			}
@@ -50,9 +53,13 @@ async function write(tx: Transaction, type: RecordType, record: LibraryRecord) {
 					.filter((item) => item.type === "song")
 					.map((item) => item.id),
 			);
-			await tx
-				.objectStore("setlists")
-				.put({ ...list, songIds: list.songIds.filter((id) => !deletedSongs.has(id)) });
+			await tx.objectStore("setlists").put({
+				...list,
+				songIds: list.songIds.filter((id) => !deletedSongs.has(id)),
+				songSettings: list.songSettings?.filter(
+					(_, index) => !deletedSongs.has(list.songIds[index]),
+				),
+			});
 		}
 	}
 }
@@ -63,6 +70,7 @@ async function transact(action: (tx: Transaction) => Promise<void>) {
 	try {
 		await action(tx);
 		await tx.done;
+		notifyLibraryChanged();
 	} catch (error) {
 		try {
 			tx.abort();

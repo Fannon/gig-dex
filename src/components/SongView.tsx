@@ -2,10 +2,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSongReading } from "../hooks/useSongReading";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
 import { readingHtml } from "../utils/readingLayout";
+import { savedReadingTheme } from "../utils/readingTheme";
 import { createSongFitChecker, findSongLayout } from "../utils/songLayout";
 import "./SongView.scss";
 
 interface SongViewProps {
+	transposeValue?: number;
+	onTransposeChange?: (value: number) => void;
 	content: string;
 	fitToScreen?: boolean;
 	title?: string;
@@ -18,6 +21,8 @@ interface SongViewProps {
 }
 
 export const SongView = ({
+	transposeValue,
+	onTransposeChange,
 	content,
 	fitToScreen = true,
 	title: _title,
@@ -28,7 +33,18 @@ export const SongView = ({
 	paginated = false,
 	hideControls = false,
 }: SongViewProps) => {
-	const [transpose, setTranspose] = useState(0);
+	const [readingTheme, setReadingTheme] = useState(savedReadingTheme);
+	useEffect(() => {
+		const update = () => setReadingTheme(savedReadingTheme());
+		window.addEventListener("reading-theme-changed", update);
+		return () => window.removeEventListener("reading-theme-changed", update);
+	}, []);
+	const [localTranspose, setLocalTranspose] = useState(0);
+	const transpose = transposeValue ?? localTranspose;
+	const setTranspose = (value: number) => {
+		setLocalTranspose(value);
+		onTransposeChange?.(value);
+	};
 	const [fontSize, setFontSize] = useState(fitToScreen ? 16 : 18);
 	const [autoSize, setAutoSize] = useState(fitToScreen);
 	const [minimumFontSize, setMinimumFontSize] = useState(() => {
@@ -53,7 +69,7 @@ export const SongView = ({
 		contentRef,
 		readingKey,
 		content,
-		`${fontSize}:${layout.fits}:${layout.columns}:${wrapLines}:${showChords}:${transpose}:${chordMode}:${hideControls}:${paginated}`,
+		`${readingTheme}:${fontSize}:${layout.fits}:${layout.columns}:${wrapLines}:${showChords}:${transpose}:${chordMode}:${hideControls}:${paginated}`,
 		paginated,
 	);
 
@@ -200,12 +216,10 @@ export const SongView = ({
 	}, [transpose, parsed.transposedContent, parsed.error, onContentChange]);
 
 	const handleTranspose = (delta: number) => {
-		setTranspose((prev) => {
-			let next = prev + delta;
-			if (next > 11) next -= 12;
-			if (next < -11) next += 12;
-			return next;
-		});
+		let next = transpose + delta;
+		if (next > 11) next -= 12;
+		if (next < -11) next += 12;
+		setTranspose(next);
 	};
 
 	const handleFontSize = (delta: number) => {

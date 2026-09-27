@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { WorkspaceDialog } from "../components/WorkspaceDialog";
 import {
 	addSetlist,
@@ -8,10 +8,13 @@ import {
 	getAllSetlists,
 	getAllSongs,
 	type Setlist,
+	type SetlistSongSettings,
 	type Song,
 	updateSetlist,
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
+import { displayCalendarDate } from "../utils/calendarDate";
+import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import "./SetlistsPage.scss";
 
 const SongView = lazy(() =>
@@ -19,13 +22,15 @@ const SongView = lazy(() =>
 );
 
 type Panel = "library" | "content" | "preview";
-type Draft = { id?: string; name: string; tags: string; description: string };
-const emptyDraft: Draft = { name: "", tags: "", description: "" };
+type Draft = { id?: string; name: string; tags: string; description: string; date: string };
+const emptyDraft: Draft = { name: "", tags: "", description: "", date: "" };
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 export const SetlistsPage = () => {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const routeSongIndex = Number(searchParams.get("song") ?? 0);
 	const [setlists, setSetlists] = useState<Setlist[]>([]);
 	const [songs, setSongs] = useState<Song[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -43,26 +48,32 @@ export const SetlistsPage = () => {
 
 	useEffect(() => {
 		let cancelled = false;
-		Promise.all([getAllSetlists(), getAllSongs()])
-			.then(([lists, library]) => {
-				if (!cancelled) {
-					setSetlists(lists);
-					setSongs(library);
-					setLoading(false);
-				}
-			})
-			.catch(() => {
-				if (!cancelled) {
-					setError("Could not load your library. Reload to try again.");
-					setLoading(false);
-				}
-			});
+		const load = () =>
+			Promise.all([getAllSetlists(), getAllSongs()])
+				.then(([lists, library]) => {
+					if (!cancelled) {
+						setSetlists(lists);
+						setSongs(library);
+						setLoading(false);
+					}
+				})
+				.catch(() => {
+					if (!cancelled) {
+						setError("Could not load your library. Reload to try again.");
+						setLoading(false);
+					}
+				});
+		void load();
+		window.addEventListener("gig-dex-library-changed", load);
 		return () => {
+			window.removeEventListener("gig-dex-library-changed", load);
 			cancelled = true;
 		};
 	}, []);
 
 	const ordered = [...setlists].sort((a, b) => {
+		if (sort === "date")
+			return (b.date ?? "").localeCompare(a.date ?? "") || collator.compare(a.name, b.name);
 		if (sort === "name") return collator.compare(a.name, b.name) || a.id.localeCompare(b.id);
 		if (sort === "name-desc") return collator.compare(b.name, a.name) || a.id.localeCompare(b.id);
 		if (sort === "songs")
@@ -73,7 +84,7 @@ export const SetlistsPage = () => {
 	const tags = [...new Set(setlists.flatMap((list) => list.tags ?? []))].sort(collator.compare);
 	const terms = search.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
 	const filtered = ordered.filter((list) => {
-		const text = [list.name, list.description ?? "", ...(list.tags ?? [])]
+		const text = [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])]
 			.join(" ")
 			.toLocaleLowerCase();
 		return (!tag || list.tags?.includes(tag)) && terms.every((term) => text.includes(term));
@@ -85,7 +96,8 @@ export const SetlistsPage = () => {
 		!!draft &&
 		(draft.name !== (originalDraft?.name ?? "") ||
 			draft.tags !== (originalDraft?.tags?.join(", ") ?? "") ||
-			draft.description !== (originalDraft?.description ?? ""));
+			draft.description !== (originalDraft?.description ?? "") ||
+			draft.date !== (originalDraft?.date ?? ""));
 	const allowLeave = useUnsavedEdits(dirtyDraft);
 	const closeDraft = () => {
 		if (!dirtyDraft || confirm("Discard unsaved changes?")) {
@@ -112,8 +124,9 @@ export const SetlistsPage = () => {
 	// Route navigation (including browser Back) resets occurrence selection.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Route identity resets selection.
 	useEffect(() => {
-		setSongIndex(0);
-	}, [id]);
+		setSongIndex(Number.isInteger(routeSongIndex) && routeSongIndex >= 0 ? routeSongIndex : 0);
+		if (searchParams.has("song")) setPanel("preview");
+	}, [id, routeSongIndex, searchParams]);
 
 	const mutate = async (action: () => Promise<void>) => {
 		if (busy) return;
@@ -127,12 +140,27 @@ export const SetlistsPage = () => {
 			setBusy(false);
 		}
 	};
-	const saveSongs = async (songIds: string[], index = songIndex) => {
+	const saveSongs = async (
+		songIds: string[],
+		index = songIndex,
+		songSettings = selected ? occurrenceSettings(selected) : [],
+	) => {
 		if (!selected) return;
-		await updateSetlist(selected.id, { songIds });
+		await updateSetlist(selected.id, {
+			songIds,
+			songSettings: songIds.map((_, index) => songSettings[index] ?? { transpose: 0 }),
+		});
 		setSetlists(await getAllSetlists());
 		setSongIndex(Math.max(0, Math.min(index, songIds.length - 1)));
 	};
+	const saveTranspose = (transpose: number) =>
+		mutate(async () => {
+			if (!selected) return;
+			const settings: SetlistSongSettings[] = occurrenceSettings(selected);
+			settings[songIndex] = { ...settings[songIndex], transpose };
+			await updateSetlist(selected.id, { songSettings: settings });
+			setSetlists(await getAllSetlists());
+		});
 	const saveDraft = () =>
 		mutate(async () => {
 			if (!draft?.name.trim()) return;
@@ -147,6 +175,7 @@ export const SetlistsPage = () => {
 					),
 				],
 				description: draft.description.trim(),
+				date: draft.date || undefined,
 			};
 			let listId = draft.id;
 			if (listId) await updateSetlist(listId, data);
@@ -189,16 +218,16 @@ export const SetlistsPage = () => {
 			const ids = [...selected.songIds];
 			const [moved] = ids.splice(from, 1);
 			ids.splice(to, 0, moved);
+			const settings = occurrenceSettings(selected);
+			const [setting] = settings.splice(from, 1);
+			settings.splice(to, 0, setting);
 			const next = songIndex === from ? to : songIndex === to ? from : songIndex;
-			await saveSongs(ids, next);
+			await saveSongs(ids, next, settings);
 		});
 
 	return (
 		<div className="setlists-page" data-panel={panel}>
 			<header className="setlists-page__header">
-				<Link to="/" className="setlists-page__back">
-					← Songs
-				</Link>
 				<h1>Setlists</h1>
 				<button
 					type="button"
@@ -257,6 +286,7 @@ export const SetlistsPage = () => {
 									onChange={(event) => setSort(event.target.value)}
 								>
 									<option value="updated">Recently updated</option>
+									<option value="date">Gig date (newest first)</option>
 									<option value="name">Name A–Z</option>
 									<option value="name-desc">Name Z–A</option>
 									<option value="songs">Most songs</option>
@@ -306,7 +336,9 @@ export const SetlistsPage = () => {
 									<h3>{list.name}</h3>
 									<p>
 										{list.songIds.length} {list.songIds.length === 1 ? "song" : "songs"} ·{" "}
-										{new Date(list.lastModified).toLocaleDateString()}
+										{list.date
+											? displayCalendarDate(list.date)
+											: new Date(list.lastModified).toLocaleDateString()}
 									</p>
 									{list.description && (
 										<p className="setlists-page__description">{list.description}</p>
@@ -329,6 +361,11 @@ export const SetlistsPage = () => {
 									SETLIST · {selected.songIds.length} SONGS
 								</div>
 								<h2>{selected.name}</h2>
+								{selected.date && (
+									<p>
+										<time dateTime={selected.date}>{displayCalendarDate(selected.date)}</time>
+									</p>
+								)}
 								{selected.description && <p>{selected.description}</p>}
 								<div className="setlists-page__tags">
 									{selected.tags?.map((value) => (
@@ -350,6 +387,7 @@ export const SetlistsPage = () => {
 												name: selected.name,
 												tags: selected.tags?.join(", ") ?? "",
 												description: selected.description ?? "",
+												date: selected.date ?? "",
 											})
 										}
 									>
@@ -400,6 +438,7 @@ export const SetlistsPage = () => {
 												<span>
 													<strong>{song?.title ?? "Missing song"}</strong>
 													<small>{song?.artist ?? "This song is no longer in your library"}</small>
+													<small>{settingLabel(song, selected.songSettings?.[index])}</small>
 												</span>
 											</button>
 											<div className="setlists-page__song-actions">
@@ -429,6 +468,9 @@ export const SetlistsPage = () => {
 															saveSongs(
 																selected.songIds.filter((_, position) => position !== index),
 																songIndex > index ? songIndex - 1 : songIndex,
+																occurrenceSettings(selected).filter(
+																	(_, position) => position !== index,
+																),
 															),
 														)
 													}
@@ -464,8 +506,10 @@ export const SetlistsPage = () => {
 							</header>
 							<Suspense fallback={<output className="setlists-page__empty">Loading song…</output>}>
 								<SongView
-									key={preview.id}
-									content={preview.content}
+									key={`${selected?.id}:${songIndex}:${preview.id}`}
+									content={occurrenceContent(preview, selected?.songSettings?.[songIndex])}
+									transposeValue={selected?.songSettings?.[songIndex]?.transpose ?? 0}
+									onTransposeChange={(transpose) => void saveTranspose(transpose)}
 									fitToScreen={false}
 									onKeyChange={setPreviewKey}
 								/>
@@ -494,6 +538,14 @@ export const SetlistsPage = () => {
 								placeholder="Setlist name"
 								value={draft.name}
 								onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+							/>
+						</label>
+						<label>
+							Date
+							<input
+								type="date"
+								value={draft.date}
+								onChange={(event) => setDraft({ ...draft, date: event.target.value })}
 							/>
 						</label>
 						<label>

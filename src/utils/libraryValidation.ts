@@ -1,4 +1,5 @@
 import type { Setlist, Song } from "../db";
+import { isCalendarDate } from "./calendarDate.ts";
 
 function validCommon(value: unknown, expectedId: string): value is Record<string, unknown> {
 	if (!value || typeof value !== "object") return false;
@@ -44,9 +45,22 @@ export function parseSyncedSetlist(content: string, expectedId: string): Setlist
 	if (
 		!validCommon(value, expectedId) ||
 		typeof value.name !== "string" ||
+		(value.date !== undefined && !isCalendarDate(value.date)) ||
 		!stringArray(value.songIds) ||
 		(value.tags !== undefined && !stringArray(value.tags)) ||
-		(value.description !== undefined && typeof value.description !== "string")
+		(value.description !== undefined && typeof value.description !== "string") ||
+		(value.songSettings !== undefined &&
+			(!Array.isArray(value.songSettings) ||
+				value.songSettings.length !== value.songIds.length ||
+				value.songSettings.some(
+					(setting) =>
+						!setting ||
+						typeof setting !== "object" ||
+						!Number.isInteger(setting.transpose) ||
+						Math.abs(setting.transpose) > 24 ||
+						(setting.capo !== undefined &&
+							(!Number.isInteger(setting.capo) || setting.capo < 0 || setting.capo > 24)),
+				)))
 	) {
 		throw new Error("Invalid remote setlist data");
 	}

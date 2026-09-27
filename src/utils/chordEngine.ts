@@ -8,6 +8,8 @@ import {
 	TextFormatter,
 } from "chordsheetjs";
 
+import { colorSongSections, simpleSectionLabel } from "./songSections";
+
 export { DEMO_SONG } from "./demoSong";
 
 export interface ParsedSong {
@@ -103,7 +105,7 @@ export const parseChordPro = (
 
 	// Use HtmlTableFormatter for better chord positioning
 	const formatter = new HtmlTableFormatter();
-	const html = safeFormattedHtml(formatter.format(song));
+	const html = colorSongSections(safeFormattedHtml(formatter.format(song)));
 
 	// Handle artist which can be string, string[], or null
 	let artist: string | null = null;
@@ -164,7 +166,39 @@ export const chordProToSimple = (chordProText: string): string => {
  */
 export const simpleToChordPro = (simpleText: string): string => {
 	const parser = new ChordsOverWordsParser();
-	const song = parser.parse(simpleText);
+	const lines = simpleText.replace(/\r\n?/g, "\n").split("\n");
+	const chordOnly = (line: string) => {
+		const tokens = line.trim().split(/\s+/);
+		return (
+			!!line.trim() &&
+			tokens.some((token) => Chord.parse(token)) &&
+			tokens.every((token) => token === "|" || token === "||" || !!Chord.parse(token))
+		);
+	};
+	let sectionOpen = false;
+	const prepared: string[] = [];
+	for (const [index, line] of lines.entries()) {
+		const label = simpleSectionLabel(line);
+		if (label) {
+			if (sectionOpen) prepared.push("{end_of_verse}");
+			prepared.push(`{start_of_verse: ${label}}`);
+			sectionOpen = true;
+		} else {
+			const next = lines[index + 1] ?? "";
+			// Standalone instrumental lines need explicit spacing; chord-over-lyric
+			// lines still go through the parser to preserve their column positions.
+			const standalone =
+				chordOnly(line) &&
+				(!next.trim() || !!simpleSectionLabel(next) || chordOnly(next) || /^\s*\{/.test(next));
+			prepared.push(
+				standalone
+					? line.replace(/\S+/g, (token) => (Chord.parse(token) ? `[${token}]` : token))
+					: line,
+			);
+		}
+	}
+	if (sectionOpen) prepared.push("{end_of_verse}");
+	const song = parser.parse(prepared.join("\n"));
 	const formatter = new ChordProFormatter();
 	return formatter.format(song);
 };

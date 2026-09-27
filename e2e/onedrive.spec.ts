@@ -199,16 +199,25 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
 	await expect(host.getByRole("alert")).toHaveCount(0);
 	await expect(host.getByText(/Last synced:/)).toBeVisible();
 	await page.screenshot({ path: "reports/sync/onedrive-cleanup.png", fullPage: true });
-	await page.getByRole("link", { name: "Go back", exact: true }).click();
-	await expect(page.locator(".song-card__title")).toHaveText("OneDrive fixture");
-	await page.locator(".song-card").first().click();
+	await page
+		.getByRole("navigation", { name: "Main navigation" })
+		.getByRole("link", { name: "Songs", exact: true })
+		.click();
+	await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveText(
+		"OneDrive fixture",
+	);
 	await page.getByRole("button", { name: "Edit", exact: true }).click();
 	await context.setOffline(true);
 	await page.getByLabel("Title", { exact: true }).fill("Edited while offline");
 	await page.getByRole("button", { name: "Save", exact: true }).click();
 	await expect(page.locator(".song-page__title")).toHaveText("Edited while offline");
-	await page.getByRole("link", { name: "Go back", exact: true }).click();
-	await expect(page.locator(".song-card__title")).toHaveText("Edited while offline");
+	await page
+		.getByRole("navigation", { name: "Main navigation" })
+		.getByRole("link", { name: "Songs", exact: true })
+		.click();
+	await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveText(
+		"Edited while offline",
+	);
 	await context.setOffline(false);
 	await page.getByRole("link", { name: /Settings/i }).click();
 	await host.getByRole("button", { name: "Sync Now", exact: true }).click();

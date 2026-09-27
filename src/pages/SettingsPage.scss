@@ -262,3 +262,4 @@
   100% { opacity: 1; }
 }
 .revision-cleanup { padding: .75rem; border-top: 1px solid #ffffff20; font-size: .85rem; p { color: #b9b6cc; } ul { max-height: 15rem; overflow: auto; } button { color: white; background: #5143b7; min-height: 44px; padding: .5rem .75rem; border-radius: 7px; &:disabled { opacity: .45; } } output { display: block; margin: .6rem 0; } }
+.settings-page__section > label { display: flex; align-items: center; gap: 1rem; color: #dedbe9; select { min-height: 42px; padding: .5rem .75rem; border: 1px solid #615879; border-radius: 8px; background: var(--bg-secondary); color: white; font: inherit; } }

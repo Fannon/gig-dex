@@ -10,7 +10,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 	try {
 		await page.goto(fixture.url);
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await page.locator(".song-card").first().click();
+		await page.locator("#sidebar-songs .library-sidebar__links a").first().click();
 		await page.getByRole("button", { name: "Edit", exact: true }).click();
 		await page.getByRole("button", { name: "Advanced (ChordPro)", exact: true }).click();
 		await page
@@ -25,6 +25,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 		const songUrl = page.url();
 		await page.getByRole("link", { name: "Perform", exact: true }).click();
 		const performUrl = page.url();
+		await page.getByRole("button", { name: "Performance options", exact: true }).click();
 		await page.getByLabel("Reading mode").selectOption("scroll");
 		const reader = page.locator(".song-view__wrapper");
 		await expect
@@ -66,7 +67,9 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 		await page.getByRole("button", { name: "Save", exact: true }).click();
 		// Editing content invalidates the old reading signature; save a position for the reviewed song.
 		await page.getByRole("link", { name: "Perform", exact: true }).click();
+		await page.getByRole("button", { name: "Performance options", exact: true }).click();
 		await expect(page.getByLabel("Reading mode")).toHaveValue("scroll");
+		await page.getByRole("button", { name: "Close performance options" }).click();
 		await expect
 			.poll(() => reader.evaluate((node) => node.scrollHeight - node.clientHeight))
 			.toBeGreaterThan(100);
@@ -87,7 +90,9 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 		const cold = await context.newPage();
 		await cold.goto(performUrl);
 		await expect(cold.getByRole("heading", { name: "Offline tablet song" })).toBeVisible();
+		await cold.getByRole("button", { name: "Performance options", exact: true }).click();
 		await expect(cold.getByLabel("Reading mode")).toHaveValue("scroll");
+		await cold.getByRole("button", { name: "Close performance options" }).click();
 		await expect
 			.poll(() => cold.locator(".song-view__wrapper").evaluate((node) => node.scrollTop))
 			.toBeCloseTo(450, 0);
@@ -97,6 +102,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 		await cold.getByRole("button", { name: "Save", exact: true }).click();
 		await context.setOffline(false);
 		await cold.goto(`${fixture.url}settings`);
+		await cold.getByText("Offline status & storage", { exact: true }).click();
 		await expect(cold.getByText("Ready to open offline", { exact: true })).toBeVisible();
 		await cold.evaluate(async () => {
 			await (await caches.open("unrelated-app-cache")).put("/unrelated", new Response("keep me"));
@@ -104,11 +110,14 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 		await cold.getByText("Repair downloaded app", { exact: true }).click();
 		cold.once("dialog", (dialog) => dialog.accept());
 		await cold.getByRole("button", { name: "Repair app files" }).click();
-		await expect(cold.locator(".song-card")).toContainText("Edited offline");
+		await expect(cold.locator("#sidebar-songs .library-sidebar__links a")).toContainText(
+			"Edited offline",
+		);
 		expect(await cold.evaluate(() => caches.has("unrelated-app-cache"))).toBe(true);
 		await cold.goto(songUrl);
 		await expect(cold.locator(".song-page__title")).toHaveText("Edited offline");
 		await cold.goto(`${fixture.url}settings`);
+		await cold.getByText("Offline status & storage", { exact: true }).click();
 		await expect(cold.getByText("Ready to open offline", { exact: true })).toBeVisible();
 		await cold.screenshot({ path: "reports/pwa/production-settings.png", fullPage: true });
 		await cold.close();
@@ -139,7 +148,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
 			.toBe(false);
 		await context.setOffline(true);
 		await page.reload();
-		await expect(page.locator(".song-card")).toHaveCount(1);
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
 		await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute(
 			"content",
 			"A",
@@ -155,7 +164,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
 			"content",
 			"B",
 		);
-		await expect(page.locator(".song-card")).toHaveCount(1);
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
 		await expect(page.getByRole("alert")).toHaveCount(0);
 		await page.close();
 	} finally {

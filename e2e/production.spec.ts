@@ -10,10 +10,9 @@ test("production chunks load on demand and cached songs work offline", async ({
 		if (request.resourceType() === "script") scripts.push(request.url());
 	});
 	await page.goto("./");
-	await expect(page.getByRole("heading", { name: "Gig-Dex", exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "No songs yet", exact: true })).toBeVisible();
 	expect(scripts.some((url) => /chordEngine|jspdf|html2canvas/.test(url))).toBe(false);
 	await page.getByRole("button", { name: "Add Demo Song" }).click();
-	await page.locator(".song-card").first().click();
 	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
 	await expect(page.locator(".song-view__content")).toContainText("Amazing");
 	expect(scripts.some((url) => /chordEngine/.test(url))).toBe(true);
@@ -23,8 +22,7 @@ test("production chunks load on demand and cached songs work offline", async ({
 	await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 	await context.setOffline(true);
 	await page.goto("./");
-	await expect(page.locator(".song-card")).toHaveCount(1);
-	await page.locator(".song-card").first().click();
+	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
 	await expect(page.locator(".song-view__content")).toContainText("Amazing");
 	await page.getByRole("link", { name: "Perform", exact: true }).click();
 	await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
