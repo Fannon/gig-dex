@@ -14,7 +14,12 @@ import {
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { displayCalendarDate, isCalendarDate } from "../utils/calendarDate";
-import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import {
+	defaultSongSetting,
+	occurrenceContent,
+	occurrenceSettings,
+	settingLabel,
+} from "../utils/setlistSettings";
 import "./SetlistsPage.scss";
 
 const SongView = lazy(() =>
@@ -107,7 +112,9 @@ export const SetlistsPage = () => {
 	};
 	const availableSongs = songs
 		.filter((song) => {
-			const text = [song.title, song.artist, ...song.tags].join(" ").toLocaleLowerCase();
+			const text = [song.title, song.subtitle ?? "", song.artist, ...song.tags]
+				.join(" ")
+				.toLocaleLowerCase();
 			return songSearch
 				.trim()
 				.toLocaleLowerCase()
@@ -148,7 +155,9 @@ export const SetlistsPage = () => {
 		if (!selected) return;
 		await updateSetlist(selected.id, {
 			songIds,
-			songSettings: songIds.map((_, index) => songSettings[index] ?? { transpose: 0 }),
+			songSettings: songIds.map(
+				(id, index) => songSettings[index] ?? defaultSongSetting(songMap.get(id)),
+			),
 		});
 		setSetlists(await getAllSetlists());
 		setSongIndex(Math.max(0, Math.min(index, songIds.length - 1)));

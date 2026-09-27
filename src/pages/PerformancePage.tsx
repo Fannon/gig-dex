@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { ActionIcon } from "../components/ActionIcon";
 import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
@@ -17,7 +18,7 @@ export const PerformancePage = () => {
 	const { id, listId } = useParams();
 	const { performanceHost, setPerformanceExit } = useOutletContext<LibraryWorkspaceContext>();
 	const [wide, setWide] = useState(() => window.matchMedia("(min-width: 1200px)").matches);
-	const [tempoRunning, setTempoRunning] = useState(false);
+	const [tempoRunning, setTempoRunning] = useState(true);
 	useEffect(() => {
 		const media = window.matchMedia("(min-width: 1200px)");
 		const change = () => setWide(media.matches);
@@ -59,7 +60,7 @@ export const PerformancePage = () => {
 			const ordered = ids.map((songId) => library.find((song) => song.id === songId));
 			if (cancelled) return;
 			setSongs(ordered);
-			setTempoRunning(false);
+			setTempoRunning(true);
 			setSetlist(list);
 			setOrder(ids);
 			setName(list?.name ?? "Song performance");
@@ -94,7 +95,7 @@ export const PerformancePage = () => {
 		(delta: number) => {
 			const next = Math.max(0, Math.min(songs.length - 1, index + delta));
 			setIndex(next);
-			if (next !== index) setTempoRunning(false);
+			if (next !== index) setTempoRunning(true);
 			if (params.has("occurrence")) setParams({ occurrence: String(next) }, { replace: true });
 			try {
 				localStorage.setItem(
@@ -146,6 +147,11 @@ export const PerformancePage = () => {
 		}
 	};
 	const song = songs[index];
+	const [readingTranspose, setReadingTranspose] = useState(0);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Song identity resets the temporary reading transpose.
+	useEffect(() => {
+		setReadingTranspose(song?.defaultTranspose ?? 0);
+	}, [song?.id, song?.defaultTranspose]);
 	useEffect(() => {
 		const url =
 			listId && song
@@ -183,19 +189,32 @@ export const PerformancePage = () => {
 					<small>
 						{" "}
 						· {songs.length ? index + 1 : 0}/{songs.length}
-						{song ? ` · ${settingLabel(song, setlist?.songSettings?.[index])}` : ""}
+						{song
+							? ` · ${settingLabel(song, setlist ? setlist.songSettings?.[index] : { transpose: readingTranspose })}`
+							: ""}
 					</small>
 				</div>
 				<h1 title={song?.title}>{song?.title ?? (loading ? "Loading…" : "Song unavailable")}</h1>
 			</div>
 			{song && (
 				<TempoIndicator
+					compact
 					key={`${index}:${song.id}`}
 					bpm={song.tempo ?? metadata?.tempo}
 					time={meter}
 					runningValue={tempoRunning}
 					onRunningChange={setTempoRunning}
 				/>
+			)}
+			{song && (
+				<Link
+					className="performance-page__edit"
+					aria-label="Edit song"
+					title="Quick edit song"
+					to={`/song/${song.id}?edit=true&from=performance${listId ? `&setlist=${listId}&occurrence=${index}` : ""}`}
+				>
+					<ActionIcon name="edit" />
+				</Link>
 			)}
 			<button
 				className="performance-page__fullscreen"
@@ -337,7 +356,9 @@ export const PerformancePage = () => {
 				<SongView
 					key={`${sessionKey}:${index}:${song.id}:${mode}`}
 					content={occurrenceContent(song, setlist?.songSettings?.[index])}
-					transposeValue={setlist ? (setlist.songSettings?.[index]?.transpose ?? 0) : undefined}
+					transposeValue={
+						setlist ? (setlist.songSettings?.[index]?.transpose ?? 0) : readingTranspose
+					}
 					onTransposeChange={
 						setlist
 							? (transpose) => {
@@ -347,7 +368,7 @@ export const PerformancePage = () => {
 										.then(() => setSetlist({ ...setlist, songSettings: settings }))
 										.catch(() => setError("Could not save transpose. Please try again."));
 								}
-							: undefined
+							: setReadingTranspose
 					}
 					fitToScreen={mode === "auto"}
 					readingKey={`${sessionKey}:${index}:${song.id}`}

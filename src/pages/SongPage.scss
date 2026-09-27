@@ -33,21 +33,6 @@
     flex-shrink: 0;
   }
 
-  &__back {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    color: #fff;
-    border-radius: 8px;
-    transition: background 0.2s ease;
-    flex-shrink: 0;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-  }
 
   &__title-row {
     display: flex;
@@ -538,7 +523,12 @@
 .song-page__btn { padding-inline: .55rem; white-space: nowrap; }
 .song-page__set-message { font-size: .75rem; color: var(--text-secondary); }
 @media (max-width: 650px) {
- .song-page__header { flex-wrap: wrap; .song-page__title-row { flex-basis: calc(100% - 40px); } }
+ .song-page__header { flex-wrap: wrap; .song-page__title-row { flex-basis: 100%; } }
  .song-page__actions { margin-left: auto; }
  .song-page__set-message { flex-basis: 100%; }
 }
+
+.song-page__actions { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.song-page__btn { min-height: 38px; svg { flex-shrink: 0; } }
+
+.song-page__set-count { font-size: .75rem; color: var(--accent-color, #a78bfa); white-space: nowrap; }

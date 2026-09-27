@@ -21,7 +21,8 @@ async function seed() {
 		artist: "Artist",
 		content: "{title: Original}\n[C]Test",
 		composer: "Composer",
-		subtitle: undefined,
+		subtitle: "Alternative",
+		defaultTranspose: -4,
 		tags: ["folk"],
 	});
 	await addSetlist({ name: "Gig", tags: ["venue"], description: "Friday", songIds: [id, id] });
@@ -35,6 +36,8 @@ describe("library backups and imports", () => {
 		await restoreLibrary(backup, "replace");
 		expect((await getAllSongs())[0]).toMatchObject({
 			composer: "Composer",
+			defaultTranspose: -4,
+			subtitle: "Alternative",
 			tags: ["folk"],
 			createdAt: backup.songs[0].createdAt,
 		});

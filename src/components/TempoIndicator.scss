@@ -1,6 +1,8 @@
-.tempo-indicator { display: inline-flex; align-items: center; gap: .65rem; min-height: 44px; padding: .5rem .7rem; background: #24243b; border: 1px solid #585174; border-radius: 8px; color: #d6d1ff; font-size: .8rem; cursor: pointer;
+.tempo-indicator { display: inline-flex; align-items: center; gap: .65rem; min-height: 38px; padding: .4rem .65rem; background: #24243b; border: 1px solid #585174; border-radius: 8px; color: #d6d1ff; font-size: .8rem; cursor: pointer;
   &__dots { display: flex; gap: 5px; > span { flex-shrink: 0; width: 9px; height: 9px; border-radius: 50%; background: #ffffff30; &.active { background: #fbbf24; box-shadow: 0 0 5px #fbbf2480; } } }
 }
 .tempo-indicator__dots { flex-wrap: wrap; max-width: 112px; > span[data-first=true] { border: 1px solid #67e8f9; &.active { background: #22d3ee; box-shadow: 0 0 6px #22d3ee80; } } }
 @media (max-width: 650px) { .performance-page .tempo-indicator { font-size: .65rem; gap: .35rem; .tempo-indicator__dots { gap: 3px; max-width: 72px; > span { width: 6px; height: 6px; } } } }
 .tempo-indicator__label { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; small { font-size: .65rem; color: #b8b5d5; } }
+
+.tempo-indicator__label { display: block; }

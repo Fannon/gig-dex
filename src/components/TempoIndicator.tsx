@@ -4,11 +4,13 @@ import "./TempoIndicator.scss";
 
 /** Silent beat cue, derived from a monotonic clock rather than accumulating timer drift. */
 export const TempoIndicator = ({
+	compact = false,
 	bpm,
 	time,
 	runningValue,
 	onRunningChange,
 }: {
+	compact?: boolean;
 	bpm?: number;
 	time?: string;
 	runningValue?: boolean;
@@ -41,16 +43,14 @@ export const TempoIndicator = ({
 			className="tempo-indicator"
 			aria-label={`${running ? "Stop" : "Start"} visual tempo at ${bpm} BPM`}
 			aria-pressed={running}
-			title={`${label}: ${beats} beats per bar; quarter-note BPM`}
+			title={`${bpm} BPM · ${label}: ${beats} beats per bar; quarter-note BPM`}
 			data-meter={label}
 			onClick={() => {
 				if (onRunningChange) onRunningChange(!running);
 				else setRunning(!running);
 			}}
 		>
-			<span className="tempo-indicator__label">
-				{bpm} BPM<small>{label}</small>
-			</span>
+			{!compact && <span className="tempo-indicator__label">{bpm} BPM</span>}
 			<span className="tempo-indicator__dots" aria-hidden="true">
 				{Array.from({ length: beats }, (_, index) => (
 					<span

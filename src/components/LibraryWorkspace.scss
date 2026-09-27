@@ -38,7 +38,6 @@
  .workspace-topbar { .workspace-brand { display: none; } nav a { padding: 9px 6px; font-size: 13px; } .workspace-search-button { font-size: 0; padding: 8px; &::before { content: 'Search'; font-size: 13px; } } }
 }
 .library-sidebar__song-row { display: flex; align-items: center; gap: 4px; a { flex: 1; min-width: 0; overflow-wrap: anywhere; } > button { min-width: 36px; min-height: 36px; } }
-.library-sidebar__reorder { display: flex; flex-direction: column; button { width: 32px; min-height: 32px; padding: 2px; &:disabled { opacity: .35; cursor: default; } } }
 .library-sidebar__current-name { margin: 0; padding: 6px 8px; font-size: 14px; color: var(--color-accent); }
  .workspace-search { position: fixed; inset: 62px 16px auto auto; margin: 0; width: min(640px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: min(650px, calc(100dvh - 74px)); padding: 18px; font-size: 16px;
  &::backdrop { background: #0005; }
@@ -57,9 +56,7 @@
 
 .library-sidebar [draggable=true] { cursor: grab; }
 .library-sidebar__song-row[data-drop-before=true] { box-shadow: inset 0 3px var(--color-accent); }
-#sidebar-setlist[data-drop-end=true] { box-shadow: inset 0 -3px var(--color-accent); }
 
-.library-sidebar__reorder { display: grid; grid-template-columns: 24px 24px; gap: 2px; button { width: 24px; } button:first-child { grid-row: span 2; } }
 
 .workspace-performance { display: none; }
 @media (min-width: 1200px) {
@@ -79,3 +76,6 @@
 
 .library-sidebar__add { display: grid; place-items: center; width: 28px; height: 28px; margin-right: 6px; padding: 0; font-size: 18px; border-radius: 4px; &:hover { background: var(--bg-primary); } }
 #sidebar-songs .library-sidebar__song-row > button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; font-size: 18px; }
+.library-sidebar__remove { width: 24px; min-height: 24px; padding: 0; font-size: 18px; border-color: transparent; background: transparent; opacity: .7; &:hover { opacity: 1; } }
+.library-sidebar__song-row[data-drop-after=true] { box-shadow: inset 0 -3px #8b5cf6; }
+.library-sidebar__drop-end { min-height: 32px; padding: 7px; font-size: .7rem; color: #888; border: 1px dashed transparent; &[data-active=true] { border-color: #8b5cf6; color: #c4b5fd; background: #8b5cf61a; } }

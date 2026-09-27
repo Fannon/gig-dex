@@ -1,4 +1,9 @@
 import type { Setlist, SetlistSongSettings, Song } from "../db";
+import { tempoMeter } from "./tempo";
+
+export const defaultSongSetting = (
+	song: Pick<Song, "defaultTranspose"> | undefined,
+): SetlistSongSettings => ({ transpose: song?.defaultTranspose ?? 0 });
 
 export const occurrenceSettings = (list: Setlist): SetlistSongSettings[] =>
 	list.songIds.map((_, index) => list.songSettings?.[index] ?? { transpose: 0 });
@@ -19,7 +24,17 @@ export function settingLabel(song: Song | undefined, setting?: SetlistSongSettin
 	const transpose = setting?.transpose ?? 0;
 	const key = song?.key ?? /\{key:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
 	const capo = setting?.capo ?? song?.capo;
-	return `${transposeKey(key, transpose)} · ${transpose > 0 ? "+" : ""}${transpose} st${capo ? ` · Capo ${capo}` : ""}`;
+	const bpm = song?.tempo ?? Number(/\{tempo:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]);
+	const time = song?.time || /\{time:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
+	return [
+		transposeKey(key, transpose),
+		transpose ? `T${transpose > 0 ? "+" : ""}${transpose}` : "",
+		bpm > 0 ? `${bpm}bpm` : "",
+		tempoMeter(time).label,
+		capo ? `Capo ${capo}` : "",
+	]
+		.filter(Boolean)
+		.join(" | ");
 }
 export function occurrenceContent(song: Song, setting?: SetlistSongSettings) {
 	if (setting?.capo === undefined) return song.content;

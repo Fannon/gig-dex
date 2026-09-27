@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { ActionIcon } from "../components/ActionIcon";
 import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
@@ -25,7 +26,12 @@ import {
 	simpleToChordPro,
 	stripMetadata,
 } from "../utils/chordEngine";
-import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import {
+	defaultSongSetting,
+	occurrenceContent,
+	occurrenceSettings,
+	settingLabel,
+} from "../utils/setlistSettings";
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
@@ -33,7 +39,8 @@ type EditorMode = "simple" | "advanced";
 export const SongPage = () => {
 	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
-	const { currentSetlistId, selectCurrentSetlist } = useOutletContext<LibraryWorkspaceContext>();
+	const { currentSetlistId, currentSetlist, selectCurrentSetlist } =
+		useOutletContext<LibraryWorkspaceContext>();
 	const [addingToSet, setAddingToSet] = useState(false);
 	const [setMessage, setSetMessage] = useState("");
 	const addingRef = useRef(false);
@@ -47,7 +54,7 @@ export const SongPage = () => {
 			if (current) {
 				await updateSetlist(current.id, {
 					songIds: [...current.songIds, id],
-					songSettings: [...occurrenceSettings(current), { transpose: 0 }],
+					songSettings: [...occurrenceSettings(current), defaultSongSetting(await getSong(id))],
 				});
 				setSetMessage(`Added to ${current.name}`);
 			} else {
@@ -56,7 +63,7 @@ export const SongPage = () => {
 					name: date,
 					date,
 					songIds: [id],
-					songSettings: [{ transpose: 0 }],
+					songSettings: [defaultSongSetting(await getSong(id))],
 				});
 				selectCurrentSetlist(listId);
 				setSetMessage(`Created ${date} and added song`);
@@ -92,7 +99,45 @@ export const SongPage = () => {
 	const [saving, setSaving] = useState(false);
 	const [dirty, setDirty] = useState(false);
 	const allowLeave = useUnsavedEdits(isEditing && dirty);
-	const [displayKey, setDisplayKey] = useState<string | null>(null);
+	const [readingTranspose, setReadingTranspose] = useState(0);
+	const performanceReturn =
+		searchParams.get("from") === "performance"
+			? occurrence.list
+				? `/perform/setlist/${occurrence.list.id}?occurrence=${occurrenceIndex}`
+				: `/perform/song/${id}`
+			: undefined;
+	const removeFromSet = async () => {
+		if (!id || !currentSetlistId || addingRef.current) return;
+		addingRef.current = true;
+		setAddingToSet(true);
+		try {
+			const current = await getSetlist(currentSetlistId);
+			if (!current) throw new Error("Set no longer exists");
+			const index =
+				occurrence.list?.id === current.id && current.songIds[occurrenceIndex] === id
+					? occurrenceIndex
+					: current.songIds.indexOf(id);
+			if (index < 0) return;
+			await updateSetlist(current.id, {
+				songIds: current.songIds.filter((_, i) => i !== index),
+				songSettings: occurrenceSettings(current).filter((_, i) => i !== index),
+			});
+			setSetMessage(`Removed one occurrence from ${current.name}`);
+			if (occurrence.list?.id === current.id) {
+				const params = new URLSearchParams(searchParams);
+				if (index === occurrenceIndex) {
+					params.delete("setlist");
+					params.delete("occurrence");
+				} else if (index < occurrenceIndex) params.set("occurrence", String(occurrenceIndex - 1));
+				navigate(`/song/${id}?${params}`, { replace: true });
+			}
+		} catch {
+			setSetMessage("Could not remove the song. Please try again.");
+		} finally {
+			addingRef.current = false;
+			setAddingToSet(false);
+		}
+	};
 
 	// Resizable split pane state
 	const [splitRatio, setSplitRatio] = useState(0.5);
@@ -119,7 +164,11 @@ export const SongPage = () => {
 			try {
 				const loadedSong = await getSong(songId);
 				if (loadedSong) {
-					setSong(loadedSong);
+					setSong({
+						...loadedSong,
+						subtitle: loadedSong.subtitle ?? extractMetadata(loadedSong.content).subtitle,
+					});
+					setReadingTranspose(loadedSong.defaultTranspose ?? 0);
 					setDirty(false);
 				} else {
 					navigate("/");
@@ -224,7 +273,7 @@ export const SongPage = () => {
 			capo: song.capo || undefined,
 			time: song.time || undefined,
 			// Preserve extended metadata from original content
-			subtitle: existingMetadata.subtitle,
+			subtitle: song.subtitle || undefined,
 			composer: existingMetadata.composer,
 			lyricist: existingMetadata.lyricist,
 			copyright: existingMetadata.copyright,
@@ -241,6 +290,13 @@ export const SongPage = () => {
 			return;
 		}
 
+		if (
+			!Number.isInteger(song.defaultTranspose ?? 0) ||
+			Math.abs(song.defaultTranspose ?? 0) > 24
+		) {
+			alert("Standard transposition must be a whole number between -24 and 24.");
+			return;
+		}
 		setSaving(true);
 		try {
 			const songData = {
@@ -248,11 +304,12 @@ export const SongPage = () => {
 				artist: song.artist || "Unknown",
 				content: contentToSave,
 				key: song.key,
+				defaultTranspose: song.defaultTranspose ?? 0,
 				tempo: song.tempo,
 				capo: song.capo,
 				time: song.time,
 				// Preserve extended metadata in database too
-				subtitle: existingMetadata.subtitle,
+				subtitle: song.subtitle || undefined,
 				composer: existingMetadata.composer,
 				lyricist: existingMetadata.lyricist,
 				copyright: existingMetadata.copyright,
@@ -273,6 +330,11 @@ export const SongPage = () => {
 			}
 			setIsEditing(false);
 			setDirty(false);
+			setReadingTranspose(song.defaultTranspose ?? 0);
+			if (performanceReturn) {
+				allowLeave();
+				navigate(performanceReturn);
+			}
 		} catch (error) {
 			console.error("Failed to save song:", error);
 			alert("Failed to save song");
@@ -308,6 +370,7 @@ export const SongPage = () => {
 				// Preserve extended metadata while updating the editable fields.
 				const metadata: SongMetadata = {
 					...extractMetadata(song.content || ""),
+					subtitle: song.subtitle || undefined,
 					title: song.title || undefined,
 					artist: song.artist || undefined,
 					key: song.key || undefined,
@@ -344,39 +407,18 @@ export const SongPage = () => {
 	return (
 		<div className="song-page">
 			<header className="song-page__header">
-				<Link to="/" className="song-page__back" aria-label="Go back">
-					<svg
-						width="20"
-						height="20"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						aria-hidden="true"
-					>
-						<path d="M19 12H5M12 19l-7-7 7-7" />
-					</svg>
-				</Link>
-
 				{!isEditing && (
 					<div className="song-page__title-row">
 						<h1 className="song-page__title">{song.title || "Untitled"}</h1>
-						{occurrence.list && (
-							<span className="song-page__meta-tag">
-								{occurrence.list.name} · {settingLabel(song as Song, occurrence.setting)}
-							</span>
-						)}
+						{occurrence.list && <span className="song-page__meta-tag">{occurrence.list.name}</span>}
 						{song.artist && <span className="song-page__artist">by {song.artist}</span>}
-						{(displayKey || song.key) && (
-							<span className="song-page__meta-tag">Key: {displayKey || song.key}</span>
-						)}
-						<TempoIndicator bpm={song.tempo} time={song.time} />
-						{!!(occurrence.setting?.capo ?? song.capo) && (
-							<span className="song-page__meta-tag">
-								Capo {occurrence.setting?.capo ?? song.capo}
-							</span>
-						)}
-						{song.time && <span className="song-page__meta-tag">{song.time}</span>}
+						<span className="song-page__meta-tag">
+							{settingLabel(
+								song as Song,
+								occurrence.list ? occurrence.setting : { transpose: readingTranspose },
+							)}
+						</span>
+						<TempoIndicator bpm={song.tempo} time={song.time} compact />
 						{song.tags && song.tags.length > 0 && (
 							<div className="song-page__tags-inline">
 								{song.tags.map((tag) => (
@@ -407,8 +449,21 @@ export const SongPage = () => {
 								onClick={() => void addToSet()}
 								title="Add this song to the current set, or create a dated set"
 							>
-								{addingToSet ? "Adding…" : "Add to Set"}
+								<ActionIcon name="add" />
+								{"Add to Set"}
 							</button>
+							{currentSetlist?.songIds.includes(id ?? "") && (
+								<button
+									type="button"
+									className="song-page__btn song-page__btn--secondary"
+									disabled={addingToSet}
+									onClick={() => void removeFromSet()}
+									title="Remove one occurrence from the current set"
+								>
+									<ActionIcon name="remove" />
+									{"Remove from Set"}
+								</button>
+							)}
 							<Link
 								to={
 									occurrence.list
@@ -417,6 +472,7 @@ export const SongPage = () => {
 								}
 								className="song-page__btn song-page__btn--secondary"
 							>
+								<ActionIcon name="perform" />
 								Perform
 							</Link>
 							<button
@@ -433,6 +489,7 @@ export const SongPage = () => {
 										.catch(() => alert("Could not delete the song. Please try again."));
 								}}
 							>
+								<ActionIcon name="delete" />
 								Delete
 							</button>
 						</>
@@ -445,7 +502,8 @@ export const SongPage = () => {
 									if (dirty && !confirm("Discard unsaved changes?")) return;
 									allowLeave();
 									setDirty(false);
-									if (isNew) navigate("/");
+									if (performanceReturn) navigate(performanceReturn);
+									else if (isNew) navigate("/");
 									else if (id) {
 										await loadSong(id);
 										setIsEditing(false);
@@ -453,6 +511,7 @@ export const SongPage = () => {
 								}}
 								className="song-page__btn song-page__btn--secondary"
 							>
+								<ActionIcon name="cancel" />
 								Cancel
 							</button>
 							<button
@@ -461,6 +520,7 @@ export const SongPage = () => {
 								disabled={saving}
 								className="song-page__btn song-page__btn--primary"
 							>
+								<ActionIcon name="save" />
 								{saving ? "Saving..." : "Save"}
 							</button>
 						</>
@@ -468,20 +528,9 @@ export const SongPage = () => {
 						<button
 							type="button"
 							onClick={() => setIsEditing(true)}
-							className="song-page__btn song-page__btn--primary"
+							className="song-page__btn song-page__btn--secondary"
 						>
-							<svg
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								aria-hidden="true"
-							>
-								<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-								<path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-							</svg>
+							<ActionIcon name="edit" />
 							Edit
 						</button>
 					)}
@@ -500,6 +549,15 @@ export const SongPage = () => {
 								value={song.title || ""}
 								onChange={(e) => setSong((prev) => ({ ...prev, title: e.target.value }))}
 								placeholder="Song title"
+							/>
+						</div>
+						<div className="song-page__field song-page__field--flex2">
+							<label htmlFor="song-subtitle">Alternative title</label>
+							<input
+								id="song-subtitle"
+								value={song.subtitle || ""}
+								onChange={(e) => setSong((prev) => ({ ...prev, subtitle: e.target.value }))}
+								placeholder="Alternative title / subtitle"
 							/>
 						</div>
 						<div className="song-page__field song-page__field--flex2">
@@ -544,20 +602,20 @@ export const SongPage = () => {
 							/>
 						</div>
 						<div className="song-page__field song-page__field--flex1">
-							<label htmlFor="song-capo">Capo</label>
+							<label htmlFor="song-default-transpose">Standard transposition</label>
 							<input
-								id="song-capo"
+								id="song-default-transpose"
 								type="number"
-								value={song.capo || ""}
+								value={song.defaultTranspose ?? 0}
 								onChange={(e) =>
 									setSong((prev) => ({
 										...prev,
-										capo: e.target.value ? parseInt(e.target.value, 10) : undefined,
+										defaultTranspose: e.target.value ? Number(e.target.value) : 0,
 									}))
 								}
 								placeholder="0"
-								min="0"
-								max="12"
+								min="-24"
+								max="24"
 							/>
 						</div>
 						<div className="song-page__field song-page__field--flex1">
@@ -714,13 +772,12 @@ That [G]saved a [Em]wretch like [D]me
 							? occurrenceContent(song as Song, occurrence.setting)
 							: song.content || ""
 					}
-					transposeValue={occurrence.list ? (occurrence.setting?.transpose ?? 0) : undefined}
+					transposeValue={occurrence.list ? (occurrence.setting?.transpose ?? 0) : readingTranspose}
 					onTransposeChange={
-						occurrence.list ? (value) => void occurrence.transpose(value) : undefined
+						occurrence.list ? (value) => void occurrence.transpose(value) : setReadingTranspose
 					}
 					title={song.title}
 					artist={song.artist}
-					onKeyChange={setDisplayKey}
 				/>
 			)}
 		</div>

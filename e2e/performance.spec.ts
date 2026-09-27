@@ -27,7 +27,7 @@ test("perform a repeated setlist, paginate, remember position and pulse tempo", 
 	const wrapper = page.locator(".song-view__wrapper");
 	await expect.poll(() => wrapper.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
 	const position = await wrapper.evaluate((node) => node.scrollTop);
-	await page.getByRole("button", { name: "Start visual tempo at 120 BPM" }).click();
+	await expect(page.getByRole("button", { name: "Stop visual tempo at 120 BPM" })).toBeVisible();
 	await expect(page.locator(".tempo-indicator__dots .active")).toHaveCount(1);
 	await expect
 		.poll(() => page.locator(".tempo-indicator__dots .active").getAttribute("data-beat"))
@@ -63,7 +63,10 @@ test("unsaved song edits survive rejected navigation, cancellation and browser B
 	await page.getByRole("button", { name: "Edit", exact: true }).click();
 	await page.getByLabel("Title", { exact: true }).fill("Unsaved title");
 	page.on("dialog", (dialog) => dialog.dismiss());
-	await page.getByRole("link", { name: "Go back" }).click();
+	await page
+		.getByRole("navigation", { name: "Main navigation" })
+		.getByRole("link", { name: "Sets", exact: true })
+		.click();
 	await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
 	await page.getByRole("button", { name: "Cancel", exact: true }).click();
 	await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
@@ -71,7 +74,10 @@ test("unsaved song edits survive rejected navigation, cancellation and browser B
 	await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
 	await page.getByRole("button", { name: "Save", exact: true }).click();
 	await expect(page.locator(".song-page__title")).toHaveText("Unsaved title");
-	await page.getByRole("link", { name: "Go back" }).click();
+	await page
+		.getByRole("navigation", { name: "Main navigation" })
+		.getByRole("link", { name: "Sets", exact: true })
+		.click();
 	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toContainText(
 		"Unsaved title",
 	);
@@ -132,6 +138,7 @@ test("compact performance header, meter dots, keyboard and swipe navigation", as
 	await page.getByLabel("Beat division").selectOption("8/8");
 	await page.getByRole("button", { name: "Close performance options" }).click();
 	await expect(page.locator(".tempo-indicator__dots > span")).toHaveCount(8);
+	await page.getByRole("button", { name: "Stop visual tempo at 120 BPM" }).click();
 	await page.getByRole("button", { name: "Start visual tempo at 120 BPM" }).click();
 	await expect(page.locator('.tempo-indicator__dots [data-first="true"]')).toHaveClass("active");
 	const firstColor = await page
@@ -183,7 +190,7 @@ test("compact performance header, meter dots, keyboard and swipe navigation", as
 	await expect(page.locator(".workspace-topbar .performance-page__bar")).toBeVisible();
 	await expect(page.locator(".performance-page > .performance-page__bar")).toHaveCount(0);
 	await expect(page.locator(".performance-page__bar")).toHaveCount(1);
-	await page.getByRole("button", { name: "Start visual tempo at 120 BPM" }).click();
+	await expect(page.getByRole("button", { name: "Stop visual tempo at 120 BPM" })).toBeVisible();
 	await expect(page.getByRole("button", { name: "Stop visual tempo at 120 BPM" })).toBeVisible();
 	for (const width of [1440, 1200]) {
 		await page.setViewportSize({ width, height: 900 });

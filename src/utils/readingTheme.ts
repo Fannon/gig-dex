@@ -2,9 +2,9 @@ export type ReadingTheme = "violet" | "black" | "light";
 export function savedReadingTheme(): ReadingTheme {
 	try {
 		const value = localStorage.getItem("reading-theme");
-		return value === "black" || value === "light" ? value : "violet";
+		return value === "violet" || value === "light" ? value : "black";
 	} catch {
-		return "violet";
+		return "black";
 	}
 }
 export function applyReadingTheme(theme: ReadingTheme) {

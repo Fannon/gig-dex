@@ -4,11 +4,13 @@ import {
 	getAllSetlists,
 	getAllSongs,
 	getSetlist,
+	getSong,
 	type Setlist,
 	type Song,
 	updateSetlist,
 } from "../db";
-import { occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
 import "./LibraryWorkspace.scss";
 
 const readPreference = (key: string, fallback = "") => {
@@ -36,6 +38,8 @@ export interface LibraryWorkspaceContext {
 	performanceHost: HTMLDivElement | null;
 	setPerformanceExit: (url: string | null) => void;
 	currentSetlistId: string | undefined;
+	currentSetlist: Setlist | undefined;
+	setlists: Setlist[];
 	selectCurrentSetlist: (id: string) => void;
 }
 
@@ -100,16 +104,20 @@ export function LibraryWorkspace() {
 		};
 	}, [refresh]);
 	useEffect(() => {
-		const routeList = /^\/(?:setlist|perform\/setlist)\/([^/]+)/.exec(location.pathname)?.[1];
+		const routeList =
+			/^\/(?:setlist|perform\/setlist)\/([^/]+)/.exec(location.pathname)?.[1] ??
+			(location.pathname.startsWith("/song/")
+				? new URLSearchParams(location.search).get("setlist")
+				: null);
 		if (routeList) {
 			setChosen(routeList);
 			remember("sidebar-current-setlist", routeList);
 		}
 		refresh();
-	}, [location.pathname, refresh]);
+	}, [location.pathname, location.search, refresh]);
 	useEffect(() => {
 		const shortcut = (event: KeyboardEvent) => {
-			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "m") {
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
 				event.preventDefault();
 				setSearchOpen(true);
 			}
@@ -141,7 +149,9 @@ export function LibraryWorkspace() {
 			if (songId) {
 				const slot = to === undefined ? ids.length : Math.max(0, Math.min(to, ids.length));
 				ids.splice(slot, 0, songId);
-				settings.splice(slot, 0, { transpose: 0 });
+				const added = await getSong(songId);
+				if (!added) throw new Error("Song no longer exists");
+				settings.splice(slot, 0, defaultSongSetting(added));
 			} else if (remove !== undefined && remove >= 0 && remove < ids.length) {
 				ids.splice(remove, 1);
 				settings.splice(remove, 1);
@@ -188,28 +198,29 @@ export function LibraryWorkspace() {
 		dragged.current = null;
 		setDropSlot(null);
 	};
-	const drop = (slot: number) => {
-		const source = dragged.current;
+	const drop = (slot: number, external?: ReturnType<typeof readSongDrag>) => {
+		const source = external ?? dragged.current;
 		finishDrag();
 		if (!source || busy || !current) return;
-		if (source.songId) void changeSetlist(source.songId, undefined, slot);
-		else if (source.listId === current.id && source.index !== undefined) {
+		if (source.listId === current.id && source.index !== undefined) {
 			const to = slot > source.index ? slot - 1 : slot;
 			if (to !== source.index) void changeSetlist(undefined, source.index, to);
-		}
+		} else if (source.songId) void changeSetlist(source.songId, undefined, slot);
 	};
 	const songMap = new Map(songs.map((song) => [song.id, song]));
 	const filteredSongs = songs.filter((song) =>
-		matches([song.title, song.artist, ...song.tags].join(" "), songQuery),
+		matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), songQuery),
 	);
 	const results = query.trim()
 		? [
 				...songs
-					.filter((song) => matches([song.title, song.artist, ...song.tags].join(" "), query))
+					.filter((song) =>
+						matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), query),
+					)
 					.map((song) => ({
 						id: song.id,
 						label: song.title,
-						detail: song.artist,
+						detail: [song.subtitle, song.artist].filter(Boolean).join(" · "),
 						type: "Song",
 						url: `/song/${song.id}`,
 					})),
@@ -285,7 +296,7 @@ export function LibraryWorkspace() {
 					type="button"
 					onClick={() => setSearchOpen(true)}
 				>
-					Search songs & setlists <kbd>Ctrl+M</kbd>
+					Search songs & setlists <kbd>Ctrl+K</kbd>
 				</button>
 			</header>
 			<div
@@ -349,11 +360,10 @@ export function LibraryWorkspace() {
 												<div key={song.id} className="library-sidebar__song-row">
 													<Link
 														to={`/song/${song.id}`}
-														draggable={!!current && !busy}
+														draggable={!busy}
 														onDragStart={(event) => {
 															dragged.current = { songId: song.id };
-															event.dataTransfer.setData("text/plain", song.title);
-															event.dataTransfer.effectAllowed = "copy";
+															writeSongDrag(event, { songId: song.id }, song.title);
 														}}
 														onDragEnd={finishDrag}
 														aria-current={
@@ -364,18 +374,10 @@ export function LibraryWorkspace() {
 														}}
 													>
 														<strong>{song.title}</strong>
-														<small>{song.artist}</small>
+														<small>
+															{[song.subtitle, song.artist].filter(Boolean).join(" · ")}
+														</small>
 													</Link>
-													{current && (
-														<button
-															type="button"
-															disabled={busy}
-															aria-label={`Add ${song.title} to current setlist`}
-															onClick={() => void changeSetlist(song.id)}
-														>
-															+
-														</button>
-													)}
 												</div>
 											))}
 											{!filteredSongs.length && (
@@ -400,31 +402,44 @@ export function LibraryWorkspace() {
 									<span>{listsExpanded ? "▾" : "▸"}</span>
 								</button>
 								{listsExpanded && (
-									// biome-ignore lint/a11y/noStaticElementInteractions: Drop target has equivalent add and reorder buttons.
+									// biome-ignore lint/a11y/noStaticElementInteractions: Adding is available through Add to Set; Alt+arrows reorder entries.
 									<div
 										id="sidebar-setlist"
 										className="library-sidebar__panel"
 										data-drop-end={dropSlot === current?.songIds.length}
 										onDragOver={(event) => {
-											if (!dragged.current || !current || busy) return;
+											if (
+												(!dragged.current && !event.dataTransfer.types.includes(songDragType)) ||
+												!current ||
+												busy
+											)
+												return;
 											event.preventDefault();
 											setDropSlot(current.songIds.length);
 										}}
 										onDrop={(event) => {
 											event.preventDefault();
-											if (current) drop(current.songIds.length);
+											if (current) drop(current.songIds.length, readSongDrag(event));
 										}}
 									>
 										{current ? (
 											<div className="library-sidebar__links">
 												{current.songIds.map((id, index) => (
-													// biome-ignore lint/a11y/noStaticElementInteractions: Drop target has equivalent reorder buttons.
+													// biome-ignore lint/a11y/noStaticElementInteractions: Alt+arrows reorder entries with the keyboard.
 													<div
 														// biome-ignore lint/suspicious/noArrayIndexKey: Rows represent ordered occurrences.
 														key={`${id}:${index}`}
 														data-drop-before={dropSlot === index}
+														data-drop-after={
+															index === current.songIds.length - 1 && dropSlot === index + 1
+														}
 														onDragOver={(event) => {
-															if (!dragged.current || busy) return;
+															if (
+																(!dragged.current &&
+																	!event.dataTransfer.types.includes(songDragType)) ||
+																busy
+															)
+																return;
 															event.preventDefault();
 															event.stopPropagation();
 															const box = event.currentTarget.getBoundingClientRect();
@@ -433,7 +448,7 @@ export function LibraryWorkspace() {
 														onDrop={(event) => {
 															event.preventDefault();
 															event.stopPropagation();
-															drop(dropSlot ?? index);
+															drop(dropSlot ?? index, readSongDrag(event));
 														}}
 														className="library-sidebar__song-row"
 													>
@@ -442,13 +457,23 @@ export function LibraryWorkspace() {
 															draggable={!busy}
 															onDragStart={(event) => {
 																dragged.current = { index, listId: current.id };
-																event.dataTransfer.setData(
-																	"text/plain",
+																writeSongDrag(
+																	event,
+																	{ songId: id, index, listId: current.id },
 																	songMap.get(id)?.title ?? "Song",
 																);
-																event.dataTransfer.effectAllowed = "move";
 															}}
 															onDragEnd={finishDrag}
+															title="Drag to reorder; Alt+Up/Down also moves this entry"
+															aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+															onKeyDown={(event) => {
+																const delta =
+																	event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+																if (event.altKey && delta) {
+																	event.preventDefault();
+																	void changeSetlist(undefined, index, index + delta);
+																}
+															}}
 															onClick={() => {
 																if (window.matchMedia("(max-width: 800px)").matches) setOpen(false);
 															}}
@@ -460,38 +485,27 @@ export function LibraryWorkspace() {
 																{settingLabel(songMap.get(id), current.songSettings?.[index])}
 															</small>
 														</Link>
-														<div className="library-sidebar__reorder">
-															<button
-																type="button"
-																disabled={busy}
-																aria-label={`Remove setlist song ${index + 1}`}
-																title="Remove from setlist"
-																onClick={() =>
-																	void changeSetlist(undefined, undefined, undefined, index)
-																}
-															>
-																×
-															</button>
-															<button
-																type="button"
-																disabled={busy || index === 0}
-																aria-label={`Move setlist song ${index + 1} up`}
-																onClick={() => void changeSetlist(undefined, index, index - 1)}
-															>
-																↑
-															</button>
-															<button
-																type="button"
-																disabled={busy || index === current.songIds.length - 1}
-																aria-label={`Move setlist song ${index + 1} down`}
-																onClick={() => void changeSetlist(undefined, index, index + 1)}
-															>
-																↓
-															</button>
-														</div>
+														<button
+															type="button"
+															className="library-sidebar__remove"
+															disabled={busy}
+															aria-label={`Remove setlist song ${index + 1}`}
+															title="Remove from setlist"
+															onClick={() =>
+																void changeSetlist(undefined, undefined, undefined, index)
+															}
+														>
+															×
+														</button>
 													</div>
 												))}
-												{!current.songIds.length && <p>Drag songs here or use their + buttons.</p>}
+												{!current.songIds.length && <p>Drag songs here or use Add to Set.</p>}
+												<div
+													className="library-sidebar__drop-end"
+													data-active={dropSlot === current.songIds.length}
+												>
+													Drop here to append
+												</div>
 											</div>
 										) : (
 											<Link
@@ -566,6 +580,8 @@ export function LibraryWorkspace() {
 									performanceHost,
 									setPerformanceExit,
 									currentSetlistId: current?.id,
+									currentSetlist: current,
+									setlists: lists,
 									selectCurrentSetlist,
 								} satisfies LibraryWorkspaceContext
 							}

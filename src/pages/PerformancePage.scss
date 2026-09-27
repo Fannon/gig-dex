@@ -6,7 +6,7 @@
 
  &__title { flex: 1; min-width: 0; }
  &__caption { display: flex; align-items: center; font-size: .75rem; color: #b8b5d5; white-space: nowrap;
-  span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } small { flex-shrink: 0; font-size: inherit; }
+  span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
  }
  button, select { min-height: 38px; background: #292541; color: white; border: 1px solid #615879; border-radius: 8px; padding: .4rem .65rem; cursor: pointer; &:disabled { opacity: .4; cursor: default; } }
  &__options { width: min(380px, calc(100vw - 24px)); padding: 16px; border: 1px solid #615879; border-radius: 12px; background: #1a1a2e; color: white;
@@ -28,3 +28,5 @@
 }
 
 .performance-page__bar { min-width: 0; button { min-height: 38px; background: #292541; color: white; border: 1px solid #615879; border-radius: 8px; padding: .4rem .65rem; cursor: pointer; } }
+
+.performance-page__bar .performance-page__edit { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 38px; padding: .4rem; border: 1px solid #615879; border-radius: 8px; }

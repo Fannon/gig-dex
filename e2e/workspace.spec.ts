@@ -44,7 +44,7 @@ test("shared header, collapsible sidebar and global keyboard search", async ({ p
 	await page.reload();
 	await expect(page.getByRole("button", { name: "Toggle sidebar" })).toBeVisible();
 	await expect(sidebar).not.toBeVisible();
-	await page.keyboard.press("Control+m");
+	await page.keyboard.press("Control+k");
 	const dialog = page.getByRole("dialog", { name: "Search library" });
 	await expect(dialog.getByLabel("Search songs and setlists")).toBeFocused();
 	await expect(dialog.getByRole("link")).toHaveCount(0);
@@ -76,22 +76,22 @@ test("transpose persists per repeated occurrence, follows reorder and performanc
 		.getByRole("region", { name: "Song preview" })
 		.getByRole("button", { name: "+1", exact: true })
 		.click();
-	await expect(page.locator(".setlists-page__song").nth(0)).toContainText("A#m · +1 st");
-	await expect(page.locator(".setlists-page__song").nth(1)).toContainText("Am · 0 st");
+	await expect(page.locator(".setlists-page__song").nth(0)).toContainText("A#m | T+1");
+	await expect(page.locator(".setlists-page__song").nth(1)).toContainText("Am | 4/4");
 	await page.getByRole("button", { name: "Move song 1 down", exact: true }).click();
-	await expect(page.locator(".setlists-page__song").nth(1)).toContainText("A#m · +1 st");
+	await expect(page.locator(".setlists-page__song").nth(1)).toContainText("A#m | T+1");
 	await page.reload();
-	await expect(page.locator(".setlists-page__song").nth(1)).toContainText("A#m · +1 st");
+	await expect(page.locator(".setlists-page__song").nth(1)).toContainText("A#m | T+1");
 	await page.goto(`./perform/setlist/${list}`);
 	await expect(page.locator(".performance-page__caption")).toContainText("1/2");
 	await page.keyboard.press("ArrowRight");
-	await expect(page.locator(".performance-page__bar")).toContainText("A#m · +1 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("A#m | T+1");
 	await page.getByRole("button", { name: "Performance options", exact: true }).click();
 	await page.getByRole("button", { name: "Song controls" }).click();
 	await page.getByRole("button", { name: "+1", exact: true }).click();
-	await expect(page.locator(".performance-page__bar")).toContainText("Bm · +2 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("Bm | T+2");
 	await page.reload();
-	await expect(page.locator(".performance-page__bar")).toContainText("Bm · +2 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("Bm | T+2");
 	await page.goto(`./setlist/${list}`);
 	await expect(page.locator(".setlists-page__song")).toHaveCount(2);
 	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
@@ -109,18 +109,22 @@ test("sidebar adds and reorders songs, and opens occurrence settings in Songs mo
 	const { song, list } = await seed(page);
 	await page.goto(`./setlist/${list}`);
 	const sidebar = page.getByRole("complementary", { name: "Library sidebar" });
-	await sidebar.getByRole("button", { name: "Add Lantern to current setlist" }).click();
+	await sidebar
+		.locator("#sidebar-songs .library-sidebar__links a")
+		.first()
+		.dragTo(sidebar.locator(".library-sidebar__drop-end"));
 	await expect(sidebar.locator("#sidebar-setlist .library-sidebar__links a")).toHaveCount(3);
 	await expect(page.locator(".setlists-page__song")).toHaveCount(3);
 	await sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(0).click();
 	await expect(page).toHaveURL(new RegExp(`/song/${song}\\?setlist=${list}&occurrence=0`));
 	await page.getByRole("button", { name: "+1", exact: true }).click();
 	await expect(sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(0)).toContainText(
-		"+1 st",
+		"T+1",
 	);
-	await sidebar.getByRole("button", { name: "Move setlist song 1 down" }).click();
+	await sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(0).focus();
+	await page.keyboard.press("Alt+ArrowDown");
 	await expect(sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(1)).toContainText(
-		"+1 st",
+		"T+1",
 	);
 	await expect(page).toHaveURL(/occurrence=1$/);
 	await sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(1).click();
@@ -134,13 +138,13 @@ test("sidebar adds and reorders songs, and opens occurrence settings in Songs mo
 	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
 	await screenshots();
 	await page.screenshot({ path: "reports/workspace/desktop-song.png" });
-	await page.keyboard.press("Control+m");
+	await page.keyboard.press("Control+k");
 	await page.getByLabel("Search songs and setlists").fill("Lantern");
 	await page.screenshot({ path: "reports/workspace/global-search.png" });
 	await page.keyboard.press("Escape");
 	await page.getByRole("link", { name: "Perform", exact: true }).click();
 	await expect(page.locator(".performance-page__bar")).toContainText("2/3");
-	await expect(page.locator(".performance-page__bar")).toContainText("+1 st");
+	await expect(page.locator(".performance-page__bar")).toContainText("T+1");
 });
 
 test("setlist date persists, is searchable and survives duplication", async ({ page }) => {
@@ -166,7 +170,7 @@ test("setlist date persists, is searchable and survives duplication", async ({ p
 	await expect(
 		page.getByRole("region", { name: "Setlist content" }).locator("time"),
 	).toHaveAttribute("datetime", "2026-12-24");
-	await page.keyboard.press("Control+m");
+	await page.keyboard.press("Control+k");
 	const dialog = page.getByRole("dialog", { name: "Search library" });
 	await dialog.getByLabel("Search songs and setlists").fill("2026-12-24");
 	await expect(dialog.getByRole("link")).toHaveCount(2);
@@ -200,7 +204,7 @@ test("sidebar New song clears previous content and dirty navigation remains guar
 	await firstPrompt;
 	await expect(page).toHaveURL(/\/song\/new$/);
 	await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved new song");
-	await page.keyboard.press("Control+m");
+	await page.keyboard.press("Control+k");
 	const dialog = page.getByRole("dialog", { name: "Search library" });
 	await dialog.getByLabel("Search songs and setlists").fill("Gig");
 	const searchPrompt = page.waitForEvent("dialog").then((prompt) => prompt.dismiss());
@@ -289,21 +293,18 @@ test("sidebar drag adds, reorders repeated occurrences and removes only the chos
 	await page
 		.locator("#sidebar-songs .library-sidebar__links a")
 		.first()
-		.dragTo(page.locator("#sidebar-setlist"));
+		.dragTo(page.locator(".library-sidebar__drop-end"));
 	await expect(rows).toHaveCount(3);
 	await rows.nth(0).getByRole("link").click();
 	await page.getByRole("button", { name: "+1", exact: true }).click();
-	await expect(rows.nth(0)).toContainText("+1 st");
-	await rows
-		.nth(0)
-		.getByRole("link")
-		.dragTo(rows.nth(2), { targetPosition: { x: 50, y: 60 } });
-	await expect(rows.nth(2)).toContainText("+1 st");
+	await expect(rows.nth(0)).toContainText("T+1");
+	await rows.nth(0).getByRole("link").dragTo(page.locator(".library-sidebar__drop-end"));
+	await expect(rows.nth(2)).toContainText("T+1");
 	await expect(page).toHaveURL(/occurrence=2$/);
 	await rows.nth(0).getByRole("button", { name: "Remove setlist song 1", exact: true }).click();
 	await expect(rows).toHaveCount(2);
 	await expect(page).toHaveURL(/occurrence=1$/);
-	await expect(rows.nth(1)).toContainText("+1 st");
+	await expect(rows.nth(1)).toContainText("T+1");
 	await rows.nth(1).getByRole("button", { name: "Remove setlist song 2", exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/song/${song}$`));
 	await expect(rows).toHaveCount(1);
@@ -313,7 +314,7 @@ test("sidebar drag adds, reorders repeated occurrences and removes only the chos
 	await page
 		.locator("#sidebar-songs .library-sidebar__links a")
 		.first()
-		.dragTo(page.locator("#sidebar-setlist"));
+		.dragTo(page.locator(".library-sidebar__drop-end"));
 	await expect(rows).toHaveCount(1);
 	await page.reload();
 	await expect(rows).toHaveCount(1);
@@ -406,12 +407,10 @@ test("sidebar width follows pointer and keyboard resizing, persists, and keeps c
 	await expect(separator).toHaveAttribute("aria-valuenow", "480");
 	await page.goto(`./song/${song}`);
 	await expect(separator).toHaveAttribute("aria-valuenow", "480");
-	for (const button of [
-		sidebar.getByRole("link", { name: "Add song", exact: true }),
-		sidebar.getByRole("button", { name: "Add Lantern to current setlist" }),
-	]) {
+	for (const button of [sidebar.getByRole("link", { name: "Add song", exact: true })]) {
 		expect(await button.evaluate((el) => el.getBoundingClientRect().height)).toBe(28);
 	}
+	await expect(sidebar.locator("#sidebar-songs button")).toHaveCount(0);
 	await screenshots();
 	await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
 	await page.screenshot({ path: "reports/workspace/adjustable-sidebar.png" });
@@ -479,7 +478,7 @@ test("search pops out beneath the top-right button with larger text and outside 
 	await page.screenshot({ path: "reports/workspace/search-popout.png" });
 	await page.mouse.click(30, 100);
 	await expect(dialog).not.toBeVisible();
-	await page.keyboard.press("Control+m");
+	await page.keyboard.press("Control+k");
 	await expect(input).toBeFocused();
 	await page.setViewportSize({ width: 390, height: 844 });
 	const phone = await dialog.boundingBox();

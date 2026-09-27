@@ -26,6 +26,9 @@ export function parseSyncedSong(content: string, expectedId: string): Song {
 		typeof value.artist !== "string" ||
 		typeof value.content !== "string" ||
 		!stringArray(value.tags) ||
+		(value.defaultTranspose !== undefined &&
+			(!Number.isInteger(value.defaultTranspose) ||
+				Math.abs(value.defaultTranspose as number) > 24)) ||
 		["key", "time", "subtitle", "composer", "lyricist", "copyright", "album", "duration"].some(
 			(key) => value[key] !== undefined && typeof value[key] !== "string",
 		) ||

@@ -13,7 +13,7 @@ test.describe("Song Page", () => {
 		// Verify song page loaded
 		await expect(page.locator(".song-page__title")).toContainText("Amazing Grace");
 		await expect(page.locator(".song-page__artist")).toContainText("by Traditional");
-		await expect(page.locator(".song-page__meta-tag")).toContainText("Key: G");
+		await expect(page.locator(".song-page__meta-tag")).toContainText("G | 72bpm | 4/4");
 	});
 
 	test("should transpose song", async ({ page }) => {
@@ -23,7 +23,7 @@ test.describe("Song Page", () => {
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
 
 		// Get initial key display
-		await expect(page.locator(".song-page__meta-tag")).toContainText("Key: G");
+		await expect(page.locator(".song-page__meta-tag")).toContainText("G | 72bpm | 4/4");
 
 		// Get transpose value
 		const transposeValue = page
@@ -35,7 +35,7 @@ test.describe("Song Page", () => {
 		// Transpose up
 		await page.getByRole("button", { name: "+1" }).click();
 		await expect(transposeValue).toContainText("+1");
-		await expect(page.locator(".song-page__meta-tag")).toContainText(/Key: (Ab|G#)/);
+		await expect(page.locator(".song-page__meta-tag")).toContainText(/(Ab|G#) \| T\+1/);
 
 		// Transpose down
 		await page.getByRole("button", { name: "-1" }).click();
@@ -127,14 +127,19 @@ test.describe("Song Page", () => {
 		await expect(page.locator(".song-page__title")).toContainText("Amazing Grace (Updated)");
 	});
 
-	test("back reopens Songs mode with the library and selected song", async ({ page }) => {
+	test("main Songs navigation reopens Songs mode with the library and selected song", async ({
+		page,
+	}) => {
 		await page.goto("./");
 
 		// Add and navigate to demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
 
 		await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
-		await page.locator(".song-page__back").click();
+		await page
+			.getByRole("navigation", { name: "Main navigation" })
+			.getByRole("link", { name: "Songs", exact: true })
+			.click();
 
 		// Songs mode automatically opens the library's selected song.
 		await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");

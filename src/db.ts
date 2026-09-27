@@ -13,6 +13,7 @@ interface Song {
 	// Primary metadata (shown in forms)
 	key?: string;
 	tempo?: number;
+	defaultTranspose?: number; // Starting transpose; copied into each newly added set occurrence
 	capo?: number;
 	time?: string; // e.g., "4/4", "3/4"
 	tags: string[];
@@ -266,6 +267,7 @@ export const searchSongs = async (query: string): Promise<Song[]> => {
 		(song) =>
 			song.title.toLowerCase().includes(lowerQuery) ||
 			song.artist.toLowerCase().includes(lowerQuery) ||
+			song.subtitle?.toLowerCase().includes(lowerQuery) ||
 			song.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)),
 	);
 };
