@@ -8,3 +8,7 @@
   &__actions { display: flex; flex-wrap: wrap; gap: .5rem; button { padding: .6rem .8rem; font-size: .8rem; background: #6152dd; border-radius: 6px; &:disabled { opacity: .4; } } }
   [role=alert] { color: #fca5a5; }
 }
+.conflict-review {
+  &__table { max-width: 100%; overflow: auto; table { width: 100%; border-collapse: collapse; table-layout: fixed; } th,td { text-align: left; vertical-align: top; padding: .5rem; border: 1px solid #ffffff20; overflow-wrap: anywhere; white-space: pre-wrap; } }
+  &__diff > span { display: block; white-space: pre-wrap; &.diff-added { color: #bbf7d0; background: #16653440; } &.diff-removed { color: #fecaca; background: #991b1b40; } }
+}

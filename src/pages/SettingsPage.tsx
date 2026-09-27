@@ -1,53 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CloudSync } from "../components/CloudSync";
 import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
-import { gDriveProvider, isGDriveAuthenticated, isGDriveEnabled, syncManager } from "../sync";
+import { syncManager } from "../sync";
 import type { SyncStatus } from "../sync/types";
 import "./SettingsPage.scss";
 
 export const SettingsPage = () => {
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>(syncManager.getStatus());
-	const [isGdriveConnected, setIsGdriveConnected] = useState(isGDriveAuthenticated());
-	const gdriveEnabled = isGDriveEnabled();
-
-	useEffect(() => {
-		// Update status periodically if syncing
-		let interval: number;
-		if (syncStatus.isSyncing) {
-			interval = window.setInterval(() => {
-				setSyncStatus(syncManager.getStatus());
-			}, 500);
-		}
-		return () => clearInterval(interval);
-	}, [syncStatus.isSyncing]);
-
-	const handleConnectGDrive = async () => {
-		try {
-			const pending = syncManager.sync();
-			setSyncStatus(syncManager.getStatus());
-			await pending;
-			setSyncStatus(syncManager.getStatus());
-			setIsGdriveConnected(!!localStorage.getItem("gdrive_access_token"));
-		} catch (error) {
-			console.error("Connection failed", error);
-		}
-	};
-
-	const handleSync = async () => {
-		const pending = syncManager.sync();
-		setSyncStatus(syncManager.getStatus());
-		await pending;
-		setSyncStatus(syncManager.getStatus());
-	};
-
-	const handleLogoutGDrive = async () => {
-		await gDriveProvider.logout();
-		localStorage.removeItem("last_sync_time");
-		setIsGdriveConnected(false);
-		syncManager.resetStatus();
-		setSyncStatus(syncManager.getStatus());
-	};
 
 	return (
 		<div className="settings-page">
@@ -72,92 +33,7 @@ export const SettingsPage = () => {
 				<DataManagement />
 				<ConflictReview status={syncStatus} />
 
-				<section className="settings-page__section">
-					<h2>Cloud Sync</h2>
-					<div className="settings-page__options">
-						{!gdriveEnabled ? (
-							<div className="settings-page__option settings-page__option--disabled">
-								<div className="settings-page__option-icon settings-page__option-icon--gdrive">
-									<svg
-										width="24"
-										height="24"
-										viewBox="0 0 24 24"
-										fill="currentColor"
-										aria-hidden="true"
-									>
-										<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
-									</svg>
-								</div>
-								<div className="settings-page__option-text">
-									<h3>Google Drive Sync</h3>
-									<p>Not configured. A Google Client ID is required to enable sync.</p>
-								</div>
-							</div>
-						) : !isGdriveConnected ? (
-							<button type="button" onClick={handleConnectGDrive} className="settings-page__option">
-								<div className="settings-page__option-icon settings-page__option-icon--gdrive">
-									<svg
-										width="24"
-										height="24"
-										viewBox="0 0 24 24"
-										fill="currentColor"
-										aria-hidden="true"
-									>
-										<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
-									</svg>
-								</div>
-								<div className="settings-page__option-text">
-									<h3>Connect Google Drive</h3>
-									<p>Backup and sync your songs across devices</p>
-								</div>
-							</button>
-						) : (
-							<div className="settings-page__sync-box">
-								<div className="settings-page__option">
-									<div className="settings-page__option-icon settings-page__option-icon--gdrive">
-										<svg
-											width="24"
-											height="24"
-											viewBox="0 0 24 24"
-											fill="currentColor"
-											aria-hidden="true"
-										>
-											<path d="M4.433 22l3.907-6.75h11.32L15.753 22H4.433zm3.907-6.75L.433 2h7.8l7.907 13.25H8.34zm7.907 0L8.24 2h7.8l7.907 13.25h-7.8z" />
-										</svg>
-									</div>
-									<div className="settings-page__option-text">
-										<h3>Google Drive Connected</h3>
-										<p>
-											{syncStatus.lastSyncTime
-												? `Last synced: ${new Date(syncStatus.lastSyncTime).toLocaleString()}`
-												: "Never synced"}
-										</p>
-									</div>
-									<div className="settings-page__option-actions">
-										<button
-											type="button"
-											className={`settings-page__sync-btn ${syncStatus.isSyncing ? "settings-page__sync-btn--syncing" : ""}`}
-											onClick={handleSync}
-											disabled={syncStatus.isSyncing}
-										>
-											{syncStatus.isSyncing ? "Syncing..." : "Sync Now"}
-										</button>
-										<button
-											type="button"
-											className="settings-page__logout-btn"
-											onClick={handleLogoutGDrive}
-										>
-											Disconnect
-										</button>
-									</div>
-								</div>
-								{syncStatus.error && (
-									<div className="settings-page__sync-error">{syncStatus.error}</div>
-								)}
-							</div>
-						)}
-					</div>
-				</section>
+				<CloudSync onStatus={setSyncStatus} />
 
 				<section className="settings-page__section">
 					<h2>About</h2>

@@ -39,6 +39,9 @@ jobs:
         run: bun run verify
         env:
           VITE_BASE_PATH: /gig-dex/
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_MICROSOFT_CLIENT_ID: ${{ vars.VITE_MICROSOFT_CLIENT_ID }}
+          VITE_MICROSOFT_TENANT: ${{ vars.VITE_MICROSOFT_TENANT }}
 
       - name: Upload Test Reports
         if: always()

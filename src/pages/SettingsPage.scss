@@ -261,3 +261,4 @@
   50% { opacity: 0.6; }
   100% { opacity: 1; }
 }
+.revision-cleanup { padding: .75rem; border-top: 1px solid #ffffff20; font-size: .85rem; p { color: #b9b6cc; } ul { max-height: 15rem; overflow: auto; } button { color: white; background: #5143b7; min-height: 44px; padding: .5rem .75rem; border-radius: 7px; &:disabled { opacity: .45; } } output { display: block; margin: .6rem 0; } }

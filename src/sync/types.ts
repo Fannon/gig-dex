@@ -6,10 +6,16 @@ export interface SyncMetadata {
 	revision?: string;
 	parents?: string[];
 	gdriveId?: string; // Internal Google Drive file ID, used for downloading
+	remoteId?: string;
+	etag?: string;
+	uploadedAt?: string;
+	version?: string;
 }
 
 export interface SyncProvider {
 	name: string;
+	getScope?(): string;
+	isAuthenticated?(): boolean;
 	isEnabled(): boolean;
 	authenticate(): Promise<boolean>;
 	logout(): Promise<void>;
@@ -25,6 +31,8 @@ export interface SyncProvider {
 
 	// Delete a file (optional for now)
 	deleteFile(id: string): Promise<void>;
+	listRevisions?(): Promise<SyncMetadata[]>;
+	archiveRevision?(metadata: SyncMetadata): Promise<void>;
 }
 
 export interface SyncStatus {

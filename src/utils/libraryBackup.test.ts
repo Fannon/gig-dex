@@ -144,3 +144,26 @@ it("backs up deletions and conflict snapshots, restores active records without r
 	expect((await getAllSongs())[0].id).toBe(id);
 	expect(await (await initDB()).get("tombstones", id)).toBeUndefined();
 });
+
+it("roundtrips provider-scoped conflicts and restores their identities", async () => {
+	const id = await seed();
+	const { getSong } = await import("../db");
+	const local = await getSong(id);
+	if (!local) throw new Error("Missing song");
+	const { saveConflict, getSyncConflicts } = await import("../sync/syncStore");
+	const scope = "onedrive:account-folder";
+	await saveConflict({
+		id: `${scope}::song:${id}`,
+		scope,
+		provider: "OneDrive",
+		recordId: id,
+		type: "song",
+		local,
+		remote: [{ revision: "remote", record: { ...local, content: "[G]Remote lyrics" } }],
+		createdAt: new Date().toISOString(),
+	});
+	const backup = await exportLibrary();
+	expect(parseBackup(JSON.stringify(backup)).conflicts?.[0].scope).toBe(scope);
+	await restoreLibrary(backup, "replace");
+	expect((await getSyncConflicts())[0].id).toBe(`${scope}::song:${id}`);
+});

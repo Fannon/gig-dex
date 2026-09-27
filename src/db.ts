@@ -1,6 +1,7 @@
 import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
+import type { SyncMetadata } from "./sync/types";
 
 // Database schema types
 // Contains ALL ChordPro metadata fields for full compatibility
@@ -39,6 +40,7 @@ interface Setlist {
 }
 
 interface GigDexDB extends DBSchema {
+	revisionCache: { key: string; value: SyncMetadata };
 	tombstones: { key: string; value: DeletionRecord };
 	syncBases: { key: string; value: SyncBase };
 	syncConflicts: { key: string; value: SyncConflict };
@@ -62,7 +64,7 @@ interface GigDexDB extends DBSchema {
 }
 
 const DB_NAME = "GigDexDB";
-const DB_VERSION = 3; // Adds durable deletion records, sync ancestry, and conflict review
+const DB_VERSION = 4; // Adds an expendable OneDrive metadata cache; library records remain intact
 
 type LegacySong = Omit<Song, "id" | "lastModified" | "createdAt"> & {
 	id: number;
@@ -93,6 +95,7 @@ export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
 
 	dbPromise = openDB<GigDexDB>(DB_NAME, DB_VERSION, {
 		upgrade(db, oldVersion, _newVersion, transaction) {
+			if (oldVersion < 4) db.createObjectStore("revisionCache");
 			if (oldVersion < 3) {
 				db.createObjectStore("tombstones", { keyPath: "id" });
 				db.createObjectStore("syncBases", { keyPath: "id" });

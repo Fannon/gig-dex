@@ -3,8 +3,8 @@ import {
 	type DeletionRecord,
 	isDeletion,
 	type LibraryRecord,
-	recordKey,
 	type SyncConflict,
+	syncKey,
 } from "../sync/records";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
 import { stableStringify } from "./recordFingerprint";
@@ -71,7 +71,10 @@ export function parseBackup(content: string): LibraryBackup {
 			!conflict ||
 			!["song", "setlist"].includes(conflict.type) ||
 			typeof conflict.recordId !== "string" ||
-			conflict.id !== recordKey(conflict.type, conflict.recordId) ||
+			(conflict.provider !== undefined && typeof conflict.provider !== "string") ||
+			(conflict.scope !== undefined &&
+				(typeof conflict.scope !== "string" || conflict.scope.length > 500)) ||
+			conflict.id !== syncKey(conflict.type, conflict.recordId, conflict.scope) ||
 			!Array.isArray(conflict.remote) ||
 			!conflict.remote.length
 		)
@@ -204,7 +207,7 @@ export async function restoreLibrary(
 		}
 		for (const conflict of valid.conflicts ?? []) {
 			const id = remap.get(conflict.recordId) ?? conflict.recordId;
-			const key = recordKey(conflict.type, id);
+			const key = syncKey(conflict.type, id, conflict.scope);
 			const local =
 				(await tx.objectStore("tombstones").get(id)) ??
 				(await tx.objectStore(conflict.type === "song" ? "songs" : "setlists").get(id));

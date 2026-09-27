@@ -91,3 +91,23 @@ improvements. Report fitting passes as well as duration, and confirm font sizes,
 column counts and fallback behavior remain equivalent. Inspect wide-line phone
 reading and the final line of a scrolled song. Unbroken words may still need
 horizontal scrolling; wrapping must preserve all lyric text and chord positions.
+
+## Performance navigation and sync
+
+Performance browser checks must cover repeated setlist occurrences, independent
+reading positions, reloading the selected occurrence, reaching the last page,
+and fullscreen entry/exit. Inspect phone and desktop screenshots under
+`reports/performance/`. Test dirty song/setlist navigation, rejected cancellation,
+Escape and browser Back, as well as successful saving without discard prompts.
+The visual tempo is silent: verify its start/stop behavior and beat progression;
+do not claim audio-metronome precision from a browser timer check.
+
+Cloud changes require mocked HTTP tests and the browser OAuth popup loop.
+OneDrive checks assert S256 PKCE, reject mismatched state and off-origin paging,
+and ensure download requests contain no bearer token. Mock public client IDs only
+inside isolated browser contexts, preserving the user's server configuration.
+Test provider/account scope separation, deletion/conflict durability, and changes
+to a remote version after acknowledgement or review. Retention checks must prove
+that previews do not mutate, stale plans/concurrency failures stop cleanup, heads
+and branches survive, and interruption cannot expose older history as current.
+Report mocked coverage separately from live account/consent verification.

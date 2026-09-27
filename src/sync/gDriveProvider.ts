@@ -1,3 +1,4 @@
+import { syncHeads } from "./revisionHistory";
 import type { SyncMetadata, SyncProvider } from "./types";
 
 const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -16,6 +17,7 @@ interface GDriveFile {
 	name: string;
 	modifiedTime: string;
 	version?: string;
+	createdTime?: string;
 	properties?: {
 		internalId?: string;
 		type?: string;
@@ -34,6 +36,11 @@ export class GoogleDriveProvider implements SyncProvider {
 		this.accessToken = localStorage.getItem("gdrive_access_token");
 	}
 
+	getScope() {
+		if (!this.folderId) throw new Error("Google Drive folder is unavailable.");
+		return `gdrive:${this.folderId}`;
+	}
+
 	isEnabled(): boolean {
 		return !!CLIENT_ID;
 	}
@@ -50,8 +57,7 @@ export class GoogleDriveProvider implements SyncProvider {
 				return true;
 			} catch {
 				// Token expired, clear it
-				this.accessToken = null;
-				localStorage.removeItem("gdrive_access_token");
+				await this.logout();
 			}
 		}
 
@@ -179,14 +185,14 @@ export class GoogleDriveProvider implements SyncProvider {
 		return this.folderId;
 	}
 
-	async listFiles(): Promise<SyncMetadata[]> {
+	async listRevisions(): Promise<SyncMetadata[]> {
 		const folderId = await this.getOrCreateSyncFolder();
 		const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
 		const files: GDriveFile[] = [];
 		let pageToken: string | undefined;
 		do {
 			const response = await this.fetchWithAuth(
-				`${GOOGLE_DRIVE_API_BASE}/files?q=${query}&fields=nextPageToken,files(id,name,modifiedTime,version,properties)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
+				`${GOOGLE_DRIVE_API_BASE}/files?q=${query}&fields=nextPageToken,files(id,name,modifiedTime,createdTime,version,properties)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
 			);
 			const data: { files?: GDriveFile[]; nextPageToken?: string } = await response.json();
 			files.push(...(data.files || []));
@@ -212,6 +218,9 @@ export class GoogleDriveProvider implements SyncProvider {
 				title: file.name,
 				type: file.properties.type === "setlist" ? "setlist" : "song",
 				gdriveId: file.id,
+				remoteId: file.id,
+				version: file.version,
+				uploadedAt: file.createdTime,
 				revision:
 					file.properties.revision ??
 					`legacy-${file.id}-${file.version ?? file.modifiedTime ?? "0"}`,
@@ -221,15 +230,11 @@ export class GoogleDriveProvider implements SyncProvider {
 					.filter((parent): parent is string => typeof parent === "string"),
 			});
 		}
-		if (result.some((file) => file.parents?.includes(file.revision ?? "")))
-			throw new Error("Invalid cyclic sync ancestry.");
-		// Keep all branches; only referenced ancestors are superseded. No clock winner.
-		const ancestors = new Set(
-			result.flatMap((file) =>
-				(file.parents ?? []).map((revision) => `${file.type}:${file.id}:${revision}`),
-			),
-		);
-		return result.filter((file) => !ancestors.has(`${file.type}:${file.id}:${file.revision}`));
+		return result;
+	}
+
+	async listFiles() {
+		return syncHeads(await this.listRevisions());
 	}
 
 	async downloadFile(gdriveId: string): Promise<string> {
@@ -285,19 +290,30 @@ export class GoogleDriveProvider implements SyncProvider {
 		});
 	}
 
-	async deleteFile(id: string): Promise<void> {
-		const folderId = await this.getOrCreateSyncFolder();
-		const query = encodeURIComponent(
-			`'${folderId}' in parents and properties has { key='internalId' and value='${id}' } and trashed = false`,
+	async archiveRevision(metadata: SyncMetadata) {
+		const id = metadata.remoteId ?? metadata.gdriveId;
+		if (!id || !metadata.version)
+			throw new Error("Google Drive revision cannot be safely removed.");
+		const response = await this.fetchWithAuth(
+			`${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(id)}?fields=id,version,trashed,properties`,
 		);
-		const searchResponse = await this.fetchWithAuth(`${GOOGLE_DRIVE_API_BASE}/files?q=${query}`);
-		const searchData = await searchResponse.json();
-		const file = searchData.files?.[0];
+		const file = await response.json();
+		const etag = response.headers.get("ETag");
+		if (
+			!etag ||
+			file.version !== metadata.version ||
+			file.trashed ||
+			file.properties?.revision !== metadata.revision
+		)
+			throw new Error("Drive revision changed or has no concurrency token. Review cleanup again.");
+		await this.fetchWithAuth(`${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(id)}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json", "If-Match": etag },
+			body: JSON.stringify({ trashed: true }),
+		});
+	}
 
-		if (file) {
-			await this.fetchWithAuth(`${GOOGLE_DRIVE_API_BASE}/files/${file.id}`, {
-				method: "DELETE",
-			});
-		}
+	async deleteFile(_id: string): Promise<void> {
+		throw new Error("Use reviewed revision cleanup to remove Drive history.");
 	}
 }

@@ -7,6 +7,7 @@ import {
 	type RemoteVersion,
 	recordKey,
 	recordTitle,
+	syncKey,
 } from "./records";
 import {
 	acknowledge,
@@ -18,8 +19,19 @@ import {
 import type { SyncMetadata, SyncProvider, SyncStatus } from "./types";
 
 export class SyncManager {
+	private static busy = false;
+	private scope = "";
+	static async exclusive<T>(operation: () => Promise<T>): Promise<T> {
+		if (SyncManager.busy) throw new Error("Another sync or cleanup is running. Please wait.");
+		SyncManager.busy = true;
+		try {
+			return await operation();
+		} finally {
+			SyncManager.busy = false;
+		}
+	}
 	private status: SyncStatus = {
-		lastSyncTime: localStorage.getItem("last_sync_time"),
+		lastSyncTime: null,
 		isSyncing: false,
 		error: null,
 		conflictCount: 0,
@@ -27,6 +39,7 @@ export class SyncManager {
 	private provider: SyncProvider;
 	constructor(provider: SyncProvider) {
 		this.provider = provider;
+		this.status.lastSyncTime = localStorage.getItem(`last_sync:${provider.name}`);
 	}
 	getStatus(): SyncStatus {
 		return { ...this.status };
@@ -35,12 +48,17 @@ export class SyncManager {
 		this.status = { lastSyncTime: null, isSyncing: false, error: null, conflictCount: 0 };
 	}
 	async sync(): Promise<void> {
-		if (this.status.isSyncing) return;
+		if (this.status.isSyncing || SyncManager.busy) {
+			this.status.error = "Another sync or cleanup is running. Please wait.";
+			return;
+		}
+		SyncManager.busy = true;
 		this.status.isSyncing = true;
 		this.status.error = null;
 		try {
 			if (!(await this.provider.authenticate())) return;
 			const files = await this.provider.listFiles();
+			this.scope = this.provider.getScope?.() ?? "";
 			const remote = new Map<string, SyncMetadata[]>();
 			for (const file of files) {
 				const key = recordKey(file.type, file.id);
@@ -58,18 +76,22 @@ export class SyncManager {
 				identities.set(recordKey(file.type, file.id), { id: file.id, type: file.type });
 			for (const [key, item] of identities)
 				await this.syncRecord(item.type, item.id, remote.get(key) ?? []);
-			this.status.conflictCount = (await getSyncConflicts()).length;
+			this.status.conflictCount = (await getSyncConflicts()).filter(
+				(conflict) => (conflict.scope ?? "") === this.scope,
+			).length;
 			this.status.lastSyncTime = new Date().toISOString();
-			localStorage.setItem("last_sync_time", this.status.lastSyncTime);
+			localStorage.setItem(`last_sync:${this.provider.name}`, this.status.lastSyncTime);
 		} catch (error) {
 			this.status.error = error instanceof Error ? error.message : "Sync failed";
 		} finally {
 			this.status.isSyncing = false;
+			SyncManager.busy = false;
 		}
 	}
 	private async read(file: SyncMetadata): Promise<RemoteVersion> {
-		if (!file.gdriveId) throw new Error("Missing remote file identity.");
-		const value = JSON.parse(await this.provider.downloadFile(file.gdriveId));
+		const remoteId = file.remoteId ?? file.gdriveId;
+		if (!remoteId) throw new Error("Missing remote file identity.");
+		const value = JSON.parse(await this.provider.downloadFile(remoteId));
 		const { _sync, ...data } = value;
 		if (
 			_sync &&
@@ -99,7 +121,7 @@ export class SyncManager {
 					: parseSyncedSetlist(JSON.stringify(data), file.id);
 		if (Date.parse(record.lastModified) !== Date.parse(file.lastModified))
 			throw new Error("Remote record changed during sync. Please retry.");
-		return { revision: file.revision ?? `legacy-${file.gdriveId}`, record };
+		return { revision: file.revision ?? `legacy-${remoteId}`, record };
 	}
 	private async push(type: RecordType, record: LibraryRecord, parents: string[]): Promise<string> {
 		// Join large conflict groups through intermediate revisions within Drive's property limit.
@@ -125,13 +147,13 @@ export class SyncManager {
 	}
 	private async syncRecord(type: RecordType, id: string, files: SyncMetadata[]) {
 		const local = await getLocalRecord(type, id);
-		const base = await getSyncBase(type, id);
+		const base = await getSyncBase(type, id, this.scope);
 		const versions = await Promise.all(files.map((file) => this.read(file)));
 		const revisions = versions.map((version) => version.revision).sort();
 		if (!versions.length) {
 			if (local) {
 				const revision = await this.push(type, local, []);
-				await acknowledge(type, local, local, [revision], false);
+				await acknowledge(type, local, local, [revision], false, this.scope);
 			}
 			return;
 		}
@@ -142,14 +164,22 @@ export class SyncManager {
 		const localSame = local && recordFingerprint(local) === recordFingerprint(remote);
 		const remoteUnchanged =
 			base && JSON.stringify([...base.revisions].sort()) === JSON.stringify(revisions);
-		if (base?.resolved && remoteUnchanged && local) {
+		const reviewedUnchanged =
+			!base?.reviewedFingerprints ||
+			JSON.stringify(base.reviewedFingerprints) ===
+				JSON.stringify(
+					versions
+						.map((version) => `${version.revision}:${recordFingerprint(version.record)}`)
+						.sort(),
+				);
+		if (base?.resolved && remoteUnchanged && reviewedUnchanged && local) {
 			const revision = await this.push(type, local, revisions);
-			await acknowledge(type, local, local, [revision], false);
+			await acknowledge(type, local, local, [revision], false, this.scope);
 			return;
 		}
 		if (remoteSame && localSame) {
 			const heads = revisions.length > 1 ? [await this.push(type, local, revisions)] : revisions;
-			await acknowledge(type, local, local, heads, false);
+			await acknowledge(type, local, local, heads, false, this.scope);
 			return;
 		}
 		if (
@@ -157,21 +187,24 @@ export class SyncManager {
 			(!local || (base && !base.resolved && recordFingerprint(local) === base.fingerprint))
 		) {
 			const heads = revisions.length > 1 ? [await this.push(type, remote, revisions)] : revisions;
-			await acknowledge(type, remote, local, heads, true);
+			await acknowledge(type, remote, local, heads, true, this.scope);
 			return;
 		}
 		if (
 			local &&
 			base &&
 			!base.resolved &&
-			(remoteUnchanged || (remoteSame && recordFingerprint(remote) === base.fingerprint))
+			remoteSame &&
+			recordFingerprint(remote) === base.fingerprint
 		) {
 			const revision = await this.push(type, local, revisions);
-			await acknowledge(type, local, local, [revision], false);
+			await acknowledge(type, local, local, [revision], false, this.scope);
 			return;
 		}
 		await saveConflict({
-			id: recordKey(type, id),
+			id: syncKey(type, id, this.scope),
+			scope: this.scope || undefined,
+			provider: this.provider.name,
 			recordId: id,
 			type,
 			local,

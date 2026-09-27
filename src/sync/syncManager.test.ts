@@ -293,3 +293,63 @@ it("guards overlapping syncs and returns without touching data after failed auth
 	await pending;
 	expect(cloud.authenticate).toHaveBeenCalledTimes(2);
 });
+
+it("keeps provider baselines separate and preserves first-sync differences", async () => {
+	const id = await seed();
+	const first = new Cloud();
+	const second = new Cloud();
+	const providerA = Object.assign(first, { getScope: () => "gdrive:folder" });
+	const providerB = Object.assign(second, { getScope: () => "onedrive:folder" });
+	await new SyncManager(providerA).sync();
+	second.files = structuredClone(first.files).map((file) => ({
+		...file,
+		metadata: { ...file.metadata, revision: "other" },
+		content: JSON.stringify({
+			...JSON.parse(file.content),
+			_sync: { revision: "other", parents: [] },
+		}),
+	}));
+	await updateSong(id, { content: "[G]Local change after Google sync" });
+	await new SyncManager(providerB).sync();
+	const conflicts = await getSyncConflicts();
+	expect(conflicts).toHaveLength(1);
+	expect(conflicts[0].scope).toBe("onedrive:folder");
+	expect(conflicts[0].id).toBe(`onedrive:folder::song:${id}`);
+	expect(second.files).toHaveLength(1);
+	await resolveConflict(conflicts[0].id, "local");
+	await new SyncManager(providerB).sync();
+	expect(await getSyncConflicts()).toHaveLength(0);
+	expect(second.files).toHaveLength(2);
+});
+it("does not overwrite remote content changed in place under an acknowledged revision", async () => {
+	const id = await seed();
+	const cloud = new Cloud();
+	const manager = new SyncManager(cloud);
+	await manager.sync();
+	await updateSong(id, { content: "[G]Local edit" });
+	const value = JSON.parse(cloud.files[0].content);
+	cloud.files[0].content = JSON.stringify({
+		...value,
+		content: "[D]Remote edit with same revision",
+	});
+	await manager.sync();
+	expect((await getSyncConflicts())[0].remote[0].record).toMatchObject({
+		content: "[D]Remote edit with same revision",
+	});
+	expect(cloud.files).toHaveLength(1);
+});
+it("rejects a reviewed remote version changed before resolution is shared", async () => {
+	const id = await seed();
+	const cloud = new Cloud();
+	const manager = new SyncManager(cloud);
+	await manager.sync();
+	await updateSong(id, { content: "[G]Local edit" });
+	const value = JSON.parse(cloud.files[0].content);
+	cloud.files[0].content = JSON.stringify({ ...value, content: "[D]Remote edit" });
+	await manager.sync();
+	await resolveConflict(`song:${id}`, "local");
+	cloud.files[0].content = JSON.stringify({ ...value, content: "[E]Another remote edit" });
+	await manager.sync();
+	expect(await getSyncConflicts()).toHaveLength(1);
+	expect(cloud.files).toHaveLength(1);
+});

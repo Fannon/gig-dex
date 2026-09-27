@@ -121,3 +121,39 @@ it("lists all concurrent branches and drops only their referenced ancestors", as
 		"r3",
 	]);
 });
+
+it("moves reviewed Drive revisions to trash using the original version and ETag", async () => {
+	mockFetch.mockResolvedValueOnce(
+		new Response(JSON.stringify({ id: "file", version: "7", properties: { revision: "r1" } }), {
+			headers: { ETag: '"etag7"' },
+		}),
+	);
+	respond({ id: "file", trashed: true });
+	await new GoogleDriveProvider().archiveRevision({
+		id: "song",
+		type: "song",
+		title: "Test",
+		lastModified: "2025-01-01T00:00:00Z",
+		revision: "r1",
+		remoteId: "file",
+		version: "7",
+	});
+	expect(mockFetch.mock.calls[1][1]?.method).toBe("PATCH");
+	expect(mockFetch.mock.calls[1][1]?.headers).toMatchObject({ "If-Match": '"etag7"' });
+	expect(JSON.parse(String(mockFetch.mock.calls[1][1]?.body))).toEqual({ trashed: true });
+});
+it("refuses Google cleanup when concurrency metadata is absent or changed", async () => {
+	respond({ id: "file", version: "8", properties: { revision: "r1" } });
+	await expect(
+		new GoogleDriveProvider().archiveRevision({
+			id: "song",
+			type: "song",
+			title: "Test",
+			lastModified: "2025-01-01T00:00:00Z",
+			revision: "r1",
+			remoteId: "file",
+			version: "7",
+		}),
+	).rejects.toThrow("concurrency token");
+	expect(mockFetch).toHaveBeenCalledTimes(1);
+});

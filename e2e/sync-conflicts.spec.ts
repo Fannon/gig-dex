@@ -19,13 +19,22 @@ test("review preserved sync versions and keep both as independent songs", async 
 			type: "song",
 			local,
 			remote: [
-				{ revision: "remote-1", record: { ...local, content: "[G]Remote rehearsal words" } },
+				{
+					revision: "remote-1",
+					record: { ...local, tempo: 120, tags: ["remote"], content: "[G]Remote rehearsal words" },
+				},
 			],
 			createdAt: new Date().toISOString(),
 		});
 	});
 	await page.goto("./settings");
 	await expect(page.getByRole("heading", { name: "Sync conflicts" })).toBeVisible();
+	await page.getByText(/Compare with remote version 1/).click();
+	await expect(page.locator(".diff-removed")).toContainText("Local rehearsal words");
+	await expect(page.locator(".diff-added")).toContainText("Remote rehearsal words");
+	await expect(page.locator(".conflict-review__table")).toContainText("tempo");
+	await expect(page.locator(".conflict-review__table")).toContainText("120");
+	await page.screenshot({ path: "reports/sync/conflict-comparison.png", fullPage: true });
 	await page.getByText("This device: Harbor", { exact: true }).click();
 	await expect(page.getByText("[C]Local rehearsal words", { exact: true })).toBeVisible();
 	await page.getByText("Remote version 1: Harbor", { exact: true }).click();

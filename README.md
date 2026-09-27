@@ -165,3 +165,80 @@ metrics compare the same songs/viewports; timings depend on the host.
 For production loading/offline verification, build and start `npm run preview --
 --port 5177`, then run `PLAYWRIGHT_URL=http://localhost:5177/ npm run test:e2e --
 e2e/production.spec.ts`. Stop the preview before rebuilding for another base path.
+
+## Performance mode
+
+Use **Perform** on a song or **Perform setlist** in the setlist content panel.
+Fullscreen uses the browser API and remains optional. Large Previous/Next song
+buttons follow setlist order, including repeated occurrences and missing songs.
+The selected occurrence and each occurrence's reading position are remembered
+locally; changed song content resets its position. Reading supports automatic
+screen fitting, scrolling, or page stepping with overlapping complete visual
+lines so no text is skipped. Song controls can be shown when needed.
+
+**Tempo (BPM)** is already stored with each song and imported from `{tempo: 120}`.
+Click the four-dot BPM indicator to start/stop a silent visual pulse. It follows
+a monotonic clock, updates once per beat, and resets between song occurrences.
+It is a visual rehearsal cue, not an audio metronome or background timing source.
+Dirty song/setlist drafts prompt before navigation or cancellation, and browser
+reload/closing uses the browser's unsaved-changes warning. Successful saves do
+not prompt.
+
+## OneDrive configuration
+
+Register a Microsoft Entra application named Gig-Dex, choosing the intended
+account types (personal and/or work/school). Add a **Single-page application**
+redirect URI pointing to `onedrive-callback.html` at the deployed app base:
+
+- Local: `http://localhost:5173/onedrive-callback.html`
+- GitHub Pages: `https://fannon.github.io/gig-dex/onedrive-callback.html`
+
+Grant delegated Microsoft Graph `Files.ReadWrite.AppFolder` permission. Put the
+public application ID in ignored `.env.local`:
+
+```dotenv
+VITE_MICROSOFT_CLIENT_ID=your-application-client-id
+VITE_MICROSOFT_TENANT=common
+```
+
+No client secret is used. `common` allows the account types enabled in the
+registration; a specific tenant ID can restrict organizational sign-in. Restart
+Vite after changing environment variables. For GitHub Pages, set the corresponding
+repository variables; the workflow passes them to the production build. Existing
+Google configuration can use the `VITE_GOOGLE_CLIENT_ID` repository variable too.
+
+Connect OneDrive in Settings. Tokens stay in the tab's session storage; refreshed
+sessions do not require another popup while valid. Files live in the app folder.
+Google Drive and OneDrive keep separate per-folder acknowledgements/conflicts.
+OneDrive caches revision metadata by eTag in IndexedDB, avoiding repeated history
+downloads; current heads are downloaded and validated during sync. The cache is
+expendable and excluded from backups. First sync must read the remote history.
+
+Implementation follows Microsoft's [PKCE authorization flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow),
+[app-folder API](https://learn.microsoft.com/en-us/graph/onedrive-sharepoint-appfolder),
+and [browser download requirements](https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0).
+Popup/Graph behavior is covered with mocked browser requests; live account and
+organizational consent testing still require a configured registration.
+
+## Conflict comparison and revision cleanup
+
+Settings compares metadata and highlights added/removed song lines before
+resolution. Large comparisons bound their computation and still preserve both
+complete versions. Concurrent and manually changed remote content remains subject
+to review, including changes after a resolution was chosen.
+
+After syncing/resolving conflicts, use **Review history cleanup** for a connected
+host. Preview identifies obsolete uploads older than 30 days while retaining
+current heads, competing branches, five older revisions and necessary ancestry.
+Confirmation moves only reviewed obsolete files to the host's trash/recycle bin.
+The plan expires after ten minutes; remote changes require a fresh preview.
+Conditional requests stop if a revision changed. Cleanup and sync are serialized;
+interrupted cleanup reports progress and leaves current heads intact. Legacy
+history without creation/concurrency information is retained. Google cleanup
+also requires an ETag response; if unavailable, it stops instead of removing files.
+Local deletion markers and acknowledged snapshots are retained for offline devices.
+
+[Google trash behavior](https://developers.google.com/workspace/drive/api/guides/delete)
+and [OneDrive conditional deletion](https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0)
+determine recovery and concurrency behavior. Cloud trash follows host retention;
+exporting a library backup remains useful before cleanup.

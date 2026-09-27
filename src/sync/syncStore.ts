@@ -5,9 +5,9 @@ import {
 	isDeletion,
 	type LibraryRecord,
 	type RecordType,
-	recordKey,
 	type SyncBase,
 	type SyncConflict,
+	syncKey,
 } from "./records";
 
 type Database = Awaited<ReturnType<typeof initDB>>;
@@ -78,8 +78,8 @@ export async function getLocalRecord(type: RecordType, id: string) {
 		(await db.get("tombstones", id)) ?? (await db.get(type === "song" ? "songs" : "setlists", id))
 	);
 }
-export async function getSyncBase(type: RecordType, id: string) {
-	return (await initDB()).get("syncBases", recordKey(type, id));
+export async function getSyncBase(type: RecordType, id: string, scope = "") {
+	return (await initDB()).get("syncBases", syncKey(type, id, scope));
 }
 export async function getSyncConflicts() {
 	return (await initDB()).getAll("syncConflicts");
@@ -93,15 +93,18 @@ export async function acknowledge(
 	expectedLocal: LibraryRecord | undefined,
 	revisions: string[],
 	apply: boolean,
+	scope = "",
 ) {
 	await transact(async (tx) => {
 		if (stableStringify(await current(tx, type, record.id)) !== stableStringify(expectedLocal))
 			throw new Error("Library changed during sync. Please sync again.");
 		if (apply) await write(tx, type, record);
-		await tx
-			.objectStore("syncBases")
-			.put({ id: recordKey(type, record.id), fingerprint: recordFingerprint(record), revisions });
-		await tx.objectStore("syncConflicts").delete(recordKey(type, record.id));
+		await tx.objectStore("syncBases").put({
+			id: syncKey(type, record.id, scope),
+			fingerprint: recordFingerprint(record),
+			revisions,
+		});
+		await tx.objectStore("syncConflicts").delete(syncKey(type, record.id, scope));
 	});
 }
 /** Resolution is local and durable. Next sync joins the reviewed remote revisions. */
@@ -144,6 +147,9 @@ export async function resolveConflict(id: string, choice: "local" | "both" | num
 			fingerprint: recordFingerprint(resolved),
 			revisions: conflict.remote.map((version) => version.revision),
 			resolved: true,
+			reviewedFingerprints: conflict.remote
+				.map((version) => `${version.revision}:${recordFingerprint(version.record)}`)
+				.sort(),
 		};
 		await tx.objectStore("syncBases").put(base);
 		await tx.objectStore("syncConflicts").delete(id);

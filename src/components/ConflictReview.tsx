@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isDeletion, type LibraryRecord, recordTitle, type SyncConflict } from "../sync/records";
 import { getSyncConflicts, resolveConflict } from "../sync/syncStore";
 import type { SyncStatus } from "../sync/types";
+import { changedFields, lineDifference } from "../utils/conflictComparison";
 import "./ConflictReview.scss";
 
 const Version = ({ record, label }: { record?: LibraryRecord; label: string }) => (
@@ -37,6 +38,81 @@ const Version = ({ record, label }: { record?: LibraryRecord; label: string }) =
 		)}
 	</details>
 );
+const Comparison = ({
+	local,
+	remote,
+	index,
+}: {
+	local?: LibraryRecord;
+	remote: LibraryRecord;
+	index: number;
+}) => {
+	const fields = useMemo(() => changedFields(local, remote), [local, remote]);
+	const lines = useMemo(
+		() =>
+			lineDifference(
+				local && "content" in local ? local.content : "",
+				"content" in remote ? remote.content : "",
+			),
+		[local, remote],
+	);
+	const contentChanged = lines.some((line) => line.kind !== "same");
+	const display = (value: unknown) =>
+		value === undefined ? "—" : typeof value === "string" ? value : JSON.stringify(value);
+	return (
+		<details className="conflict-review__comparison">
+			<summary>
+				Compare with remote version {index + 1} · {fields.length} changed fields
+				{contentChanged ? " + song text" : ""}
+			</summary>
+			{(isDeletion(remote) || (local && isDeletion(local))) && (
+				<p>
+					Deletion versus editing: choosing a deletion removes the original item; keep copies to
+					preserve the edited version.
+				</p>
+			)}
+			{fields.length > 0 && (
+				<div className="conflict-review__table">
+					<table>
+						<thead>
+							<tr>
+								<th>Field</th>
+								<th>This device</th>
+								<th>Remote version</th>
+							</tr>
+						</thead>
+						<tbody>
+							{fields.map((field) => (
+								<tr key={field.key}>
+									<th>{field.key}</th>
+									<td>{display(field.local)}</td>
+									<td>{display(field.remote)}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
+			{contentChanged && (
+				<>
+					<p>− removed from this device’s text · + added in remote text</p>
+					<pre className="conflict-review__diff">
+						{lines.map((line, index) => (
+							<span key={`${index}:${line.kind}`} className={`diff-${line.kind}`}>
+								{line.kind === "added" ? "+ " : line.kind === "removed" ? "− " : "  "}
+								{line.text}
+								{"\n"}
+							</span>
+						))}
+					</pre>
+				</>
+			)}
+			{!fields.length && !contentChanged && (
+				<p>Content is identical. Only timestamps or revision history differ.</p>
+			)}
+		</details>
+	);
+};
 export const ConflictReview = ({ status }: { status: SyncStatus }) => {
 	const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
 	const [error, setError] = useState("");
@@ -83,6 +159,15 @@ export const ConflictReview = ({ status }: { status: SyncStatus }) => {
 					<h3>
 						{conflict.local ? recordTitle(conflict.local) : recordTitle(conflict.remote[0].record)}
 					</h3>
+					{conflict.provider && <p>Host: {conflict.provider}</p>}
+					{conflict.remote.map((version, index) => (
+						<Comparison
+							key={`compare:${version.revision}`}
+							local={conflict.local}
+							remote={version.record}
+							index={index}
+						/>
+					))}
 					<Version record={conflict.local} label="This device" />
 					{conflict.remote.map((version, index) => (
 						<Version

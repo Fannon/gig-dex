@@ -117,3 +117,34 @@ it("adds sync stores to an existing v2 library without changing records", async 
 		upgraded.close();
 	}
 });
+
+it("adds the metadata cache to v3 while preserving songs and acknowledged sync history", async () => {
+	const previous = await openDB("GigDexDB", 3, {
+		upgrade(db) {
+			for (const store of ["songs", "setlists", "tombstones", "syncBases", "syncConflicts"])
+				db.createObjectStore(store, { keyPath: "id" });
+		},
+	});
+	const song = {
+		id: "stored",
+		title: "Stored",
+		artist: "Test",
+		content: "[C]Original",
+		tags: [],
+		createdAt: "2025-01-01T00:00:00Z",
+		lastModified: "2025-01-01T00:00:00Z",
+	};
+	const base = { id: "song:stored", fingerprint: "original", revisions: ["r1"] };
+	await previous.put("songs", song);
+	await previous.put("syncBases", base);
+	previous.close();
+	const { initDB } = await import("./db");
+	const upgraded = await initDB();
+	try {
+		expect(await upgraded.get("songs", "stored")).toEqual(song);
+		expect(await upgraded.get("syncBases", "song:stored")).toEqual(base);
+		expect(upgraded.objectStoreNames.contains("revisionCache")).toBe(true);
+	} finally {
+		upgraded.close();
+	}
+});
