@@ -58,6 +58,7 @@ const url = values.url || `http://127.0.0.1:5174${base}`;
 let server;
 let browser;
 const results = [];
+const errors = [];
 try {
 	if (!values.url) {
 		server = spawn(
@@ -84,7 +85,6 @@ try {
 	browser = await chromium.launch();
 	const context = await browser.newContext(); // Isolated IndexedDB: never touches a user's browser.
 	const page = await context.newPage();
-	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
 	await page.goto(url);
 	const ids = await page.evaluate(
@@ -98,11 +98,11 @@ try {
 		{ songs, base: new URL(url).pathname },
 	);
 	for (const [index, id] of ids.entries()) {
+		await page.goto(new URL(`song/${id}`, url.endsWith("/") ? url : `${url}/`).href);
+		await page.locator(".song-view__content").waitFor();
+		await page.evaluate(() => document.fonts.ready);
 		for (const viewport of viewports) {
 			await page.setViewportSize(viewport);
-			await page.goto(new URL(`song/${id}`, url.endsWith("/") ? url : `${url}/`).href);
-			await page.locator(".song-view__content").waitFor();
-			await page.evaluate(() => document.fonts.ready);
 			if ((await page.locator(".song-view").getAttribute("data-layout")) === null) {
 				await page.waitForTimeout(250); // Legacy renderer used a 150ms debounce.
 			}
@@ -113,9 +113,28 @@ try {
 					!view?.hasAttribute("data-layout") || view.getAttribute("data-layout") !== "measuring"
 				);
 			});
-			await page.evaluate(
-				() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-			);
+			await page.evaluate(async () => {
+				let previous = "";
+				let stableFrames = 0;
+				for (let attempt = 0; attempt < 120; attempt++) {
+					await new Promise(requestAnimationFrame);
+					const content = document.querySelector(".song-view__content");
+					const wrapper = document.querySelector(".song-view__wrapper");
+					const style = getComputedStyle(content);
+					const state = [
+						style.fontSize,
+						style.columnCount,
+						content.clientHeight,
+						wrapper.clientWidth,
+						wrapper.clientHeight,
+						document.querySelector(".song-view").getAttribute("data-layout"),
+					].join(":");
+					stableFrames = state === previous ? stableFrames + 1 : 0;
+					if (stableFrames >= 4) return;
+					previous = state;
+				}
+				throw new Error("Song layout did not settle after resizing");
+			});
 			const metrics = await page.evaluate(() => {
 				const wrapper = document.querySelector(".song-view__wrapper");
 				const content = document.querySelector(".song-view__content");
@@ -152,6 +171,10 @@ try {
 			});
 		}
 		console.log(`Reviewed song ${index + 1}/${songs.length}`);
+		await writeFile(
+			path.join(output, "metrics.json"),
+			JSON.stringify({ results, errors }, null, 2),
+		);
 	}
 	await writeFile(path.join(output, "metrics.json"), JSON.stringify({ results, errors }, null, 2));
 	const cards = results
@@ -173,6 +196,8 @@ try {
 	);
 	if (failures.length || errors.length) process.exitCode = 1;
 } finally {
+	// Keep partial measurements if a browser/server interruption stops a long audit.
+	await writeFile(path.join(output, "metrics.json"), JSON.stringify({ results, errors }, null, 2));
 	await browser?.close();
 	server?.kill();
 }

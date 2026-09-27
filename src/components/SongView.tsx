@@ -8,6 +8,7 @@ interface SongViewProps {
 	title?: string;
 	artist?: string;
 	onContentChange?: (content: string) => void;
+	onKeyChange?: (key: string | null) => void;
 }
 
 export const SongView = ({
@@ -15,6 +16,7 @@ export const SongView = ({
 	title: _title,
 	artist: _artist,
 	onContentChange,
+	onKeyChange,
 }: SongViewProps) => {
 	const [transpose, setTranspose] = useState(0);
 	const [fontSize, setFontSize] = useState(16);
@@ -36,6 +38,10 @@ export const SongView = ({
 	const parsed = useMemo(() => {
 		return parseChordPro(transposedContent, { mode: chordMode });
 	}, [transposedContent, chordMode]);
+
+	useEffect(() => {
+		onKeyChange?.(parsed.key);
+	}, [onKeyChange, parsed.key]);
 
 	// Measure the real chord/lyric tables at each candidate size and column count.
 	// Refit before paint, on container changes, and after fonts finish loading.

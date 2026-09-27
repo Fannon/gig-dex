@@ -37,6 +37,7 @@ test.describe("Song Page", () => {
 		// Transpose up
 		await page.getByRole("button", { name: "+1" }).click();
 		await expect(transposeValue).toContainText("+1");
+		await expect(page.locator(".song-page__meta-tag")).toContainText(/Key: (Ab|G#)/);
 
 		// Transpose down
 		await page.getByRole("button", { name: "-1" }).click();

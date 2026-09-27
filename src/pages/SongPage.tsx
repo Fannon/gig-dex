@@ -38,6 +38,7 @@ export const SongPage = () => {
 	const [tagInput, setTagInput] = useState("");
 	const [loading, setLoading] = useState(!isNew);
 	const [saving, setSaving] = useState(false);
+	const [displayKey, setDisplayKey] = useState<string | null>(null);
 
 	// Resizable split pane state
 	const [splitRatio, setSplitRatio] = useState(0.5);
@@ -289,7 +290,9 @@ export const SongPage = () => {
 					<div className="song-page__title-row">
 						<h1 className="song-page__title">{song.title || "Untitled"}</h1>
 						{song.artist && <span className="song-page__artist">by {song.artist}</span>}
-						{song.key && <span className="song-page__meta-tag">Key: {song.key}</span>}
+						{(displayKey || song.key) && (
+							<span className="song-page__meta-tag">Key: {displayKey || song.key}</span>
+						)}
 						{song.tempo && <span className="song-page__meta-tag">{song.tempo} BPM</span>}
 						{song.capo && <span className="song-page__meta-tag">Capo {song.capo}</span>}
 						{song.time && <span className="song-page__meta-tag">{song.time}</span>}
@@ -574,7 +577,13 @@ That [G]saved a [Em]wretch like [D]me
 					</div>
 				</div>
 			) : (
-				<SongView key={id} content={song.content || ""} title={song.title} artist={song.artist} />
+				<SongView
+					key={id}
+					content={song.content || ""}
+					title={song.title}
+					artist={song.artist}
+					onKeyChange={setDisplayKey}
+				/>
 			)}
 		</div>
 	);
