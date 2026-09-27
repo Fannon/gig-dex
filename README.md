@@ -385,3 +385,15 @@ larger text. Escape, the close button and clicking outside dismiss it.
 Simple-mode conversion keeps consecutive instrumental chord lines together,
 removes blank lines after recognized headings, and limits paragraph gaps to one
 blank line. Leading spaces used for chord alignment are preserved.
+
+### Local folder sync and runtime Client IDs
+
+Settings → Cloud Sync now offers a local folder host for a dedicated folder inside
+OneDrive/Google Drive/Dropbox/Nextcloud desktop sync. Folder handles are remembered
+in IndexedDB. Local history cleanup preserves source files and verified copies in
+`.gigdex-trash/`, so it never permanently deletes revisions or reclaims disk space.
+
+The collapsed **Use your own cloud Client IDs** section enables Google/Microsoft
+sync using browser-local settings, without rebuilding. See the
+[local folder and runtime OAuth guide](docs/local-folder-sync.md) for permissions,
+file layout, conflict behavior, cleanup, and mobile alternatives.

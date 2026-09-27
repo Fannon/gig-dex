@@ -1,3 +1,4 @@
+import { effectiveClientConfig } from "./clientConfig";
 import { syncHeads } from "./revisionHistory";
 import type { SyncMetadata, SyncProvider } from "./types";
 
@@ -10,7 +11,6 @@ const SCOPES = "https://www.googleapis.com/auth/drive.file";
 // Client ID is public and safe to embed - security comes from redirect URI restrictions
 // For local dev, create a .env file with VITE_GOOGLE_CLIENT_ID=your_client_id
 // For production, set it in your CI/CD environment variables
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 interface GDriveFile {
 	id: string;
@@ -29,6 +29,7 @@ interface GDriveFile {
 
 export class GoogleDriveProvider implements SyncProvider {
 	name = "Google Drive";
+	private clientId = effectiveClientConfig().google;
 	private accessToken: string | null = null;
 	private folderId: string | null = null;
 
@@ -41,8 +42,15 @@ export class GoogleDriveProvider implements SyncProvider {
 		return `gdrive:${this.folderId}`;
 	}
 
+	setClientId(clientId: string) {
+		if (clientId === this.clientId) return false;
+		void this.logout();
+		this.clientId = clientId;
+		return true;
+	}
+
 	isEnabled(): boolean {
-		return !!CLIENT_ID;
+		return !!this.clientId;
 	}
 
 	isAuthenticated(): boolean {
@@ -50,6 +58,7 @@ export class GoogleDriveProvider implements SyncProvider {
 	}
 
 	async authenticate(): Promise<boolean> {
+		if (!this.isEnabled()) throw new Error("A Google Client ID is required to enable sync.");
 		if (this.accessToken) {
 			// Verify token is still valid
 			try {
@@ -69,7 +78,7 @@ export class GoogleDriveProvider implements SyncProvider {
 			const top = window.screenY + (window.outerHeight - height) / 2;
 
 			const redirectUri = window.location.origin + window.location.pathname;
-			const url = `${GOOGLE_AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
+			const url = `${GOOGLE_AUTH_ENDPOINT}?client_id=${this.clientId}&redirect_uri=${encodeURIComponent(
 				redirectUri,
 			)}&response_type=token&scope=${encodeURIComponent(SCOPES)}&include_granted_scopes=true`;
 

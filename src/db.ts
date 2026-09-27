@@ -47,6 +47,7 @@ interface Setlist {
 }
 
 interface GigDexDB extends DBSchema {
+	syncHandles: { key: string; value: { id: string; handle: FileSystemDirectoryHandle } };
 	revisionCache: { key: string; value: SyncMetadata };
 	tombstones: { key: string; value: DeletionRecord };
 	syncBases: { key: string; value: SyncBase };
@@ -71,7 +72,7 @@ interface GigDexDB extends DBSchema {
 }
 
 const DB_NAME = "GigDexDB";
-const DB_VERSION = 4; // Adds an expendable OneDrive metadata cache; library records remain intact
+const DB_VERSION = 5; // Adds persisted local-folder handles without changing library records
 
 type LegacySong = Omit<Song, "id" | "lastModified" | "createdAt"> & {
 	id: number;
@@ -102,6 +103,7 @@ export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
 
 	dbPromise = openDB<GigDexDB>(DB_NAME, DB_VERSION, {
 		upgrade(db, oldVersion, _newVersion, transaction) {
+			if (oldVersion < 5) db.createObjectStore("syncHandles");
 			if (oldVersion < 4) db.createObjectStore("revisionCache");
 			if (oldVersion < 3) {
 				db.createObjectStore("tombstones", { keyPath: "id" });

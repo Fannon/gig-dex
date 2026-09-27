@@ -148,3 +148,27 @@ it("adds the metadata cache to v3 while preserving songs and acknowledged sync h
 		upgraded.close();
 	}
 });
+
+it("adds folder-handle storage to v4 without changing local records or conflict history", async () => {
+	const previous = await openDB("GigDexDB", 4, {
+		upgrade(db) {
+			for (const store of ["songs", "setlists", "tombstones", "syncBases", "syncConflicts"])
+				db.createObjectStore(store, { keyPath: "id" });
+			db.createObjectStore("revisionCache");
+		},
+	});
+	const song = { id: "stored", title: "Preserved" };
+	const conflict = { id: "song:stored", recordId: "stored", remote: [], createdAt: "2026-09-27" };
+	await previous.put("songs", song);
+	await previous.put("syncConflicts", conflict);
+	previous.close();
+	const { initDB } = await import("./db");
+	const upgraded = await initDB();
+	try {
+		expect(await upgraded.get("songs", "stored")).toEqual(song);
+		expect(await upgraded.get("syncConflicts", "song:stored")).toEqual(conflict);
+		expect(upgraded.objectStoreNames.contains("syncHandles")).toBe(true);
+	} finally {
+		upgraded.close();
+	}
+});

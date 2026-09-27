@@ -14,6 +14,11 @@ export interface SyncMetadata {
 
 export interface SyncProvider {
 	name: string;
+	ready?: Promise<void>;
+	refreshConnection?(): Promise<void>;
+	getFolderName?(): string;
+	getFolderWarning?(): string;
+	pickFolder?(): Promise<boolean>;
 	getScope?(): string;
 	isAuthenticated?(): boolean;
 	isEnabled(): boolean;

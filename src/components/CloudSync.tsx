@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { syncHosts } from "../sync";
+import { CLIENT_CONFIG_EVENT } from "../sync/clientConfig";
+import { SyncManager } from "../sync/syncManager";
 import type { SyncStatus } from "../sync/types";
 import { RevisionCleanup } from "./RevisionCleanup";
+import { SyncClientSettings } from "./SyncClientSettings";
 
 const Host = ({
 	host,
@@ -12,16 +15,38 @@ const Host = ({
 }) => {
 	const { provider, manager } = host;
 	const [status, setStatus] = useState(manager.getStatus());
-	const [connected, setConnected] = useState(provider.isAuthenticated());
+	const [connected, setConnected] = useState(provider.isAuthenticated?.() ?? false);
+	const [ready, setReady] = useState(!provider.ready);
 	const [busy, setBusy] = useState(false);
-	const update = () => {
+	const [error, setError] = useState("");
+	const update = useCallback(() => {
 		const value = manager.getStatus();
 		setStatus(value);
 		onStatus(value);
-		setConnected(provider.isAuthenticated());
-	};
+		setConnected(provider.isAuthenticated?.() ?? false);
+	}, [provider, manager, onStatus]);
+	useEffect(() => {
+		let mounted = true;
+		const refresh = async () => {
+			await provider.ready;
+			await provider.refreshConnection?.();
+			if (mounted) {
+				setReady(true);
+				update();
+			}
+		};
+		void refresh();
+		window.addEventListener("focus", refresh);
+		window.addEventListener(CLIENT_CONFIG_EVENT, update);
+		return () => {
+			mounted = false;
+			window.removeEventListener("focus", refresh);
+			window.removeEventListener(CLIENT_CONFIG_EVENT, update);
+		};
+	}, [provider, update]);
 	const sync = async () => {
 		setBusy(true);
+		setError("");
 		try {
 			const pending = manager.sync();
 			update();
@@ -31,11 +56,45 @@ const Host = ({
 			setBusy(false);
 		}
 	};
-	const logout = async () => {
-		await provider.logout();
+	const reset = () => {
+		localStorage.removeItem(`last_sync:${provider.name}`);
 		manager.resetStatus();
-		update();
 	};
+	const logout = async () => {
+		setBusy(true);
+		setError("");
+		try {
+			await SyncManager.exclusive(() => provider.logout());
+			reset();
+			update();
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Could not disconnect.");
+		} finally {
+			setBusy(false);
+		}
+	};
+	const changeFolder = async () => {
+		setBusy(true);
+		setError("");
+		try {
+			const scope = provider.getScope?.();
+			const chosen = await SyncManager.exclusive(
+				() => provider.pickFolder?.() ?? Promise.resolve(false),
+			);
+			if (!chosen) return;
+			if (scope !== provider.getScope?.()) reset();
+			await manager.sync();
+			update();
+		} catch (error) {
+			setError(error instanceof Error ? error.message : "Could not change folders.");
+		} finally {
+			setBusy(false);
+		}
+	};
+	const folder = provider.getFolderName?.();
+	const description = provider.pickFolder
+		? "Sync via your Drive/OneDrive/Dropbox desktop folder. Works offline."
+		: "Sync songs, sets and deletions across devices";
 	return (
 		<section className="settings-page__sync-box" aria-label={`${provider.name} sync`}>
 			{!provider.isEnabled() ? (
@@ -43,46 +102,61 @@ const Host = ({
 					<div className="settings-page__option-text">
 						<h3>{provider.name} Sync</h3>
 						<p>
-							Not configured. A {provider.name === "OneDrive" ? "Microsoft" : "Google"} Client ID is
-							required to enable sync.
+							{provider.pickFolder
+								? "Local folder sync needs Chrome/Edge on desktop. Use a cloud host or backup files on mobile."
+								: "Not configured. Add your Client ID below to enable sync."}
 						</p>
 					</div>
 				</div>
-			) : !connected ? (
+			) : !connected && !folder ? (
 				<button
 					type="button"
 					className="settings-page__option"
 					onClick={() => void sync()}
-					disabled={busy}
+					disabled={busy || !ready}
 				>
 					<div className="settings-page__option-text">
-						<h3>Connect {provider.name}</h3>
-						<p>Sync songs, setlists and deletions across devices</p>
+						<h3>{provider.pickFolder ? "Connect local folder" : `Connect ${provider.name}`}</h3>
+						<p>{description}</p>
 					</div>
 				</button>
 			) : (
 				<div className="settings-page__option">
 					<div className="settings-page__option-text">
-						<h3>{provider.name} Connected</h3>
+						<h3>
+							{provider.name} {connected ? "Connected" : "— permission required"}
+							{folder ? ` — ${folder}` : ""}
+						</h3>
 						<p>
 							{status.lastSyncTime
 								? `Last synced: ${new Date(status.lastSyncTime).toLocaleString()}`
 								: "Never synced"}
 						</p>
+						{provider.pickFolder && <p>{description} Disconnecting keeps all folder files.</p>}
 					</div>
 					<div className="settings-page__option-actions">
 						<button
 							type="button"
 							className="settings-page__sync-btn"
-							disabled={busy}
+							disabled={busy || !ready}
 							onClick={() => void sync()}
 						>
 							{busy ? "Syncing…" : "Sync Now"}
 						</button>
+						{provider.pickFolder && (
+							<button
+								type="button"
+								className="settings-page__sync-btn"
+								disabled={busy || !ready}
+								onClick={() => void changeFolder()}
+							>
+								Change folder
+							</button>
+						)}
 						<button
 							type="button"
 							className="settings-page__logout-btn"
-							disabled={busy}
+							disabled={busy || !ready}
 							onClick={() => void logout()}
 						>
 							Disconnect
@@ -90,10 +164,11 @@ const Host = ({
 					</div>
 				</div>
 			)}
+			{provider.getFolderWarning?.() && <output>{provider.getFolderWarning()}</output>}
 			{connected && <RevisionCleanup provider={provider} disabled={busy} />}
-			{status.error && (
+			{(error || status.error) && (
 				<p className="settings-page__sync-error" role="alert">
-					{status.error}
+					{error || status.error}
 				</p>
 			)}
 		</section>
@@ -107,5 +182,6 @@ export const CloudSync = ({ onStatus }: { onStatus: (status: SyncStatus) => void
 				<Host key={host.provider.name} host={host} onStatus={onStatus} />
 			))}
 		</div>
+		<SyncClientSettings />
 	</section>
 );

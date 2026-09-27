@@ -1,4 +1,5 @@
 import { initDB } from "../db";
+import { effectiveClientConfig } from "./clientConfig";
 import { syncHeads } from "./revisionHistory";
 import type { SyncMetadata, SyncProvider } from "./types";
 
@@ -34,8 +35,8 @@ export class OneDriveProvider implements SyncProvider {
 	private config: { clientId: string; tenant: string };
 	constructor(
 		config = {
-			clientId: import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
-			tenant: import.meta.env.VITE_MICROSOFT_TENANT || "common",
+			clientId: effectiveClientConfig().microsoft,
+			tenant: effectiveClientConfig().tenant,
 		},
 	) {
 		this.config = config;
@@ -46,6 +47,13 @@ export class OneDriveProvider implements SyncProvider {
 		} catch {
 			/* Ignore invalid credentials. */
 		}
+	}
+	setConfig(config: { clientId: string; tenant: string }) {
+		if (config.clientId === this.config.clientId && config.tenant === this.config.tenant)
+			return false;
+		void this.logout();
+		this.config = config;
+		return true;
 	}
 	isEnabled() {
 		return !!this.config.clientId;
