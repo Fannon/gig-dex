@@ -294,3 +294,73 @@ protection across tabs, cold offline relaunch, offline edits, and cache repair
 without changing `dist/`. For manual inspection, run
 `VITE_BASE_PATH=/gig-dex/ node scripts/pwa-upgrade-server.mjs`, open the printed URL,
 and press Enter in its terminal to serve deployment B. No private songs are used.
+
+## Library workspace and Chordle setlists
+
+The shared top bar switches between Songs, Setlists and Settings. Toggle the left
+sidebar with ☰; its Songs and Current setlist sections collapse independently.
+Search songs by title, artist and tags in the sidebar. Global search in the top
+bar or **Ctrl+M** (**Cmd+M** on macOS) searches songs and setlists together, using
+both a color and a text label for each type. Arrow Down enters results, Tab moves
+between them, Enter opens a result and Escape closes search.
+
+Choose a setlist in the Setlists view. It remains in the lower sidebar while you
+read songs or change modes. Use **+** beside a library song to append it, including
+repeated occurrences, and **↑ / ↓** to reorder. Clicking a setlist occurrence
+opens its song with that occurrence's saved transpose and capo. Reordering,
+duplicating, backup/restore and cloud sync preserve those settings; changing them
+does not transpose the shared library song. The current key and signed semitone
+shift appear on each row. Settings are also saved from setlist preview and
+performance controls. Legacy lists default to zero transpose.
+
+A Chordle `.chordle` setlist archive can be converted locally without adding ZIP
+code to the browser bundle. Node 22.18+ (native TypeScript support) and Python 3
+are required:
+
+```bash
+npm run import:chordle -- "/path/to/Set Lists.chordle" tmp/chordle-setlists.gig-dex.json
+```
+
+Open **Settings → Restore backup**, select the generated JSON and use **Merge**.
+The converter preserves source IDs, song metadata/tags, ordered repeated songs,
+setlist dates and per-occurrence key/capo settings. It expands named section
+repeats for display. Missing section references or malformed ChordPro remain
+available for editing and get the `import-review` song tag; the JSON also contains
+an `importWarnings` report. Metadata timestamps without a timezone are treated as
+UTC. Key settings are interpreted as the written chord key, with capo separate.
+
+Merge matches existing records by ID, so songs previously imported under different
+IDs may appear as additional copies. Re-converting an unchanged archive preserves
+IDs and timestamps. Output is restricted to ignored `tmp/` or `reports/`, existing
+output files are never overwritten, and personal song archives/converted backups
+must not be committed.
+
+Setlists also have an optional calendar **Date** in New setlist / Edit details.
+Sidebar songs can be dragged into the current setlist; drag its entries to reorder
+them. The +, arrow and remove buttons provide keyboard and touch alternatives.
+Removing an entry keeps the song in the library.
+
+Dates are displayed without timezone shifts, searchable globally and in the
+setlist library, sortable by newest gig date, and preserved by duplication,
+backup/restore and sync. Imported Chordle session dates populate this field.
+
+**Settings → Appearance → Theme** switches between dark violet, pure black
+(`#000`) and a soft, warm light theme. The choice is remembered on the device. Chorus/Refrain uses teal;
+verses, bridges, intros, outros and instrumentals have distinct dark-theme accents.
+Section labels use compact spacing without underlines. Appearance, import/backups
+and cloud connections come before offline diagnostics in Settings.
+
+Performance uses a compact two-line song heading. **Left/Up** selects the previous
+song, **Right/Down** the next; horizontal swipes also navigate while vertical
+swipes keep scrolling. Reading, wake lock, song controls and optional beat division
+are in **Performance options**. The tempo indicator defaults to the song's time
+signature (4/4 if absent): 6/8 displays six dots, 8/8 eight. Beat one pulses cyan;
+other beats pulse amber. BPM denotes quarter notes, so eighth-note divisions pulse
+twice per quarter note. A performance override changes only the visual cue; edit
+the song's **Time** field to save its meter. This is a silent visual cue, not an
+audio metronome.
+
+The simple editor recognizes standalone section headings (including numbered
+verses, Refrain, Pre-Chorus, Interlude and English/German variants), displays the
+same section colors in its live preview, and preserves spaced instrumental
+chord-only lines. Ordinary lyric sentences remain lyrics.

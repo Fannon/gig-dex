@@ -10,7 +10,7 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"preview": "vite preview",
-		"test": "vitest run",
+		"test": "vitest run && node --test scripts/chordle-import.test.mjs",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:e2e": "playwright test",
@@ -19,7 +19,8 @@
 		"verify": "npm run validate && npm run build && npm run test:e2e",
 		"prepare": "lefthook install",
 		"typecheck": "tsc -b",
-		"screenshots": "node scripts/song-screenshots.mjs"
+		"screenshots": "node scripts/song-screenshots.mjs",
+		"import:chordle": "node scripts/chordle-import.mjs"
 	},
 	"dependencies": {
 		"chordsheetjs": "^13.1.0",
