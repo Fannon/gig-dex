@@ -6,7 +6,7 @@ test.describe("Song Page", () => {
 
 		// Add demo song
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toBeVisible();
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 
 		// Click on song card
 
@@ -143,7 +143,7 @@ test.describe("Song Page", () => {
 
 		// Songs mode automatically opens the library's selected song.
 		await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
-		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 		await expect(page).toHaveURL(/\/song\/[^/]+$/);
 	});
 });

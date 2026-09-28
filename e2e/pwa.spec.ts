@@ -25,7 +25,7 @@ test("offline settings distinguish local songs, storage protection, installation
 	await page.goto("./settings");
 	const settings = page.getByRole("region", { name: "Offline app" });
 	await settings.getByText("Offline status & storage", { exact: true }).click();
-	await expect(settings).toContainText("1 song · 0 setlists stored on this device");
+	await expect(settings).toContainText("2 songs · 1 setlist stored on this device");
 	await expect(settings).toContainText("1.0 MB of 100.0 MB");
 	await settings.getByRole("button", { name: "Protect local storage" }).click();
 	await expect(settings).toContainText("Persistent storage granted");
@@ -108,5 +108,5 @@ test("a failed route download shows a recovery view with the library preserved",
 	await page.getByRole("link", { name: /Settings/i }).click();
 	await expect(page.getByRole("heading", { name: "This view couldn’t load" })).toBeVisible();
 	await page.getByRole("link", { name: "Go to your library" }).click();
-	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
+	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 });

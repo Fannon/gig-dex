@@ -78,9 +78,10 @@ test("unsaved song edits survive rejected navigation, cancellation and browser B
 		.getByRole("navigation", { name: "Main navigation" })
 		.getByRole("link", { name: "Sets", exact: true })
 		.click();
-	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toContainText(
+	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toContainText([
+		"Tutorial Song",
 		"Unsaved title",
-	);
+	]);
 });
 
 test("setlist drafts survive rejected Escape and cancel, and save without discard prompts", async ({

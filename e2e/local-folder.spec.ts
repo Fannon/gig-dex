@@ -45,8 +45,8 @@ test("folder picker connects, survives reload, handles denied permission and swi
 		for await (const entry of dir.values()) names.push(entry.name);
 		return names;
 	});
-	expect(names).toHaveLength(1);
-	expect(names[0]).toMatch(/^gigdex-song-[0-9a-f-]+\.json$/);
+	expect(names.filter((name) => /^gigdex-song-[0-9a-f-]+\.json$/.test(name))).toHaveLength(2);
+	expect(names.filter((name) => /^gigdex-setlist-[0-9a-f-]+\.json$/.test(name))).toHaveLength(1);
 	await page.reload();
 	await expect(
 		host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" }),
@@ -56,7 +56,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
 	});
 	await host.getByRole("button", { name: "Sync Now", exact: true }).click();
 	await expect(host.getByRole("alert")).toContainText("permission denied");
-	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
+	await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 	await page.evaluate(() => {
 		const state = (window as unknown as { folderFixture: FolderFixture }).folderFixture;
 		state.permission = "granted";
@@ -96,7 +96,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
 		}
 		return counts;
 	});
-	expect(retained).toEqual([1, 1]);
+	expect(retained).toEqual([3, 3]);
 });
 
 test("runtime Client IDs enable cloud hosts without rebuilding, persist, and reject invalid values", async ({

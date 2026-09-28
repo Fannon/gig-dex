@@ -24,20 +24,20 @@ test.describe("Home Page", () => {
 		await expect(page.locator(".home-page__empty").getByText("No songs yet")).toBeVisible();
 	});
 
-	test("should add a demo song", async ({ page }) => {
+	test("should add demo songs and a setlist", async ({ page }) => {
 		await page.goto("./");
 
 		// Click add demo song button
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
 
-		// Verify song card appears
-		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toBeVisible();
-		await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toContainText(
-			"Amazing Grace",
-		);
-		await expect(page.locator("#sidebar-songs .library-sidebar__links small")).toContainText(
-			"Traditional",
-		);
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+		await expect(page.getByRole("link", { name: /Amazing Grace Traditional/ })).toBeVisible();
+		await expect(page.getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ })).toBeVisible();
+		await page
+			.getByRole("navigation", { name: "Main navigation" })
+			.getByRole("link", { name: "Sets" })
+			.click();
+		await expect(page.getByRole("button", { name: /Demo Night/ })).toBeVisible();
 	});
 
 	test("should search songs", async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe("Home Page", () => {
 
 		// Add demo song first
 		await page.getByRole("button", { name: "Add Demo Song" }).click();
-		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toBeVisible();
+		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 
 		// Search for the song
 		await page.locator("#sidebar-songs input").fill("Amazing");
