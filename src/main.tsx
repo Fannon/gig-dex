@@ -13,18 +13,18 @@ startPwa();
 
 // Initialize the database on app start
 initDB()
-	.then(() => {
-		console.log("Database initialized");
-	})
-	.catch((err) => {
-		console.error("Failed to initialize database:", err);
-	});
+  .then(() => {
+    console.log("Database initialized");
+  })
+  .catch((err) => {
+    console.error("Failed to initialize database:", err);
+  });
 
 const rootElement = document.getElementById("root");
 if (rootElement) {
-	createRoot(rootElement).render(
-		<StrictMode>
-			<App />
-		</StrictMode>,
-	);
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
 }

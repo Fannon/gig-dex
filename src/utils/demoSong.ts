@@ -81,7 +81,7 @@ export const TUTORIAL_SONG = `{title: Tutorial Song}
 
 /** Demo setlist shown alongside the demo songs. Song IDs are filled in when seeding. */
 export const DEMO_SETLIST = {
-	name: "Demo Night",
-	description: "Tutorial Song first, Amazing Grace to close.",
-	tags: ["demo"],
+  name: "Demo Night",
+  description: "Tutorial Song first, Amazing Grace to close.",
+  tags: ["demo"],
 };
