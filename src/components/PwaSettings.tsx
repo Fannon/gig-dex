@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getAllSetlists, getAllSongs } from "../db";
+import { getAllSetlists, getAllSongs, LIBRARY_CHANGED_EVENT } from "../db";
 import { applyPwaUpdate, checkPwaUpdate, installPwa, repairPwaCache, usePwaState } from "../pwa/lifecycle";
 import "./PwaStatus.scss";
 
@@ -39,13 +39,11 @@ export function PwaSettings() {
     };
     window.addEventListener("focus", update);
     window.addEventListener("gigdex-backup-export", update);
-    window.addEventListener("gigdex-library-change", update);
-    window.addEventListener("gig-dex-library-changed", update);
+    window.addEventListener(LIBRARY_CHANGED_EVENT, update);
     return () => {
       window.removeEventListener("focus", update);
       window.removeEventListener("gigdex-backup-export", update);
-      window.removeEventListener("gigdex-library-change", update);
-      window.removeEventListener("gig-dex-library-changed", update);
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, update);
       window.clearTimeout(timer);
     };
   }, [refresh]);
@@ -152,8 +150,8 @@ export function PwaSettings() {
           <dd>{backup ? new Date(backup).toLocaleString() : "No backup exported on this device yet"}</dd>
         </dl>
         <p>
-          Your local library is available without cloud sync. Missing songs must be imported or synced before a gig.
-          Cloud sync status and last successful sync are shown below.
+          Your local library is available without cloud sync. Missing songs must be imported or synced before a gig. See
+          Sync for connection status and recent activity.
         </p>
         <p>
           Keep an exported backup outside the app. Clearing site/app data removes local songs even when persistent

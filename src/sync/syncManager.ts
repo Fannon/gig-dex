@@ -1,7 +1,7 @@
-import { getAllSetlists, getAllSongs, initDB } from "../db";
+import { getAllSetlists, getAllSongs, initDB, notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
-import { recordFingerprint } from "../utils/recordFingerprint";
+import { recordFingerprint, stableStringify } from "../utils/recordFingerprint";
 import { addSyncActivity } from "./activity";
 import { type LibraryRecord, type RecordType, type RemoteVersion, recordKey, recordTitle, syncKey } from "./records";
 import { acknowledge, getLocalRecord, getSyncBase, getSyncConflicts, saveConflict } from "./syncStore";
@@ -19,7 +19,7 @@ export class SyncManager {
     } finally {
       SyncManager.busy = false;
       releaseUpdate();
-      window.dispatchEvent(new Event("gigdex-library-change"));
+      notifyLibraryChanged();
     }
   }
   private status: SyncStatus = {
@@ -38,6 +38,7 @@ export class SyncManager {
   }
   resetStatus(): void {
     this.status = { lastSyncTime: null, isSyncing: false, error: null, conflictCount: 0 };
+    localStorage.removeItem(`last_sync:${this.provider.name}`);
     window.dispatchEvent(new Event("gigdex-sync-status"));
   }
   async sync(): Promise<void> {
@@ -51,7 +52,8 @@ export class SyncManager {
     this.status.isSyncing = true;
     this.status.error = null;
     try {
-      if (!(await this.provider.authenticate())) return;
+      if (!(await this.provider.authenticate()))
+        throw new Error(`Could not connect to ${this.provider.name}. Try again.`);
       const files = await this.provider.listFiles();
       this.scope = this.provider.getScope?.() ?? "";
       const remote = new Map<string, SyncMetadata[]>();
@@ -68,10 +70,24 @@ export class SyncManager {
         local.map((item) => [recordKey(item.type, item.id), { id: item.id, type: item.type }]),
       );
       for (const file of files) identities.set(recordKey(file.type, file.id), { id: file.id, type: file.type });
-      for (const [key, item] of identities) await this.syncRecord(item.type, item.id, remote.get(key) ?? []);
+      const failures: string[] = [];
+      for (const [key, item] of identities) {
+        try {
+          await this.syncRecord(item.type, item.id, remote.get(key) ?? []);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : "Unknown error";
+          failures.push(`${item.type} ${item.id}: ${reason}`);
+        }
+      }
       this.status.conflictCount = (await getSyncConflicts()).filter(
         (conflict) => (conflict.scope ?? "") === this.scope,
       ).length;
+      if (failures.length) {
+        const details = failures.slice(0, 3).join("; ");
+        throw new Error(
+          `Sync incomplete: ${failures.length} item${failures.length === 1 ? "" : "s"} failed. ${details}`,
+        );
+      }
       this.status.lastSyncTime = new Date().toISOString();
       localStorage.setItem(`last_sync:${this.provider.name}`, this.status.lastSyncTime);
       addSyncActivity({
@@ -94,7 +110,7 @@ export class SyncManager {
       this.status.isSyncing = false;
       SyncManager.busy = false;
       releaseUpdate();
-      window.dispatchEvent(new Event("gigdex-library-change"));
+      notifyLibraryChanged();
       window.dispatchEvent(new Event("gigdex-sync-status"));
     }
   }
@@ -158,6 +174,8 @@ export class SyncManager {
     const local = await getLocalRecord(type, id);
     const base = await getSyncBase(type, id, this.scope);
     const versions = await Promise.all(files.map((file) => this.read(file)));
+    if (stableStringify(await getLocalRecord(type, id)) !== stableStringify(local))
+      throw new Error("Library changed during sync. Please sync again.");
     const revisions = versions.map((version) => version.revision).sort();
     if (!versions.length) {
       if (local) {

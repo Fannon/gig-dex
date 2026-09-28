@@ -127,7 +127,7 @@ test.describe("Song Page", () => {
     await expect(page.locator(".song-page__title")).toContainText("Amazing Grace (Updated)");
   });
 
-  test("main Songs navigation reopens Songs mode with the library and selected song", async ({ page }) => {
+  test("main Songs navigation opens the library overview", async ({ page }) => {
     await page.goto("./");
 
     // Add and navigate to demo song
@@ -139,9 +139,13 @@ test.describe("Song Page", () => {
       .getByRole("link", { name: "Songs", exact: true })
       .click();
 
-    // Songs mode automatically opens the library's selected song.
-    await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
+    await expect(page.getByRole("main").getByRole("heading", { name: "Songs" })).toBeVisible();
     await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
-    await expect(page).toHaveURL(/\/song\/[^/]+$/);
+    await expect(page).toHaveURL(/\/$/);
+    await page
+      .getByRole("main")
+      .getByRole("link", { name: /Amazing Grace/ })
+      .click();
+    await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
   });
 });

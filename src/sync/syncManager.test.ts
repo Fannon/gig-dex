@@ -8,6 +8,7 @@ import {
   getAllSongs,
   getSong,
   initDB,
+  LIBRARY_CHANGED_EVENT,
   type Song,
   saveSong,
   updateSetlist,
@@ -221,11 +222,12 @@ describe("durable sync with real IndexedDB", () => {
     };
     const manager = new SyncManager(cloud);
     await manager.sync();
-    expect(manager.getStatus().error).toBe("Connection lost");
-    expect(localStorage.getItem("last_sync_time")).toBeNull();
+    expect(manager.getStatus().error).toContain("Connection lost");
+    expect(localStorage.getItem("last_sync:Test cloud")).toBeNull();
     cloud.uploadFile = upload;
     await manager.sync();
     expect(manager.getStatus().error).toBeNull();
+    expect(localStorage.getItem("last_sync:Test cloud")).not.toBeNull();
     expect(cloud.files).toHaveLength(1);
     expect(await getSong(id)).toBeDefined();
   });
@@ -239,8 +241,65 @@ describe("durable sync with real IndexedDB", () => {
     );
     const manager = new SyncManager(cloud);
     await manager.sync();
-    expect(manager.getStatus().error).toBe("Invalid remote song data");
+    expect(manager.getStatus().error).toContain("Invalid remote song data");
     expect(await getAllSongs()).toHaveLength(1);
+  });
+  it("syncs healthy records when another download fails and retries only the missing item", async () => {
+    const cloud = new Cloud();
+    const ids = await Promise.all(
+      ["First", "Second", "Third"].map((title) => addSong({ title, artist: "", content: title, tags: [] })),
+    );
+    await new SyncManager(cloud).sync();
+    await clear();
+    localStorage.removeItem("last_sync:Test cloud");
+    const failingId = cloud.files.find((file) => file.metadata.id === ids[1])?.metadata.gdriveId;
+    const download = cloud.downloadFile.bind(cloud);
+    cloud.downloadFile = async (id) => {
+      if (id === failingId) throw new Error("Network interrupted");
+      return download(id);
+    };
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    expect((await getAllSongs()).map((song) => song.id).sort()).toEqual([ids[0], ids[2]].sort());
+    expect(manager.getStatus().error).toContain("Network interrupted");
+    expect(manager.getStatus().lastSyncTime).toBeNull();
+    cloud.downloadFile = download;
+    await manager.sync();
+    expect(await getAllSongs()).toHaveLength(3);
+    expect(manager.getStatus().error).toBeNull();
+  });
+  it("detects an edit made while downloading before it uploads an older snapshot", async () => {
+    const cloud = new Cloud();
+    const id = await seed();
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    await updateSong(id, { title: "Local edit" });
+    const download = cloud.downloadFile.bind(cloud);
+    cloud.downloadFile = async (remoteId) => {
+      await updateSong(id, { title: "Newest edit" });
+      return download(remoteId);
+    };
+    await manager.sync();
+    expect(manager.getStatus().error).toContain("Library changed during sync");
+    expect(cloud.files).toHaveLength(1);
+    cloud.downloadFile = download;
+    await manager.sync();
+    expect(cloud.files).toHaveLength(2);
+    expect(JSON.parse(cloud.files[1].content).title).toBe("Newest edit");
+  });
+  it("emits the library event and clears persisted status on reset", async () => {
+    const cloud = new Cloud();
+    await seed();
+    const changed = vi.fn();
+    window.addEventListener(LIBRARY_CHANGED_EVENT, changed);
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    window.removeEventListener(LIBRARY_CHANGED_EVENT, changed);
+    expect(changed).toHaveBeenCalled();
+    expect(localStorage.getItem("last_sync:Test cloud")).not.toBeNull();
+    manager.resetStatus();
+    expect(localStorage.getItem("last_sync:Test cloud")).toBeNull();
+    expect(new SyncManager(cloud).getStatus().lastSyncTime).toBeNull();
   });
   it("does not overwrite mismatched first-sync records without a shared baseline", async () => {
     const cloud = new Cloud();
@@ -281,6 +340,7 @@ it("guards overlapping syncs and returns without touching data after failed auth
   const manager = new SyncManager(cloud);
   await manager.sync();
   expect(cloud.files).toHaveLength(0);
+  expect(manager.getStatus().error).toContain("Could not connect to Test cloud");
   expect(manager.getStatus().lastSyncTime).toBeNull();
   let finish: (value: boolean) => void = () => {};
   cloud.authenticate.mockImplementation(

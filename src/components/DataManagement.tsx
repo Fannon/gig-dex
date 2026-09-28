@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import {
   exportLibrary,
@@ -29,7 +30,7 @@ export const DataManagement = () => {
     } finally {
       setBusy(false);
       releaseUpdate();
-      window.dispatchEvent(new Event("gigdex-library-change"));
+      notifyLibraryChanged();
     }
   };
   return (

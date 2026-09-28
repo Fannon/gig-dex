@@ -85,3 +85,18 @@ it("refuses cleanup if surviving content is invalid or any conflict remains", as
   });
   await expect(previewRevisionCleanup(provider)).rejects.toThrow("Resolve and sync");
 });
+it("ignores conflicts from a different sync host", async () => {
+  const { provider } = cloud();
+  provider.getScope = () => "dropbox:account";
+  await (await initDB()).put("syncConflicts", {
+    id: "onedrive:account::song:other",
+    scope: "onedrive:account",
+    recordId: "other",
+    type: "song",
+    remote: [],
+    createdAt: date,
+  });
+  const plan = await previewRevisionCleanup(provider);
+  expect(plan.scope).toBe("dropbox:account");
+  expect(await applyRevisionCleanup(provider, plan)).toBe(3);
+});

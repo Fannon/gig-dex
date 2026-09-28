@@ -9,6 +9,7 @@ import {
   getAllSongs,
   getSetlist,
   getSong,
+  LIBRARY_CHANGED_EVENT,
   type Setlist,
   type SetlistSongSettings,
   type Song,
@@ -79,9 +80,9 @@ export const SetlistsPage = () => {
           }
         });
     void load();
-    window.addEventListener("gig-dex-library-changed", load);
+    window.addEventListener(LIBRARY_CHANGED_EVENT, load);
     return () => {
-      window.removeEventListener("gig-dex-library-changed", load);
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, load);
       cancelled = true;
     };
   }, []);

@@ -1,6 +1,15 @@
 import { type CSSProperties, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { getAllSetlists, getAllSongs, getSetlist, getSong, type Setlist, type Song, updateSetlist } from "../db";
+import {
+  getAllSetlists,
+  getAllSongs,
+  getSetlist,
+  getSong,
+  LIBRARY_CHANGED_EVENT,
+  type Setlist,
+  type Song,
+  updateSetlist,
+} from "../db";
 import { usePwaState } from "../pwa/lifecycle";
 import { syncHosts } from "../sync";
 import { getSyncConflicts } from "../sync/syncStore";
@@ -82,10 +91,10 @@ export function LibraryWorkspace() {
   }, []);
   useEffect(() => {
     refresh();
-    window.addEventListener("gig-dex-library-changed", refresh);
+    window.addEventListener(LIBRARY_CHANGED_EVENT, refresh);
     window.addEventListener("focus", refresh);
     return () => {
-      window.removeEventListener("gig-dex-library-changed", refresh);
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, refresh);
       window.removeEventListener("focus", refresh);
     };
   }, [refresh]);

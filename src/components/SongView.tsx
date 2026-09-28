@@ -96,8 +96,10 @@ export const SongView = ({
       };
     }
   }, [content, transpose, chordMode]);
-
-  const flowHtml = useMemo(() => readingHtml(parsed.html), [parsed.html]);
+  const flowHtml = useMemo(
+    () => (!layout.fits && wrapLines ? readingHtml(parsed.html) : parsed.html),
+    [layout.fits, wrapLines, parsed.html],
+  );
 
   useEffect(() => {
     onKeyChange?.(parsed.key);
@@ -156,7 +158,7 @@ export const SongView = ({
       contentEl.style.columnCount = String(result.columns);
       contentEl.style.height = result.fits ? "100%" : "auto";
       if (!result.fits && wrapLines && !parsed.error) {
-        contentEl.innerHTML = flowHtml;
+        contentEl.innerHTML = readingHtml(parsed.html);
         contentEl.classList.add("song-view__content--reading");
       }
       setLayout((previous) =>
@@ -193,7 +195,7 @@ export const SongView = ({
       observer.disconnect();
       document.fonts.removeEventListener("loadingdone", fontsLoaded);
     };
-  }, [fitToScreen, autoSize, fontSize, minimumFontSize, parsed.html, parsed.error, showChords, wrapLines, flowHtml]);
+  }, [fitToScreen, autoSize, fontSize, minimumFontSize, parsed.html, parsed.error, showChords, wrapLines]);
 
   // Update parent with transposed content if needed
   useEffect(() => {

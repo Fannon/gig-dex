@@ -171,8 +171,9 @@ export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
   return dbPromise;
 };
 
+export const LIBRARY_CHANGED_EVENT = "gig-dex-library-changed";
 export const notifyLibraryChanged = () => {
-  if (typeof window !== "undefined") window.dispatchEvent(new Event("gig-dex-library-changed"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(LIBRARY_CHANGED_EVENT));
 };
 
 // Helper to generate IDs and timestamps

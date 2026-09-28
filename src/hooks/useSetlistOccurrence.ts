@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSetlist, type Setlist, updateSetlist } from "../db";
+import { getSetlist, LIBRARY_CHANGED_EVENT, type Setlist, updateSetlist } from "../db";
 import { occurrenceSettings } from "../utils/setlistSettings";
 
 export function useSetlistOccurrence(listId: string | null, songId: string | undefined, index: number) {
@@ -20,10 +20,10 @@ export function useSetlistOccurrence(listId: string | null, songId: string | und
         });
     };
     load();
-    window.addEventListener("gig-dex-library-changed", load);
+    window.addEventListener(LIBRARY_CHANGED_EVENT, load);
     return () => {
       cancelled = true;
-      window.removeEventListener("gig-dex-library-changed", load);
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, load);
     };
   }, [listId, songId, index]);
   const transpose = async (value: number) => {

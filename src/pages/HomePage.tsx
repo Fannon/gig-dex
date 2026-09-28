@@ -1,31 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { addSetlist, addSong, getAllSongs } from "../db";
+import { addSetlist, addSong, getAllSongs, LIBRARY_CHANGED_EVENT, type Song } from "../db";
 import { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "../utils/demoSong";
+import { matchesLibrarySearch } from "../utils/librarySearch";
 import "./HomePage.scss";
 
 export const HomePage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [query, setQuery] = useState("");
   useEffect(() => {
     let cancelled = false;
-    void getAllSongs()
-      .then((songs) => {
-        if (cancelled) return;
-        if (songs.length) navigate(`/song/${songs[songs.length - 1].id}`, { replace: true });
-        else setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) {
+    const refresh = () => {
+      void getAllSongs()
+        .then((library) => {
+          if (cancelled) return;
+          setSongs(library.sort((a, b) => a.title.localeCompare(b.title)));
+          setError("");
           setLoading(false);
-          setError("Could not load your songs. Reload to try again.");
-        }
-      });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setLoading(false);
+            setError("Could not load your songs. Reload to try again.");
+          }
+        });
+    };
+    refresh();
+    window.addEventListener(LIBRARY_CHANGED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
     return () => {
       cancelled = true;
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
     };
-  }, [navigate]);
+  }, []);
+  const visibleSongs = useMemo(
+    () => songs.filter((song) => matchesLibrarySearch(`${song.title} ${song.artist ?? ""}`, song.tags ?? [], query)),
+    [songs, query],
+  );
   const addDemo = async () => {
     try {
       const tutorialId = await addSong({
@@ -61,6 +76,40 @@ export const HomePage = () => {
         {error && <p role="alert">{error}</p>}
         {loading ? (
           <output>Loading songs…</output>
+        ) : songs.length ? (
+          <>
+            <div className="home-page__overview-header">
+              <div>
+                <h1>Songs</h1>
+                <p>{songs.length} in your library</p>
+              </div>
+            </div>
+            <label className="home-page__search-label" htmlFor="library-song-search">
+              Search your songs
+            </label>
+            <input
+              id="library-song-search"
+              className="home-page__search-input"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Title, artist, or #tag"
+            />
+            {visibleSongs.length ? (
+              <ul className="home-page__songs">
+                {visibleSongs.map((song) => (
+                  <li key={song.id}>
+                    <Link to={`/song/${song.id}`}>
+                      <strong>{song.title}</strong>
+                      {song.artist && <span>{song.artist}</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="home-page__no-results">No songs match your search.</p>
+            )}
+          </>
         ) : (
           <div className="home-page__empty">
             <h1>No songs yet</h1>

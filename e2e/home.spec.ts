@@ -27,10 +27,13 @@ test.describe("Home Page", () => {
 
     // Click add demo song button
     await page.getByRole("button", { name: "Add Demo Song" }).click();
+    await expect(page).toHaveURL(/\/song\/[^/]+$/);
 
     await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
-    await expect(page.getByRole("link", { name: /Amazing Grace Traditional/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ })).toBeVisible();
+    await expect(page.locator("#sidebar-songs").getByRole("link", { name: /Amazing Grace Traditional/ })).toBeVisible();
+    await expect(
+      page.locator("#sidebar-songs").getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ }),
+    ).toBeVisible();
     await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Sets" }).click();
     await expect(page.getByRole("button", { name: /Demo Night/ })).toBeVisible();
   });
@@ -41,20 +44,41 @@ test.describe("Home Page", () => {
     // Add demo song first
     await page.getByRole("button", { name: "Add Demo Song" }).click();
     await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+    await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Songs" }).click();
+    await expect(page.getByRole("heading", { name: "Songs" })).toBeVisible();
+    await expect(page.locator(".home-page__songs a")).toHaveCount(2);
 
     // Search for the song
-    await page.locator("#sidebar-songs input").fill("Amazing");
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toBeVisible();
+    await page.getByRole("searchbox", { name: "Search your songs" }).fill("Amazing");
+    await expect(page.locator(".home-page__songs a")).toHaveCount(1);
+    await expect(page.locator(".home-page__songs a")).toContainText("Amazing Grace");
 
     // Search for non-existent song
-    await page.locator("#sidebar-songs input").fill("NonExistent");
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).not.toBeVisible();
+    await page.getByRole("searchbox", { name: "Search your songs" }).fill("NonExistent");
+    await expect(page.getByText("No songs match your search.")).toBeVisible();
+  });
+
+  test("opens a searchable library on a narrow screen", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("./");
+    await page.getByRole("button", { name: "Add Demo Song" }).click();
+    await expect(page).toHaveURL(/\/song\/[^/]+$/);
+    await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Songs" }).click();
+    await expect(page.getByRole("heading", { name: "Songs" })).toBeVisible();
+    await expect(page.locator(".home-page__songs a")).toHaveCount(2);
+    await page.getByRole("searchbox", { name: "Search your songs" }).fill("#tutorial");
+    await expect(page.locator(".home-page__songs a")).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
   test("demo Instrumental uses the chord color", async ({ page }) => {
     await page.goto("./");
     await page.getByRole("button", { name: "Add Demo Song" }).click();
-    await page.getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ }).click();
+    await expect(page).toHaveURL(/\/song\/[^/]+$/);
+    await page
+      .locator("#sidebar-songs")
+      .getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ })
+      .click();
     const label = page.locator(".song-view__content .section-instrumental");
     await expect(label).toBeVisible();
     await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);

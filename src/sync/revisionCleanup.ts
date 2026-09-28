@@ -18,9 +18,10 @@ const snapshot = (files: SyncMetadata[]) =>
 async function makePlan(provider: SyncProvider): Promise<CleanupPlan> {
   if (!provider.listRevisions || !provider.archiveRevision)
     throw new Error("This host does not support revision cleanup.");
-  if ((await getSyncConflicts()).length)
-    throw new Error("Resolve and sync all library conflicts before cleaning history.");
   if (!(await provider.authenticate())) throw new Error("Connect your sync host first.");
+  const scope = provider.getScope?.() ?? "";
+  if ((await getSyncConflicts()).some((conflict) => (conflict.scope ?? "") === scope))
+    throw new Error("Resolve and sync this host's library conflicts before cleaning history.");
   const files = await provider.listRevisions();
   const candidates = planRevisionCleanup(files);
   // Validate the surviving heads before trusting their ancestry to retire any older content.
@@ -43,7 +44,7 @@ async function makePlan(provider: SyncProvider): Promise<CleanupPlan> {
       throw new Error("Revision metadata differs from its contents.");
   }
   return {
-    scope: provider.getScope?.() ?? "",
+    scope,
     snapshot: snapshot(files),
     candidates,
     createdAt: Date.now(),
@@ -61,7 +62,8 @@ async function applyPlan(provider: SyncProvider, reviewed: CleanupPlan) {
     throw new Error("Remote history changed since the preview. Review cleanup again.");
   let archived = 0;
   for (const file of fresh.candidates) {
-    if ((await getSyncConflicts()).length) throw new Error("A conflict was detected. Stop cleanup and sync again.");
+    if ((await getSyncConflicts()).some((conflict) => (conflict.scope ?? "") === fresh.scope))
+      throw new Error("A conflict was detected. Stop cleanup and sync again.");
     try {
       await provider.archiveRevision(file);
       archived++;

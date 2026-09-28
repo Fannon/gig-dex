@@ -9,6 +9,12 @@ const dom = (html: string) => {
   return element;
 };
 describe("word wrapping with chord positions", () => {
+  it("keeps labels and comments inside measured chord rows", () => {
+    const element = dom(format("{start_of_verse: Verse 1}\n{comment: Quietly}\n[C]A line\n{end_of_verse}"));
+    const annotations = element.querySelectorAll(".label, .comment");
+    expect(annotations.length).toBeGreaterThan(0);
+    expect(Array.from(annotations).every((node) => node.closest("table.row"))).toBe(true);
+  });
   it("preserves all lyrics, whitespace and chords while joining fragments within one word", () => {
     const before = dom(
       format(

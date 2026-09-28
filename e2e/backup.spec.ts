@@ -17,6 +17,7 @@ test("import multiple songs, report duplicates and invalid content, export and r
     { name: "empty.cho", mimeType: "text/plain", buffer: Buffer.from("") },
   ]);
   await expect(page.getByRole("status")).toContainText("2 imported, 1 duplicates skipped, 1 failed");
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.evaluate(async () => {
     const base = location.pathname.replace(/settings$/, "");
     const { addSetlist, getAllSongs } = await import(`${base}src/db.ts`);
@@ -72,6 +73,7 @@ test("replace restore requires confirmation and restores an empty library", asyn
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Restore library", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Backup restored successfully.");
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(0);
   await page.goto("./");
   await expect(page.getByText("No songs yet")).toBeVisible();
 });

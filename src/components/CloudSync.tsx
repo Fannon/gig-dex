@@ -51,7 +51,6 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
     }
   };
   const reset = () => {
-    localStorage.removeItem(`last_sync:${provider.name}`);
     manager.resetStatus();
   };
   const logout = async () => {

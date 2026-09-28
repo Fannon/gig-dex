@@ -110,6 +110,12 @@ describe("library backups and imports", () => {
       tags: ["acoustic", "gig"],
     });
   });
+  it("stores imported text in the same normalized form used for duplicate detection", async () => {
+    const text = "{title: Harbor}\n[C]Line";
+    await importChordPro([{ name: "windows.cho", content: `  ${text.replaceAll("\n", "\r\n")}\r\n` }]);
+    expect((await getAllSongs())[0].content).toBe(text);
+    expect((await importChordPro([{ name: "unix.cho", content: text }]))[0].status).toBe("duplicate");
+  });
 });
 
 it("backs up deletions and conflict snapshots, restores active records without reviving local deletions in merge mode", async () => {

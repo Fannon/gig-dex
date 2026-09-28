@@ -279,6 +279,7 @@ export async function importChordPro(files: { name: string; content: string }[])
       }
       await tx.store.add({
         ...draft.song,
+        content,
         id: crypto.randomUUID(),
         createdAt: now,
         lastModified: now,

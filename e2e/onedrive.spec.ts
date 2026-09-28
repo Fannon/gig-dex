@@ -195,6 +195,10 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
     .getByRole("link", { name: "Songs", exact: true })
     .click();
   await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveText("OneDrive fixture");
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: /OneDrive fixture/ })
+    .click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await context.setOffline(true);
   await page.getByLabel("Title", { exact: true }).fill("Edited while offline");
