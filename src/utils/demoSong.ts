@@ -29,8 +29,8 @@ And [G]grace will [D]lead me [G]home
 
 /**
  * Tutorial Song: the manual you can sing. Each section teaches one
- * Gig-Dex feature. Demonstrates verse, chorus, bridge, instrumental
- * tab, outro, comments and metadata (key, tempo, time, capo).
+ * Gig-Dex feature. Demonstrates verse, chorus, bridge, chord-only
+ * instrumental, outro, comments and metadata (key, tempo, time, capo).
  */
 export const TUTORIAL_SONG = `{title: Tutorial Song}
 {artist: Gig-Dex Demo}
@@ -41,37 +41,36 @@ export const TUTORIAL_SONG = `{title: Tutorial Song}
 
 {comment: Hi! This song IS the manual. Read it top to bottom, tap the buttons as you go, then edit or delete it.}
 
-{start_of_verse: Verse 1 — Reading}
-[C]Welcome to your [G]songbook, it all works [Am]offline [F]here
-[C]Chords sit above the [G]words you sing, the [C]text stays [G]clear
-[C]Phone or projector, [G]each song [Am]fits the [F]screen
-[C]Plus and [G]minus tune the [C]font size in between
+{start_of_verse: Verse 1 (Reading)}
+[C]Welcome to your [G]songbook, [Am]Wi-Fi can dis[F]appear
+[C]Chords sit above the [G]words you sing, [C]bright and [G]clear
+[C]Phone or projector, [G]fit it [Am]to the [F]screen
+[C]Tap plus or [G]minus, keep the [C]lyrics clean
 {end_of_verse}
 
-{start_of_chorus: Chorus — Transposing (sing along!)}
-[F]Sing a-long, transpose a-[C]long, just tap plus and [G]go
-[C]Too high? Tap [G]minus, every [Am]chord will [F]follow
-[F]Capo two is [C]set above, play [G]C, you'll ring in D
-[C]Each setlist [G]song keeps its [Am]own key and [F]ca-[C]po
+{start_of_chorus: Chorus (Transposing, sing along!)}
+[F]Sing along, transpose [C]up and let it [G]fly
+[C]Too high? Tap [G]minus; watch the [Am]chords com[F]ply
+[F]Capo two means [C]C sounds like [G]D tonight
+[C]Each set song [G]saves its [Am]key, so the [F]next sounds [C]right
 {end_of_chorus}
 
-{start_of_verse: Verse 2 — Setlists}
-[C]Open Sets, make a [G]new list, then [Am]tap the [F]plus sign
-[C]Drag the songs in [G]gig order, [C]repeats are [G]fine
-[C]Hit Perform when [G]lights go down, the [Am]screen stays a-[F]wake
-[C]Arrows, swipe, or [G]big buttons — [C]next song, piece of cake
+{start_of_verse: Verse 2 (Setlists)}
+[C]Open Sets, make a [G]new list, [Am]tap the [F]plus sign
+[C]Drag songs into [G]gig order; [C]encores twice are [G]fine
+[C]Hit Perform when [G]lights go down, the [Am]screen stays [F]bright
+[C]Swipe to the [G]next song; no [C]page-flip fight
 {end_of_verse}
 
-{start_of_bridge: Bridge — Safety}
-[Am]Before the gig ex-[G]port your JSON [F]file
-[Am]Paste Ultimate-[G]Guitar chords too, they [C]convert just fine
-[Am]Sync through folders [G]if you like, or [F]keep it all right here
-[C]Offline-[G]first means [Am]no Wi-[F]Fi [C]fear
+{start_of_bridge: Bridge (Safety)}
+[Am]Before the gig, ex-[G]port a backup [F]file
+[Am]Paste in chord sheets [G]too; your library [C]grows in style
+[Am]Sync through folders [G]if you like, or [F]keep it right here
+[C]If the [G]router calls in [Am]sick, the [F]chords won't [C]disappear
 {end_of_bridge}
 
-{start_of_tab: Instrumental (tune up while nobody sings)}
+{comment: Instrumental}
 [C] [G] [Am] [F] | [C] [G] [C]
-{end_of_tab}
 
 {start_of_outro: Outro}
 [C]That's the tour, now [G]go and [Am]play the [F]show

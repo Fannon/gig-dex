@@ -56,6 +56,26 @@ test.describe("Home Page", () => {
 		await expect(page.locator("#sidebar-songs .library-sidebar__links a")).not.toBeVisible();
 	});
 
+	test("demo Instrumental uses the chord color", async ({ page }) => {
+		await page.goto("./");
+		await page.getByRole("button", { name: "Add Demo Song" }).click();
+		await page.getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ }).click();
+		const label = page.locator(".song-view__content .section-instrumental");
+		await expect(label).toBeVisible();
+		const chords = await label.evaluate((element) => {
+			const section = element.closest(".paragraph") ?? element.parentElement;
+			return Array.from(section?.querySelectorAll(".chord") ?? []).map((chord) => ({
+				text: chord.textContent?.trim(),
+				color: getComputedStyle(chord).color,
+			}));
+		});
+		const namedChords = chords.filter((chord) => chord.text);
+		expect(namedChords.map((chord) => chord.text)).toEqual(["C", "G", "Am", "F", "C", "G", "C"]);
+		expect(namedChords.every((chord) => chord.color === "rgb(245, 158, 11)")).toBe(true);
+		await label.scrollIntoViewIfNeeded();
+		await page.screenshot({ path: "reports/tutorial-instrumental.png" });
+	});
+
 	test("should navigate to new song page via FAB", async ({ page }) => {
 		await page.goto("./");
 

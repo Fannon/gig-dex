@@ -8,6 +8,7 @@ import {
 	normalizeSimpleSpacing,
 	parseChordPro,
 	simpleToChordPro,
+	TUTORIAL_SONG,
 	transposeChordPro,
 } from "./chordEngine";
 
@@ -36,6 +37,15 @@ describe("chordEngine", () => {
 
 			expect(result.html).toBeTruthy();
 			expect(typeof result.html).toBe("string");
+		});
+
+		it("renders the demo instrumental as styled chords", () => {
+			const container = document.createElement("div");
+			container.innerHTML = parseChordPro(TUTORIAL_SONG).html;
+			const label = container.querySelector(".section-instrumental");
+			expect(label).not.toBeNull();
+			const instrumental = label?.closest(".paragraph") ?? label?.parentElement;
+			expect(instrumental?.querySelectorAll(".chord").length).toBeGreaterThan(0);
 		});
 	});
 
