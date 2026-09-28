@@ -121,6 +121,7 @@ export const ConflictReview = ({ status }: { status: SyncStatus }) => {
     try {
       await resolveConflict(id, choice);
       setConflicts(await getSyncConflicts());
+      window.dispatchEvent(new Event("gigdex-sync-status"));
       setMessage("Resolution saved. Sync again to share it with your other devices.");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not resolve conflict.");
@@ -132,10 +133,17 @@ export const ConflictReview = ({ status }: { status: SyncStatus }) => {
   return (
     <section className="settings-page__section conflict-review">
       <h2>Sync conflicts</h2>
-      <p>Both versions are preserved. Review them before choosing; timestamps do not decide which edit wins.</p>
+      <p>
+        {conflicts.length} item{conflicts.length === 1 ? "" : "s"} need review. Both versions are safe until you choose.
+        Open details to compare changes.
+      </p>
       {conflicts.map((conflict) => (
         <article key={conflict.id}>
           <h3>{conflict.local ? recordTitle(conflict.local) : recordTitle(conflict.remote[0].record)}</h3>
+          <p>
+            {conflict.type === "song" ? "Song" : "Setlist"} · Edited in more than one place ·{" "}
+            {conflict.remote.length + (conflict.local ? 1 : 0)} versions
+          </p>
           {conflict.provider && <p>Host: {conflict.provider}</p>}
           {conflict.remote.map((version, index) => (
             <Comparison
@@ -151,7 +159,7 @@ export const ConflictReview = ({ status }: { status: SyncStatus }) => {
           ))}
           <div className="conflict-review__actions">
             <button type="button" disabled={busy || !conflict.local} onClick={() => void resolve(conflict.id, "local")}>
-              Keep this device’s version
+              Keep my version
             </button>
             {conflict.remote.map((version, index) => (
               <button
@@ -160,12 +168,14 @@ export const ConflictReview = ({ status }: { status: SyncStatus }) => {
                 disabled={busy}
                 onClick={() => void resolve(conflict.id, index)}
               >
-                {isDeletion(version.record) ? `Use remote deletion ${index + 1}` : `Use remote version ${index + 1}`}
+                {isDeletion(version.record)
+                  ? `Use the other deletion ${index + 1}`
+                  : `Use the other version ${index + 1}`}
               </button>
             ))}
             {conflict.remote.some((version) => !isDeletion(version.record)) && (
               <button type="button" disabled={busy} onClick={() => void resolve(conflict.id, "both")}>
-                Keep both as separate copies
+                Keep both
               </button>
             )}
           </div>

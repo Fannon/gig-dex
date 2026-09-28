@@ -45,7 +45,7 @@ export function SyncClientSettings() {
     saved[key] ? "Settings value" : effective[key] ? "Build-time configuration" : "Not configured";
   return (
     <details className="settings-page__client-settings">
-      <summary>Use your own cloud Client IDs</summary>
+      <summary>Advanced setup: cloud Client IDs</summary>
       <p>
         Add public OAuth Client IDs from your own Google/Microsoft app registrations. Register this app’s redirect URLs
         first. These settings stay on this browser and apply without a rebuild.

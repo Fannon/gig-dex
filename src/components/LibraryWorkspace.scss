@@ -86,3 +86,16 @@
 .workspace-search mark { color: inherit; background: #fbbf2440; border-radius: 2px; }
 .workspace-search__set-count { flex-shrink: 0; font-size: .75rem; white-space: nowrap; color: var(--text-secondary); margin-left: auto; }
 @media (max-width: 650px) { .workspace-search__results a { flex-wrap: wrap; gap: 8px; } .workspace-search__set-count { margin-left: 66px; } }
+.workspace-sync-alert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: .35rem;
+  border-radius: 50%;
+  background: #b91c1c;
+  color: white;
+  font-size: .75rem;
+  font-weight: 700;
+}

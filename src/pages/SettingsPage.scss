@@ -285,3 +285,51 @@
 
 .settings-page__appearance > label { display: grid; grid-template-columns: 140px auto; align-items: center; gap: 12px; margin: 8px 0; select { justify-self: start; } }
 .settings-page__hint { font-size: .85rem; color: var(--text-secondary); line-height: 1.45; margin: .75rem 0 0; }
+
+.settings-page__tabs {
+  display: flex;
+  gap: .5rem;
+  overflow-x: auto;
+  margin: 1rem 0 1.5rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--border-color);
+  button {
+    min-height: 44px;
+    padding: .6rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    &[aria-current="page"] { color: #fff; background: #5143b7; }
+    &:focus-visible { outline: 2px solid #c2bbfc; outline-offset: 2px; }
+  }
+}
+.settings-page__content > div[hidden] { display: none; }
+.settings-page__sync-intro, .settings-page__activity {
+  max-width: 760px;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  line-height: 1.5;
+  p { margin: 0 0 .5rem; }
+  a { color: #c2bbfc; }
+}
+.settings-page__activity {
+  h3 { margin: 0 0 .75rem; font-size: 1rem; }
+  ul { margin: 0; padding: 0; list-style: none; max-height: 18rem; overflow-y: auto; }
+  li { display: flex; flex-wrap: wrap; gap: .5rem; padding: .5rem 0; border-top: 1px solid var(--border-color); }
+  li[data-kind="error"] { color: #fca5a5; }
+  li[data-kind="conflict"] { color: #fcd34d; }
+  time { color: var(--text-secondary); }
+}
+.settings-page__advanced { margin: .5rem 0 1rem; summary { min-height: 44px; cursor: pointer; padding: .6rem; } }
+.pwa-settings__summary { color: var(--text-secondary); line-height: 1.5; }
+.settings-page__guide-links { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; }
+.settings-page__sync-box .settings-page__option--disabled { opacity: 1; cursor: default; color: var(--text-secondary); }
+.settings-page__sync-box .settings-page__option--disabled .settings-page__option-text h3 { color: var(--text-primary); }
+.settings-page__sync-error { overflow-wrap: anywhere; }

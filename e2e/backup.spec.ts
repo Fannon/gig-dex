@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("import multiple songs, report duplicates and invalid content, export and restore full library", async ({
   page,
 }) => {
-  await page.goto("./settings");
+  await page.goto("./settings?section=library");
   const content = "{title: Harbor}\n{artist: River Band}\n{composer: Original Composer}\n[C]Original test song";
   await page.getByLabel("Import ChordPro songs").setInputFiles([
     { name: "harbor.cho", mimeType: "text/plain", buffer: Buffer.from(content) },
@@ -54,7 +54,7 @@ test("import multiple songs, report duplicates and invalid content, export and r
 test("replace restore requires confirmation and restores an empty library", async ({ page }) => {
   await page.goto("./");
   await page.getByRole("button", { name: "Add Demo Song" }).click();
-  await page.goto("./settings");
+  await page.goto("./settings?section=library");
   const buffer = Buffer.from(
     JSON.stringify({
       format: "gig-dex",

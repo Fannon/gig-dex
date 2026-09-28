@@ -203,10 +203,10 @@ test("pure black theme persists and section categories have distinct colors with
   await page.goto("./settings");
   await page.getByLabel("Theme", { exact: true }).selectOption("black");
   await expect(page.locator("html")).toHaveAttribute("data-reading-theme", "black");
-  await expect(page.getByText("Offline status & storage", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Offline", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Offline", exact: true }).click();
+  await expect(page.getByText("Technical details", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Offline app" }).locator("dl")).not.toBeVisible();
-  const headings = await page.locator(".settings-page__content h2").allTextContents();
-  expect(headings.slice(0, 3)).toEqual(["Appearance", "Import & backups", "Cloud Sync"]);
   await page.goto(`./song/${song}`);
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
   const colors = await page.locator(".song-view__content .label").evaluateAll((labels) =>

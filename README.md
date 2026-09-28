@@ -59,7 +59,7 @@ Use this before gigs, before updates, before cleaning up. It just works.
 
 If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, this is the easiest automatic option:
 
-In *Settings → Cloud Sync → Connect local folder*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
+In *Settings → Sync → Sync from a folder on this computer*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
 
 Gig-Dex writes small files there, and *your existing desktop sync app* carries them to your other computers. No extra login in Gig-Dex, no registration, works offline.
 
@@ -74,7 +74,7 @@ Details: [docs/local-folder-sync.md](docs/local-folder-sync.md)
 
 Gig-Dex *can* talk directly to Google Drive and OneDrive, but there is no shared, ready-to-click cloud integration:
 
-> You have to register your **own** Google / Microsoft OAuth app ("bring your own Client ID") and paste its ID into Gig-Dex under *Settings → Cloud Sync → Use your own cloud Client IDs*.
+> You have to register your **own** Google / Microsoft OAuth app ("bring your own Client ID") and paste its ID into Gig-Dex under *Settings → Sync → Advanced setup: cloud Client IDs*.
 
 That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use option 1 or 2 above.**
 

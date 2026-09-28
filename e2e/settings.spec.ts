@@ -12,6 +12,7 @@ test.describe("Settings Page", () => {
   test("should display data management options", async ({ page }) => {
     await page.goto("./settings");
 
+    await page.getByRole("button", { name: "Library", exact: true }).click();
     // Use more specific locators
     await expect(page.locator(".settings-page__option-text h3").filter({ hasText: "Export library" })).toBeVisible();
     await expect(page.getByLabel("Restore backup")).toBeVisible();
@@ -21,8 +22,9 @@ test.describe("Settings Page", () => {
   test("should display cloud sync section", async ({ page }) => {
     await page.goto("./settings");
 
-    // Check for Cloud Sync section header
-    await expect(page.locator(".settings-page__section h2").filter({ hasText: "Cloud Sync" })).toBeVisible();
+    await page.getByRole("button", { name: "Sync", exact: true }).click();
+    // Check for Sync section header
+    await expect(page.locator(".settings-page__section h2").filter({ hasText: "Sync" })).toBeVisible();
 
     // Check for either "Google Drive Sync" (when not configured) or "Connect Google Drive" (when configured)
     await expect(page.locator(".settings-page__option-text h3").filter({ hasText: /Google Drive/i })).toBeVisible();
@@ -31,6 +33,7 @@ test.describe("Settings Page", () => {
   test("should display about section", async ({ page }) => {
     await page.goto("./settings");
 
+    await page.getByRole("button", { name: "About", exact: true }).click();
     await expect(page.locator(".settings-page__about-brand p")).toContainText("Version 0.1.0");
     await expect(page.getByRole("link", { name: /Learn ChordPro/i })).toBeVisible();
   });

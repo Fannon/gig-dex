@@ -85,8 +85,8 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
   };
   const folder = provider.getFolderName?.();
   const description = provider.pickFolder
-    ? "Sync via your Drive/OneDrive/Dropbox desktop folder. Works offline."
-    : "Sync songs, sets and deletions across devices";
+    ? "Works with a cloud folder already on this computer, and can sync while offline."
+    : "Keep songs and sets in sync across devices. Setup required.";
   return (
     <section className="settings-page__sync-box" aria-label={`${provider.name} sync`}>
       {!provider.isEnabled() ? (
@@ -95,15 +95,15 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
             <h3>{provider.name} Sync</h3>
             <p>
               {provider.pickFolder
-                ? "Local folder sync needs Chrome/Edge on desktop. Use a cloud host or backup files on mobile."
-                : "Not configured. Add your Client ID below to enable sync."}
+                ? "Folder sync is available in Chrome or Edge on a computer. Use a backup or direct cloud connection on mobile."
+                : "Setup required: register your own cloud app, then add its Client ID under Advanced setup."}
             </p>
           </div>
         </div>
       ) : !connected && !folder ? (
         <button type="button" className="settings-page__option" onClick={() => void sync()} disabled={busy || !ready}>
           <div className="settings-page__option-text">
-            <h3>{provider.pickFolder ? "Connect local folder" : `Connect ${provider.name}`}</h3>
+            <h3>{provider.pickFolder ? "Sync from a folder on this computer" : `Connect ${provider.name}`}</h3>
             <p>{description}</p>
           </div>
         </button>
@@ -111,13 +111,13 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
         <div className="settings-page__option">
           <div className="settings-page__option-text">
             <h3>
-              {provider.name} {connected ? "Connected" : "— permission required"}
+              {provider.name} {connected ? "Connected" : "— reconnect to continue"}
               {folder ? ` — ${folder}` : ""}
             </h3>
             <p>
-              {status.lastSyncTime ? `Last synced: ${new Date(status.lastSyncTime).toLocaleString()}` : "Never synced"}
+              {status.lastSyncTime ? `Last synced ${new Date(status.lastSyncTime).toLocaleString()}` : "Not synced yet"}
             </p>
-            {provider.pickFolder && <p>{description} Disconnecting keeps all folder files.</p>}
+            {provider.pickFolder && <p>{description}</p>}
           </div>
           <div className="settings-page__option-actions">
             <button
@@ -126,7 +126,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
               disabled={busy || !ready}
               onClick={() => void sync()}
             >
-              {busy ? "Syncing…" : "Sync Now"}
+              {busy ? "Syncing…" : "Sync now"}
             </button>
             {provider.pickFolder && (
               <button
@@ -135,7 +135,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
                 disabled={busy || !ready}
                 onClick={() => void changeFolder()}
               >
-                Change folder
+                Choose a different folder
               </button>
             )}
             <button
@@ -144,13 +144,18 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
               disabled={busy || !ready}
               onClick={() => void logout()}
             >
-              Disconnect
+              Stop syncing
             </button>
           </div>
         </div>
       )}
       {provider.getFolderWarning?.() && <output>{provider.getFolderWarning()}</output>}
-      {connected && <RevisionCleanup provider={provider} disabled={busy} />}
+      {connected && (
+        <details className="settings-page__advanced">
+          <summary>History cleanup</summary>
+          <RevisionCleanup provider={provider} disabled={busy} />
+        </details>
+      )}
       {(error || status.error) && (
         <p className="settings-page__sync-error" role="alert">
           {error || status.error}
@@ -161,7 +166,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
 };
 export const CloudSync = ({ onStatus }: { onStatus: (status: SyncStatus) => void }) => (
   <section className="settings-page__section">
-    <h2>Cloud Sync</h2>
+    <h2>Sync</h2>
     <div className="settings-page__options">
       {syncHosts.map((host) => (
         <Host key={host.provider.name} host={host} onStatus={onStatus} />

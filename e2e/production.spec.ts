@@ -13,7 +13,7 @@ test("production chunks load on demand and cached songs work offline", async ({ 
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
   await expect(page.locator(".song-view__content")).toContainText("Amazing");
   expect(scripts.some((url) => /chordEngine/.test(url))).toBe(true);
-  await page.goto("./settings");
+  await page.goto("./settings?section=library");
   await expect(page.getByRole("button", { name: /Export library/ })).toBeVisible();
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);

@@ -27,7 +27,7 @@ test("review preserved sync versions and keep both as independent songs", async 
       createdAt: new Date().toISOString(),
     });
   });
-  await page.goto("./settings");
+  await page.goto("./settings?section=sync");
   await expect(page.getByRole("heading", { name: "Sync conflicts" })).toBeVisible();
   await page.getByText(/Compare with remote version 1/).click();
   await expect(page.locator(".diff-removed")).toContainText("Local rehearsal words");
@@ -39,7 +39,7 @@ test("review preserved sync versions and keep both as independent songs", async 
   await expect(page.getByText("[C]Local rehearsal words", { exact: true })).toBeVisible();
   await page.getByText("Remote version 1: Harbor", { exact: true }).click();
   await expect(page.getByText("[G]Remote rehearsal words", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Keep both as separate copies" }).click();
+  await page.getByRole("button", { name: "Keep both" }).click();
   await expect(page.getByText(/Resolution saved/)).toBeVisible();
   await page.goto("./");
   await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveCount(2);

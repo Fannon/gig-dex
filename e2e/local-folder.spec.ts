@@ -27,11 +27,12 @@ test("folder picker connects, survives reload, handles denied permission and swi
   });
   await page.goto("./");
   await page.getByRole("button", { name: "Add Demo Song" }).click();
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+  await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
-  await host.getByRole("button", { name: /Connect local folder/ }).click();
+  await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
   await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
-  await expect(host.getByText(/Last synced:/)).toBeVisible();
+  await expect(host.getByText(/Last synced/)).toBeVisible();
   expect(
     await page.evaluate(() => (window as unknown as { folderFixture: FolderFixture }).folderFixture.pickerActivation),
   ).toEqual([true]);
@@ -48,21 +49,23 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await page.evaluate(() => {
     (window as unknown as { folderFixture: FolderFixture }).folderFixture.permission = "denied";
   });
-  await host.getByRole("button", { name: "Sync Now", exact: true }).click();
+  await host.getByRole("button", { name: "Sync now", exact: true }).click();
   await expect(host.getByRole("alert")).toContainText("permission denied");
+  await expect(page.locator(".workspace-sync-alert")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Recent sync activity" })).toContainText("permission denied");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.evaluate(() => {
     const state = (window as unknown as { folderFixture: FolderFixture }).folderFixture;
     state.permission = "granted";
     state.chosen = "Second folder";
   });
-  await host.getByRole("button", { name: "Change folder" }).click();
+  await host.getByRole("button", { name: "Choose a different folder" }).click();
   await expect(host.getByRole("heading", { name: "Local Folder Connected — Second folder" })).toBeVisible();
   await expect(host.getByRole("alert")).toHaveCount(0);
   expect(
     await page.evaluate(() => (window as unknown as { folderFixture: FolderFixture }).folderFixture.pickerActivation),
   ).toEqual([true]);
-  await page.getByText("Use your own cloud Client IDs", { exact: true }).click();
+  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
   await page.screenshot({ path: "reports/local-folder/settings-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Toggle sidebar", exact: true }).click();
@@ -73,8 +76,8 @@ test("folder picker connects, survives reload, handles denied permission and swi
     expect(box?.x).toBeGreaterThanOrEqual(0);
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
   }
-  await host.getByRole("button", { name: "Disconnect", exact: true }).click();
-  await expect(host.getByRole("button", { name: /Connect local folder/ })).toBeVisible();
+  await host.getByRole("button", { name: "Stop syncing", exact: true }).click();
+  await expect(host.getByRole("button", { name: /Sync from a folder on this computer/ })).toBeVisible();
   const retained = await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory();
     const counts = [];
@@ -92,8 +95,8 @@ test("folder picker connects, survives reload, handles denied permission and swi
 test("runtime Client IDs enable cloud hosts without rebuilding, persist, and reject invalid values", async ({
   page,
 }) => {
-  await page.goto("./settings");
-  await page.getByText("Use your own cloud Client IDs", { exact: true }).click();
+  await page.goto("./settings?section=sync");
+  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
   await page.getByLabel("Google Client ID", { exact: true }).fill("123-test.apps.googleusercontent.com");
   await page.getByLabel("Microsoft Client ID", { exact: true }).fill("not-a-client-id");
   await page.getByRole("button", { name: "Save Client IDs" }).click();
@@ -105,7 +108,7 @@ test("runtime Client IDs enable cloud hosts without rebuilding, persist, and rej
   await expect(page.getByRole("button", { name: /Connect Google Drive/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Connect OneDrive/ })).toBeVisible();
   await page.reload();
-  await page.getByText("Use your own cloud Client IDs", { exact: true }).click();
+  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
   await expect(page.getByLabel("Google Client ID", { exact: true })).toHaveValue("123-test.apps.googleusercontent.com");
   await expect(page.getByText("Google: Settings value", { exact: true })).toBeVisible();
   await expect(page.getByText("Microsoft: Settings value", { exact: true })).toBeVisible();
@@ -118,8 +121,8 @@ test("unsupported browsers explain folder alternatives without opening a picker"
   await page.addInitScript(() => {
     window.showDirectoryPicker = undefined;
   });
-  await page.goto("./settings");
+  await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
-  await expect(host).toContainText("Local folder sync needs Chrome/Edge on desktop");
+  await expect(host).toContainText("Folder sync is available in Chrome or Edge on a computer");
   await expect(host.getByRole("button")).toHaveCount(0);
 });

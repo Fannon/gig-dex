@@ -22,12 +22,12 @@ test("offline settings distinguish local songs, storage protection, installation
   await page.goto("./");
   await page.getByRole("button", { name: "Add Demo Song" }).click();
   await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
-  await page.goto("./settings");
+  await page.goto("./settings?section=offline");
   const settings = page.getByRole("region", { name: "Offline app" });
-  await settings.getByText("Offline status & storage", { exact: true }).click();
+  await settings.getByText("Technical details", { exact: true }).click();
   await expect(settings).toContainText("2 songs · 1 setlist stored on this device");
   await expect(settings).toContainText("1.0 MB of 100.0 MB");
-  await settings.getByRole("button", { name: "Protect local storage" }).click();
+  await settings.getByRole("button", { name: "Keep my library safe" }).click();
   await expect(settings).toContainText("Persistent storage granted");
   await page.evaluate(() => {
     const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
@@ -41,7 +41,9 @@ test("offline settings distinguish local songs, storage protection, installation
   await settings.getByRole("button", { name: "Install Gig-Dex" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-install-prompt", "shown");
   await expect(settings.getByRole("button", { name: "Install Gig-Dex" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Library", exact: true }).click();
   await page.getByRole("button", { name: "Export library" }).click();
+  await page.getByRole("button", { name: "Offline", exact: true }).click();
   await expect(settings).not.toContainText("No backup exported");
   await context.setOffline(true);
   await expect(settings).toContainText("Offline · cloud sync needs a connection");
@@ -52,7 +54,7 @@ test("offline settings distinguish local songs, storage protection, installation
     if (route) route.scrollTop = 0;
   });
   await page.screenshot({ path: "reports/pwa/settings-phone.png" });
-  await settings.getByText("Repair downloaded app", { exact: true }).scrollIntoViewIfNeeded();
+  await settings.getByText("Refresh app files", { exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: "reports/pwa/installation-phone.png" });
   await context.setOffline(false);
 });

@@ -1,6 +1,9 @@
 import { type CSSProperties, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getAllSetlists, getAllSongs, getSetlist, getSong, type Setlist, type Song, updateSetlist } from "../db";
+import { usePwaState } from "../pwa/lifecycle";
+import { syncHosts } from "../sync";
+import { getSyncConflicts } from "../sync/syncStore";
 import { matchesLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
@@ -34,6 +37,7 @@ export interface LibraryWorkspaceContext {
 
 export function LibraryWorkspace() {
   const location = useLocation();
+  const pwaIssue = !!usePwaState().error;
   const [performanceHost, setPerformanceHost] = useState<HTMLDivElement | null>(null);
   const [performanceExit, setPerformanceExit] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -51,6 +55,7 @@ export function LibraryWorkspace() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [lists, setLists] = useState<Setlist[]>([]);
   const [error, setError] = useState("");
+  const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(
     () => readPreference("sidebar-open", window.matchMedia("(max-width: 800px)").matches ? "false" : "true") === "true",
@@ -84,6 +89,30 @@ export function LibraryWorkspace() {
       window.removeEventListener("focus", refresh);
     };
   }, [refresh]);
+  useEffect(() => {
+    let disposed = false;
+    const refreshSyncAttention = () => {
+      const statusIssue = syncHosts.some(({ manager }) => {
+        const status = manager.getStatus();
+        return !!status.error || !!status.conflictCount;
+      });
+      void getSyncConflicts()
+        .then((conflicts) => {
+          if (!disposed) setSyncNeedsAttention(statusIssue || conflicts.length > 0);
+        })
+        .catch(() => {
+          if (!disposed) setSyncNeedsAttention(statusIssue);
+        });
+    };
+    refreshSyncAttention();
+    window.addEventListener("gigdex-sync-status", refreshSyncAttention);
+    window.addEventListener("focus", refreshSyncAttention);
+    return () => {
+      disposed = true;
+      window.removeEventListener("gigdex-sync-status", refreshSyncAttention);
+      window.removeEventListener("focus", refreshSyncAttention);
+    };
+  }, []);
   useEffect(() => {
     const routeList =
       /^\/(?:setlist|perform\/setlist)\/([^/]+)/.exec(location.pathname)?.[1] ??
@@ -274,7 +303,19 @@ export function LibraryWorkspace() {
           <NavLink to="/setlists" className={location.pathname.startsWith("/setlist/") ? "active" : undefined}>
             Sets
           </NavLink>
-          <NavLink to="/settings">Settings</NavLink>
+          <NavLink
+            to={syncNeedsAttention ? "/settings?section=sync" : pwaIssue ? "/settings?section=offline" : "/settings"}
+          >
+            Settings
+            {(syncNeedsAttention || pwaIssue) && (
+              <span
+                className="workspace-sync-alert"
+                title={syncNeedsAttention ? "Sync needs attention" : "Offline app needs attention"}
+              >
+                !
+              </span>
+            )}
+          </NavLink>
         </nav>
         {performance && <div className="workspace-performance" ref={setPerformanceHost} />}
         <button className="workspace-search-button" type="button" onClick={() => setSearchOpen(true)}>

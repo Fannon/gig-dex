@@ -1,6 +1,6 @@
 # Local folder sync and your own cloud Client IDs
 
-In Settings → Cloud Sync, **Connect local folder** selects a dedicated Gig-Dex
+In Settings → Sync, **Sync from a folder on this computer** selects a dedicated Gig-Dex
 folder. Choose a folder inside your OneDrive, Google Drive, Dropbox or Nextcloud
 desktop folder to let that application's desktop client transport revisions.
 Local-folder sync itself works offline and needs no OAuth registration. Wait for
@@ -47,7 +47,7 @@ would weaken the cleanup guarantee.
 
 ## Runtime cloud configuration
 
-Expand **Use your own cloud Client IDs** below the host controls. Enter a Google
+Expand **Advanced setup: cloud Client IDs** below the host controls. Enter a Google
 OAuth Client ID, a Microsoft Application (client) ID, and optionally a Microsoft
 tenant (`common` by default for a saved Microsoft ID). Save to enable the host
 immediately, without rebuilding. These are public client identifiers, not client

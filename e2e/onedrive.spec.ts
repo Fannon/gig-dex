@@ -163,11 +163,13 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
     oneDriveProvider.isEnabled = () => true;
   }, new URL(page.url()).pathname);
   await page.getByRole("link", { name: /Settings/i }).click();
+  await page.getByRole("button", { name: "Sync", exact: true }).click();
   const host = page.getByRole("region", { name: "OneDrive sync", exact: true });
-  await host.getByRole("button", { name: "Sync Now", exact: true }).click();
-  await expect(host.getByRole("button", { name: "Sync Now", exact: true })).toBeEnabled();
+  await host.getByRole("button", { name: "Sync now", exact: true }).click();
+  await expect(host.getByRole("button", { name: "Sync now", exact: true })).toBeEnabled();
   await expect(host.getByRole("alert")).toHaveCount(0);
-  await expect(host.getByText(/Last synced:/)).toBeVisible();
+  await expect(host.getByText(/Last synced/)).toBeVisible();
+  await host.getByText("History cleanup", { exact: true }).click();
   await host.getByRole("button", { name: "Review OneDrive history cleanup" }).click();
   await expect(host.getByText("3 old revisions eligible")).toBeVisible();
   const head = files.get("file8");
@@ -183,10 +185,10 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
   await expect(host.getByText("3 old revisions moved to trash.")).toBeVisible();
   expect(files.has("file8")).toBe(true);
   expect(files.size).toBe(6);
-  await host.getByRole("button", { name: "Sync Now", exact: true }).click();
-  await expect(host.getByRole("button", { name: "Sync Now", exact: true })).toBeEnabled();
+  await host.getByRole("button", { name: "Sync now", exact: true }).click();
+  await expect(host.getByRole("button", { name: "Sync now", exact: true })).toBeEnabled();
   await expect(host.getByRole("alert")).toHaveCount(0);
-  await expect(host.getByText(/Last synced:/)).toBeVisible();
+  await expect(host.getByText(/Last synced/)).toBeVisible();
   await page.screenshot({ path: "reports/sync/onedrive-cleanup.png", fullPage: true });
   await page
     .getByRole("navigation", { name: "Main navigation" })
@@ -205,8 +207,9 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
   await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveText("Edited while offline");
   await context.setOffline(false);
   await page.getByRole("link", { name: /Settings/i }).click();
-  await host.getByRole("button", { name: "Sync Now", exact: true }).click();
-  await expect(host.getByRole("button", { name: "Sync Now", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Sync", exact: true }).click();
+  await host.getByRole("button", { name: "Sync now", exact: true }).click();
+  await expect(host.getByRole("button", { name: "Sync now", exact: true })).toBeEnabled();
   await expect(host.getByRole("alert")).toHaveCount(0);
   expect([...files.values()].some((file) => file.content.title === "Edited while offline")).toBe(true);
 });

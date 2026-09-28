@@ -38,7 +38,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "A");
     await expect(page.getByRole("button", { name: "Update and restart" })).toHaveCount(0);
     const other = await context.newPage();
-    await other.goto(`${fixture.url}settings`);
+    await other.goto(`${fixture.url}settings?section=offline`);
     await expect(other.getByRole("button", { name: "Update and restart" }).first()).toBeVisible();
     await other.getByRole("button", { name: "Update and restart" }).first().click();
     await expect(other.getByText(/save edits in other Gig-Dex tabs/).first()).toBeVisible();
@@ -79,21 +79,21 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     await cold.getByLabel("Title", { exact: true }).fill("Edited offline");
     await cold.getByRole("button", { name: "Save", exact: true }).click();
     await context.setOffline(false);
-    await cold.goto(`${fixture.url}settings`);
-    await cold.getByText("Offline status & storage", { exact: true }).click();
+    await cold.goto(`${fixture.url}settings?section=offline`);
+    await cold.getByText("Technical details", { exact: true }).click();
     await expect(cold.getByText("Ready to open offline", { exact: true })).toBeVisible();
     await cold.evaluate(async () => {
       await (await caches.open("unrelated-app-cache")).put("/unrelated", new Response("keep me"));
     });
-    await cold.getByText("Repair downloaded app", { exact: true }).click();
+    await cold.getByText("Refresh app files", { exact: true }).click();
     cold.once("dialog", (dialog) => dialog.accept());
     await cold.getByRole("button", { name: "Repair app files" }).click();
     await expect(cold.getByRole("link", { name: /Edited offline Traditional/ })).toBeVisible();
     expect(await cold.evaluate(() => caches.has("unrelated-app-cache"))).toBe(true);
     await cold.goto(songUrl);
     await expect(cold.locator(".song-page__title")).toHaveText("Edited offline");
-    await cold.goto(`${fixture.url}settings`);
-    await cold.getByText("Offline status & storage", { exact: true }).click();
+    await cold.goto(`${fixture.url}settings?section=offline`);
+    await cold.getByText("Technical details", { exact: true }).click();
     await expect(cold.getByText("Ready to open offline", { exact: true })).toBeVisible();
     await cold.screenshot({ path: "reports/pwa/production-settings.png", fullPage: true });
     await cold.close();

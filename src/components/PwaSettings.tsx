@@ -63,7 +63,10 @@ export function PwaSettings() {
   const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return (
     <section className="settings-page__section pwa-settings" aria-label="Offline app">
-      <h2>Offline & installation</h2>
+      <h2>Offline</h2>
+      <p className="pwa-settings__summary">
+        {state.ready ? "Gig-Dex is ready to open offline." : "Your library is stored on this device."} {library}
+      </p>
       <div className="pwa-settings__actions">
         {persistent === false && typeof navigator.storage?.persist === "function" && (
           <button
@@ -75,13 +78,13 @@ export function PwaSettings() {
                 setPersistent(granted);
                 setMessage(
                   granted
-                    ? "Storage protection enabled."
+                    ? "Your browser will try to keep this library during automatic cleanup."
                     : "The browser did not grant persistent storage. Keep regular backups; you can try again after installing the app.",
                 );
               })
             }
           >
-            Protect local storage
+            Keep my library safe
           </button>
         )}
         {state.installable && (
@@ -110,7 +113,7 @@ export function PwaSettings() {
       {state.error && <p role="alert">{state.error}</p>}
       {message && <output>{message}</output>}
       <details className="pwa-settings__diagnostics">
-        <summary>Offline status & storage</summary>
+        <summary>Technical details</summary>
         <dl>
           <dt>App download</dt>
           <dd>
@@ -169,7 +172,7 @@ export function PwaSettings() {
         </p>
       </details>
       <details>
-        <summary>Repair downloaded app</summary>
+        <summary>Refresh app files</summary>
         <p>
           Re-download app files if loading is broken. Songs, setlists, preferences, and cloud files are preserved. A
           working connection is required; close other Gig-Dex tabs first.

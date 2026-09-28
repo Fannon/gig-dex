@@ -2,6 +2,7 @@ import { getAllSetlists, getAllSongs, initDB } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import { recordFingerprint } from "../utils/recordFingerprint";
+import { addSyncActivity } from "./activity";
 import { type LibraryRecord, type RecordType, type RemoteVersion, recordKey, recordTitle, syncKey } from "./records";
 import { acknowledge, getLocalRecord, getSyncBase, getSyncConflicts, saveConflict } from "./syncStore";
 import type { SyncMetadata, SyncProvider, SyncStatus } from "./types";
@@ -37,10 +38,12 @@ export class SyncManager {
   }
   resetStatus(): void {
     this.status = { lastSyncTime: null, isSyncing: false, error: null, conflictCount: 0 };
+    window.dispatchEvent(new Event("gigdex-sync-status"));
   }
   async sync(): Promise<void> {
     if (this.status.isSyncing || SyncManager.busy) {
       this.status.error = "Another sync or cleanup is running. Please wait.";
+      window.dispatchEvent(new Event("gigdex-sync-status"));
       return;
     }
     SyncManager.busy = true;
@@ -71,13 +74,28 @@ export class SyncManager {
       ).length;
       this.status.lastSyncTime = new Date().toISOString();
       localStorage.setItem(`last_sync:${this.provider.name}`, this.status.lastSyncTime);
+      addSyncActivity({
+        provider: this.provider.name,
+        time: this.status.lastSyncTime,
+        kind: this.status.conflictCount ? "conflict" : "success",
+        message: this.status.conflictCount
+          ? `Sync finished with ${this.status.conflictCount} conflict${this.status.conflictCount === 1 ? "" : "s"} to review.`
+          : "Sync completed.",
+      });
     } catch (error) {
       this.status.error = error instanceof Error ? error.message : "Sync failed";
+      addSyncActivity({
+        provider: this.provider.name,
+        time: new Date().toISOString(),
+        kind: "error",
+        message: this.status.error,
+      });
     } finally {
       this.status.isSyncing = false;
       SyncManager.busy = false;
       releaseUpdate();
       window.dispatchEvent(new Event("gigdex-library-change"));
+      window.dispatchEvent(new Event("gigdex-sync-status"));
     }
   }
   private async read(file: SyncMetadata): Promise<RemoteVersion> {
