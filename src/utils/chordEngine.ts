@@ -10,7 +10,7 @@ import {
 
 import { colorSongSections, simpleSectionLabel } from "./songSections";
 
-export { DEMO_SONG } from "./demoSong";
+export { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "./demoSong";
 
 export interface ParsedSong {
 	title: string | null;

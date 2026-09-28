@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { addSong, getAllSongs } from "../db";
-import { DEMO_SONG } from "../utils/demoSong";
+import { addSetlist, addSong, getAllSongs } from "../db";
+import { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "../utils/demoSong";
 import "./HomePage.scss";
 
 export const HomePage = () => {
@@ -28,16 +28,31 @@ export const HomePage = () => {
 	}, [navigate]);
 	const addDemo = async () => {
 		try {
-			const id = await addSong({
+			const tutorialId = await addSong({
+				title: "Tutorial Song",
+				artist: "Gig-Dex Demo",
+				content: TUTORIAL_SONG,
+				key: "C",
+				tempo: 100,
+				capo: 2,
+				time: "4/4",
+				tags: ["demo", "tutorial"],
+			});
+			const amazingId = await addSong({
 				title: "Amazing Grace",
 				artist: "Traditional",
 				content: DEMO_SONG,
 				key: "G",
 				tags: ["hymn", "classic", "worship"],
 			});
-			navigate(`/song/${id}`);
+			await addSetlist({
+				...DEMO_SETLIST,
+				songIds: [tutorialId, amazingId],
+				songSettings: [{ transpose: 0 }, { transpose: 0 }],
+			});
+			navigate(`/song/${amazingId}`);
 		} catch {
-			setError("Could not add the song. Please try again.");
+			setError("Could not add the songs. Please try again.");
 		}
 	};
 	return (
@@ -51,7 +66,7 @@ export const HomePage = () => {
 						<h1>No songs yet</h1>
 						<p>Add your first song to get started</p>
 						<button type="button" onClick={() => void addDemo()} className="home-page__demo-btn">
-							Add Demo Song
+							Add Demo Songs
 						</button>
 					</div>
 				)}

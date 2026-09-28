@@ -20,7 +20,7 @@
 		"prepare": "lefthook install",
 		"typecheck": "tsc -b",
 		"screenshots": "node scripts/song-screenshots.mjs",
-		"import:chordle": "node scripts/chordle-import.mjs"
+		"screenshots:readme": "node scripts/readme-screenshots.mjs"
 	},
 	"dependencies": {
 		"chordsheetjs": "^13.1.0",
