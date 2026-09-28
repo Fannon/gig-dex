@@ -1,10 +1,16 @@
 import { initDB } from "../db";
 import { syncHeads } from "./revisionHistory";
+import {
+  MAX_SYNC_FILE_BYTES,
+  parseRevisionFilename,
+  parseSyncFile,
+  revisionFilename,
+  syncEnvelope,
+} from "./syncFormat";
 import type { SyncMetadata, SyncProvider } from "./types";
 
 const KEY = "local-folder";
 const TRASH = ".gigdex-trash";
-const filename = /^gigdex-(song|setlist)-([0-9a-f-]+)\.json$/;
 const digest = async (text: string) =>
   Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))), (byte) =>
     byte.toString(16).padStart(2, "0"),
@@ -91,7 +97,7 @@ export class LocalFolderProvider implements SyncProvider {
     this.versions.clear();
     let unknown = 0;
     for await (const entry of handle.values())
-      if (entry.kind === "file" && entry.name.endsWith(".json") && !filename.test(entry.name)) unknown++;
+      if (entry.kind === "file" && entry.name.endsWith(".json") && !parseRevisionFilename(entry.name)) unknown++;
     if (unknown > 10)
       this.warning = `This folder contains ${unknown} unrelated JSON files. A dedicated Gig-Dex folder is recommended; unrelated files are ignored.`;
     return true;
@@ -129,7 +135,7 @@ export class LocalFolderProvider implements SyncProvider {
     return this.handle;
   }
   private checkName(name: string) {
-    if (!filename.test(name)) throw new Error("Invalid local revision filename.");
+    if (!parseRevisionFilename(name)) throw new Error("Invalid local revision filename.");
   }
   private async read(name: string) {
     this.checkName(name);
@@ -163,9 +169,10 @@ export class LocalFolderProvider implements SyncProvider {
     const versions = new Map<string, string>();
     const trash = await this.trash();
     for await (const entry of this.directory().values()) {
-      const match = filename.exec(entry.name);
+      const match = parseRevisionFilename(entry.name);
       if (entry.kind !== "file" || !match) continue;
       const file = await (entry as FileSystemFileHandle).getFile();
+      if (file.size > MAX_SYNC_FILE_BYTES) throw new Error("A local sync file exceeds the 5 MB safety limit.");
       const text = await file.text();
       const version = await digest(text);
       if (trash) {
@@ -176,41 +183,35 @@ export class LocalFolderProvider implements SyncProvider {
           if (!missing(error)) throw error;
         }
       }
-      let value: {
-        id?: unknown;
-        lastModified?: unknown;
-        title?: unknown;
-        name?: unknown;
-        deleted?: unknown;
-        type?: unknown;
-        _sync?: { revision?: unknown; parents?: unknown };
-      } | null;
+      let value: Record<string, unknown>;
       try {
-        value = JSON.parse(text);
-      } catch {
+        value = parseSyncFile(text);
+      } catch (error) {
         // Recognized revision filenames must never vanish from the graph on a partial download.
-        throw new Error("A local revision is incomplete. Wait for the desktop sync client, then retry.");
+        if (error instanceof SyntaxError)
+          throw new Error("A local revision is incomplete. Wait for the desktop sync client, then retry.");
+        throw error;
       }
+      const envelope = syncEnvelope(value);
       if (
         !value ||
         typeof value.id !== "string" ||
         !value.id ||
         typeof value.lastModified !== "string" ||
         !Number.isFinite(Date.parse(value.lastModified)) ||
-        value._sync?.revision !== match[2] ||
-        !Array.isArray(value._sync.parents) ||
-        !value._sync.parents.every((parent: unknown) => typeof parent === "string") ||
-        (value.deleted === true && value.type !== match[1])
+        envelope?.revision !== match.revision ||
+        (value.deleted === true && value.type !== match.type)
       )
         throw new Error("Invalid local-folder revision. Repair the file before syncing.");
       versions.set(entry.name, version);
       records.push({
         id: value.id,
-        type: match[1] as "song" | "setlist",
+        type: match.type,
         title: typeof value.title === "string" ? value.title : typeof value.name === "string" ? value.name : "Untitled",
         lastModified: value.lastModified,
-        revision: match[2],
-        parents: value._sync.parents,
+        revision: match.revision,
+        parents: envelope.parents,
+        formatVersion: (value._sync as { formatVersion?: number }).formatVersion ?? 0,
         remoteId: entry.name,
         version,
         uploadedAt: new Date(file.lastModified).toISOString(),
@@ -223,16 +224,17 @@ export class LocalFolderProvider implements SyncProvider {
     return syncHeads(await this.listRevisions());
   }
   async downloadFile(name: string) {
-    const text = await (await this.read(name)).text();
+    const file = await this.read(name);
+    if (file.size > MAX_SYNC_FILE_BYTES) throw new Error("A local sync file exceeds the 5 MB safety limit.");
+    const text = await file.text();
     const expected = this.versions.get(name);
     if (expected && (await digest(text)) !== expected)
       throw new Error("Folder revision changed during sync. Please retry.");
     return text;
   }
   async uploadFile(metadata: SyncMetadata, content: string) {
-    if (!metadata.revision || !/^[0-9a-f-]+$/.test(metadata.revision))
-      throw new Error("Invalid local revision identity.");
-    const name = `gigdex-${metadata.type}-${metadata.revision}.json`;
+    if (!metadata.revision) throw new Error("Invalid local revision identity.");
+    const name = revisionFilename(metadata.type, metadata.revision);
     this.checkName(name);
     const dir = this.directory();
     try {

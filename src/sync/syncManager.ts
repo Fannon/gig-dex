@@ -1,10 +1,18 @@
 import { getAllSetlists, getAllSongs, initDB, notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
-import { parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
+import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import { recordFingerprint, stableStringify } from "../utils/recordFingerprint";
 import { addSyncActivity } from "./activity";
 import { type LibraryRecord, type RecordType, type RemoteVersion, recordKey, recordTitle, syncKey } from "./records";
-import { acknowledge, getLocalRecord, getSyncBase, getSyncConflicts, saveConflict } from "./syncStore";
+import { createSyncFile, parseSyncFile, SYNC_FORMAT_VERSION, syncEnvelope, verifySyncFile } from "./syncFormat";
+import {
+  acknowledge,
+  getLocalRecord,
+  getSyncBase,
+  getSyncConflicts,
+  noteUploadedRevision,
+  saveConflict,
+} from "./syncStore";
 import type { SyncMetadata, SyncProvider, SyncStatus } from "./types";
 
 export class SyncManager {
@@ -55,6 +63,9 @@ export class SyncManager {
       if (!(await this.provider.authenticate()))
         throw new Error(`Could not connect to ${this.provider.name}. Try again.`);
       const files = await this.provider.listFiles();
+      const future = files.find((file) => (file.formatVersion ?? 0) > SYNC_FORMAT_VERSION);
+      if (future)
+        throw new Error(`Unsupported sync format version ${future.formatVersion}. Update Gig-Dex before syncing.`);
       this.scope = this.provider.getScope?.() ?? "";
       const remote = new Map<string, SyncMetadata[]>();
       for (const file of files) {
@@ -76,6 +87,7 @@ export class SyncManager {
           await this.syncRecord(item.type, item.id, remote.get(key) ?? []);
         } catch (error) {
           const reason = error instanceof Error ? error.message : "Unknown error";
+          if (reason.startsWith("Unsupported sync format version")) throw error;
           failures.push(`${item.type} ${item.id}: ${reason}`);
         }
       }
@@ -117,14 +129,15 @@ export class SyncManager {
   private async read(file: SyncMetadata): Promise<RemoteVersion> {
     const remoteId = file.remoteId ?? file.gdriveId;
     if (!remoteId) throw new Error("Missing remote file identity.");
-    const value = JSON.parse(await this.provider.downloadFile(remoteId));
-    const { _sync, ...data } = value;
+    const value = parseSyncFile(await this.provider.downloadFile(remoteId));
+    await verifySyncFile(value);
+    const { _sync: _envelope, ...data } = value;
+    const envelope = syncEnvelope(value);
     if (
-      _sync &&
-      (_sync.revision !== file.revision ||
-        !Array.isArray(_sync.parents) ||
-        !_sync.parents.every((parent: unknown) => typeof parent === "string") ||
-        JSON.stringify([..._sync.parents].sort()) !== JSON.stringify([...(file.parents ?? [])].sort()))
+      (envelope &&
+        (envelope.revision !== file.revision ||
+          JSON.stringify([...envelope.parents].sort()) !== JSON.stringify([...(file.parents ?? [])].sort()))) ||
+      (!envelope && !file.revision?.startsWith("legacy-"))
     )
       throw new Error("Invalid remote sync ancestry.");
     let record: LibraryRecord;
@@ -138,7 +151,7 @@ export class SyncManager {
         )
       )
         throw new Error("Invalid remote deletion record.");
-      record = data;
+      record = parseDeletion(data, file.id, file.type);
     } else
       record =
         file.type === "song"
@@ -150,37 +163,72 @@ export class SyncManager {
   }
   private async push(type: RecordType, record: LibraryRecord, parents: string[]): Promise<string> {
     // Join large conflict groups through intermediate revisions within Drive's property limit.
-    let ancestry = parents;
+    let ancestry = [...new Set(parents)].sort();
     while (ancestry.length > 26) {
       const bridge = await this.push(type, record, ancestry.slice(0, 26));
       ancestry = [bridge, ...ancestry.slice(26)];
     }
     parents = ancestry;
-    const revision = crypto.randomUUID();
-    await this.provider.uploadFile(
-      {
-        id: record.id,
-        title: recordTitle(record),
-        type,
-        lastModified: record.lastModified,
-        revision,
-        parents,
-      },
-      JSON.stringify({ ...record, _sync: { revision, parents } }),
-    );
+    const { revision, content, parents: canonicalParents } = await createSyncFile(record, parents);
+    const metadata = {
+      id: record.id,
+      title: recordTitle(record),
+      type,
+      lastModified: record.lastModified,
+      revision,
+      parents: canonicalParents,
+    };
+    try {
+      await this.provider.uploadFile(metadata, content);
+    } catch (error) {
+      // A timeout can arrive after the host committed the file. Verify the exact
+      // revision before retrying so the same logical upload cannot fork history.
+      let committed = false;
+      try {
+        const files = await (this.provider.listRevisions?.() ?? this.provider.listFiles());
+        const matches = files.filter(
+          (file) => file.type === type && file.id === record.id && file.revision === revision,
+        );
+        for (const file of matches) {
+          const remoteId = file.remoteId ?? file.gdriveId;
+          if (remoteId && (await this.provider.downloadFile(remoteId)) === content) committed = true;
+          else throw new Error("Remote revision identity was reused with different content.");
+        }
+      } catch (verificationError) {
+        if (verificationError instanceof Error && verificationError.message.includes("identity was reused"))
+          throw verificationError;
+      }
+      if (!committed) throw error;
+    }
     return revision;
   }
   private async syncRecord(type: RecordType, id: string, files: SyncMetadata[]) {
     const local = await getLocalRecord(type, id);
     const base = await getSyncBase(type, id, this.scope);
+    const pushAndAcknowledge = async (record: LibraryRecord, parents: string[]) => {
+      const revision = await this.push(type, record, parents);
+      try {
+        await acknowledge(type, record, local, [revision], false, this.scope);
+      } catch (error) {
+        if (error instanceof Error && error.message === "Library changed during sync. Please sync again.")
+          await noteUploadedRevision(type, record, [revision], base, this.scope);
+        throw error;
+      }
+    };
     const versions = await Promise.all(files.map((file) => this.read(file)));
     if (stableStringify(await getLocalRecord(type, id)) !== stableStringify(local))
       throw new Error("Library changed during sync. Please sync again.");
-    const revisions = versions.map((version) => version.revision).sort();
+    const byRevision = new Map<string, string>();
+    for (const version of versions) {
+      const content = stableStringify(version.record);
+      const existing = byRevision.get(version.revision);
+      if (existing && existing !== content) throw new Error("Remote files reuse a revision ID with different content.");
+      byRevision.set(version.revision, content);
+    }
+    const revisions = [...byRevision.keys()].sort();
     if (!versions.length) {
       if (local) {
-        const revision = await this.push(type, local, []);
-        await acknowledge(type, local, local, [revision], false, this.scope);
+        await pushAndAcknowledge(local, []);
       }
       return;
     }
@@ -193,23 +241,28 @@ export class SyncManager {
       JSON.stringify(base.reviewedFingerprints) ===
         JSON.stringify(versions.map((version) => `${version.revision}:${recordFingerprint(version.record)}`).sort());
     if (base?.resolved && remoteUnchanged && reviewedUnchanged && local) {
-      const revision = await this.push(type, local, revisions);
-      await acknowledge(type, local, local, [revision], false, this.scope);
+      await pushAndAcknowledge(local, revisions);
       return;
     }
     if (remoteSame && localSame) {
-      const heads = revisions.length > 1 ? [await this.push(type, local, revisions)] : revisions;
-      await acknowledge(type, local, local, heads, false, this.scope);
+      if (revisions.length > 1) await pushAndAcknowledge(local, revisions);
+      else await acknowledge(type, local, local, revisions, false, this.scope);
       return;
     }
     if (remoteSame && (!local || (base && !base.resolved && recordFingerprint(local) === base.fingerprint))) {
-      const heads = revisions.length > 1 ? [await this.push(type, remote, revisions)] : revisions;
-      await acknowledge(type, remote, local, heads, true, this.scope);
+      const joined = revisions.length > 1;
+      const heads = joined ? [await this.push(type, remote, revisions)] : revisions;
+      try {
+        await acknowledge(type, remote, local, heads, true, this.scope);
+      } catch (error) {
+        if (joined && error instanceof Error && error.message === "Library changed during sync. Please sync again.")
+          await noteUploadedRevision(type, remote, heads, base, this.scope);
+        throw error;
+      }
       return;
     }
     if (local && base && !base.resolved && remoteSame && recordFingerprint(remote) === base.fingerprint) {
-      const revision = await this.push(type, local, revisions);
-      await acknowledge(type, local, local, [revision], false, this.scope);
+      await pushAndAcknowledge(local, revisions);
       return;
     }
     await saveConflict({

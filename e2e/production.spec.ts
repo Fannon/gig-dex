@@ -20,6 +20,10 @@ test("production chunks load on demand and cached songs work offline", async ({ 
   await context.setOffline(true);
   await page.goto("./");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: /Amazing Grace/ })
+    .click();
   await expect(page.locator(".song-view__content")).toContainText("Amazing");
   await page.getByRole("link", { name: "Perform", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();

@@ -114,6 +114,7 @@ More commands:
 
 - Sync design (local folder + bring-your-own Client IDs): [docs/local-folder-sync.md](docs/local-folder-sync.md)
 - Dropbox app setup: [docs/dropbox-sync.md](docs/dropbox-sync.md)
+- Sync folder file format and compatibility: [docs/sync-format.md](docs/sync-format.md)
 - Setlists workspace: [docs/sets-workspace.md](docs/sets-workspace.md)
 - Offline / PWA / Android: [docs/pwa-offline-2026-09-27.md](docs/pwa-offline-2026-09-27.md)
 - Performance mode, song defaults: [docs/song-defaults-and-performance.md](docs/song-defaults-and-performance.md), [docs/performance-and-onedrive-2026-09-27.md](docs/performance-and-onedrive-2026-09-27.md)

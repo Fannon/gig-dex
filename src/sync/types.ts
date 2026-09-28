@@ -5,6 +5,7 @@ export interface SyncMetadata {
   type: "song" | "setlist";
   revision?: string;
   parents?: string[];
+  formatVersion?: number;
   gdriveId?: string; // Internal Google Drive file ID, used for downloading
   remoteId?: string;
   etag?: string;

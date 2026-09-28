@@ -1,6 +1,14 @@
 import { initDB } from "../db";
 import { effectiveClientConfig } from "./clientConfig";
 import { syncHeads } from "./revisionHistory";
+import {
+  parseRevisionFilename,
+  parseSyncFile,
+  readSyncResponse,
+  revisionFilename,
+  SYNC_FORMAT_VERSION,
+  syncEnvelope,
+} from "./syncFormat";
 import type { SyncMetadata, SyncProvider } from "./types";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -209,38 +217,42 @@ export class OneDriveProvider implements SyncProvider {
     const db = await initDB();
     const prefix = `${this.getScope()}::`;
     for (const item of items) {
-      if (!item.file || !/^gigdex-(song|setlist)-[0-9a-f-]+\.json$/.test(item.name)) continue;
+      const named = parseRevisionFilename(item.name);
+      if (!item.file || !named) continue;
       const cacheKey = `${prefix}${item.id}`;
       const cached = await db.get("revisionCache", cacheKey);
+      if (cached?.formatVersion !== undefined && cached.formatVersion > SYNC_FORMAT_VERSION)
+        throw new Error(`Unsupported sync format version ${cached.formatVersion}. Update Gig-Dex before syncing.`);
       if (
         item.eTag &&
         cached?.etag === item.eTag &&
         cached.remoteId === item.id &&
-        item.name === `gigdex-${cached.type}-${cached.revision}.json`
+        cached.revision &&
+        item.name === revisionFilename(cached.type, cached.revision)
       ) {
         records.push({ ...cached, uploadedAt: item.createdDateTime });
         continue;
       }
-      const value = JSON.parse(await this.downloadFile(item.id));
-      const type = item.name.startsWith("gigdex-song-") ? "song" : "setlist";
+      const value = parseSyncFile(await this.downloadFile(item.id));
+      const envelope = syncEnvelope(value);
+      const type = named.type;
       if (
         typeof value.id !== "string" ||
         typeof value.lastModified !== "string" ||
         !Number.isFinite(Date.parse(value.lastModified)) ||
-        typeof value._sync?.revision !== "string" ||
-        !Array.isArray(value._sync.parents) ||
-        !value._sync.parents.every((parent: unknown) => typeof parent === "string")
+        !envelope
       )
         throw new Error("Invalid OneDrive revision.");
-      if (item.name !== `gigdex-${type}-${value._sync.revision}.json`)
+      if (item.name !== revisionFilename(type, envelope.revision))
         throw new Error("OneDrive revision identity changed.");
       const metadata: SyncMetadata = {
         id: value.id,
-        title: value.title ?? value.name ?? "Untitled",
+        title: typeof value.title === "string" ? value.title : typeof value.name === "string" ? value.name : "Untitled",
         type,
         lastModified: value.lastModified,
-        revision: value._sync.revision,
-        parents: value._sync.parents,
+        revision: envelope.revision,
+        parents: envelope.parents,
+        formatVersion: (value._sync as { formatVersion?: number }).formatVersion ?? 0,
         remoteId: item.id,
         etag: item.eTag,
         uploadedAt: item.createdDateTime,
@@ -265,13 +277,12 @@ export class OneDriveProvider implements SyncProvider {
     if (!url || new URL(url).protocol !== "https:") throw new Error("Invalid OneDrive download URL.");
     const data = await fetch(url); // Preauthenticated URL, deliberately no Authorization header.
     if (!data.ok) throw new Error("Could not download the OneDrive revision.");
-    return data.text();
+    return readSyncResponse(data);
   }
   async uploadFile(metadata: SyncMetadata, content: string) {
-    if (!metadata.revision || !/^[0-9a-f-]+$/.test(metadata.revision))
-      throw new Error("Missing OneDrive revision identity.");
+    if (!metadata.revision) throw new Error("Missing OneDrive revision identity.");
     const folder = await this.folder();
-    const name = `gigdex-${metadata.type}-${metadata.revision}.json`;
+    const name = revisionFilename(metadata.type, metadata.revision);
     await this.request(
       `${GRAPH}/me/drive/items/${encodeURIComponent(folder)}:/${name}:/content?@microsoft.graph.conflictBehavior=fail`,
       {

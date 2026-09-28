@@ -2,12 +2,19 @@ import { initDB } from "../db";
 import { effectiveClientConfig } from "./clientConfig";
 import { base64url, pkceChallenge } from "./oneDriveProvider";
 import { syncHeads } from "./revisionHistory";
+import {
+  parseRevisionFilename,
+  parseSyncFile,
+  readSyncResponse,
+  revisionFilename,
+  SYNC_FORMAT_VERSION,
+  syncEnvelope,
+} from "./syncFormat";
 import type { SyncMetadata, SyncProvider } from "./types";
 
 const API = "https://api.dropboxapi.com/2";
 const CONTENT = "https://content.dropboxapi.com/2";
 const TOKEN_KEY = "dropbox_tokens";
-const NAME = /^gigdex-(song|setlist)-([0-9a-f-]+)\.json$/;
 type Tokens = { access_token: string; refresh_token?: string; expiresAt: number; account_id?: string; appKey: string };
 type Item = { ".tag": string; id?: string; name: string; path_lower?: string; rev?: string; server_modified?: string };
 
@@ -188,37 +195,39 @@ export class DropboxProvider implements SyncProvider {
     const db = await initDB();
     const prefix = `${this.getScope()}::`;
     for (const item of entries) {
-      const match = item.name?.match(NAME);
+      const match = parseRevisionFilename(item.name ?? "");
       if (item[".tag"] !== "file" || !match || !item.id || !item.rev || !item.path_lower) continue;
       const cacheKey = `${prefix}${item.id}`;
       this.listedRevisions.set(item.id, item.rev);
       const cached = await db.get("revisionCache", cacheKey);
+      if (cached?.formatVersion !== undefined && cached.formatVersion > SYNC_FORMAT_VERSION)
+        throw new Error(`Unsupported sync format version ${cached.formatVersion}. Update Gig-Dex before syncing.`);
       if (
         cached?.etag === item.rev &&
         cached.remoteId === item.id &&
-        cached.revision === match[2] &&
-        cached.type === match[1]
+        cached.revision === match.revision &&
+        cached.type === match.type
       ) {
         records.push({ ...cached, uploadedAt: item.server_modified });
         continue;
       }
-      const value = JSON.parse(await this.downloadRevision(item.path_lower, item.rev));
+      const value = parseSyncFile(await this.downloadRevision(item.path_lower, item.rev));
+      const envelope = syncEnvelope(value);
       if (
         typeof value.id !== "string" ||
         typeof value.lastModified !== "string" ||
         !Number.isFinite(Date.parse(value.lastModified)) ||
-        value._sync?.revision !== match[2] ||
-        !Array.isArray(value._sync.parents) ||
-        !value._sync.parents.every((parent: unknown) => typeof parent === "string")
+        envelope?.revision !== match.revision
       )
         throw new Error("Invalid Dropbox revision.");
       const metadata: SyncMetadata = {
         id: value.id,
-        title: value.title ?? value.name ?? "Untitled",
-        type: match[1] as "song" | "setlist",
+        title: typeof value.title === "string" ? value.title : typeof value.name === "string" ? value.name : "Untitled",
+        type: match.type,
         lastModified: value.lastModified,
-        revision: match[2],
-        parents: value._sync.parents,
+        revision: match.revision,
+        parents: envelope.parents,
+        formatVersion: (value._sync as { formatVersion?: number }).formatVersion ?? 0,
         remoteId: item.id,
         etag: item.rev,
         uploadedAt: item.server_modified,
@@ -243,20 +252,19 @@ export class DropboxProvider implements SyncProvider {
     const actual = raw ? JSON.parse(raw) : null;
     if (expectedRev && actual?.rev !== expectedRev)
       throw new Error("Dropbox revision changed during sync. Please retry.");
-    return response.text();
+    return readSyncResponse(response);
   }
   async downloadFile(id: string) {
     return this.downloadRevision(id, this.listedRevisions.get(id));
   }
   async uploadFile(metadata: SyncMetadata, content: string) {
-    if (!metadata.revision || !/^[0-9a-f-]+$/.test(metadata.revision))
-      throw new Error("Missing Dropbox revision identity.");
+    if (!metadata.revision) throw new Error("Missing Dropbox revision identity.");
     await this.request(`${CONTENT}/files/upload`, {
       method: "POST",
       headers: {
         "Content-Type": "application/octet-stream",
         "Dropbox-API-Arg": JSON.stringify({
-          path: `/gigdex-${metadata.type}-${metadata.revision}.json`,
+          path: `/${revisionFilename(metadata.type, metadata.revision)}`,
           mode: "add",
           autorename: false,
           mute: true,

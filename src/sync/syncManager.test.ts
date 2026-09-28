@@ -15,6 +15,7 @@ import {
   updateSong,
 } from "../db";
 import { recordKey } from "./records";
+import { createSyncFile } from "./syncFormat";
 import { SyncManager } from "./syncManager";
 import { getSyncConflicts, resolveConflict } from "./syncStore";
 import type { SyncMetadata, SyncProvider } from "./types";
@@ -211,13 +212,18 @@ describe("durable sync with real IndexedDB", () => {
     expect(manager.getStatus().error).toContain("changed during sync");
     expect((await getSong(id))?.title).toBe("During upload");
     expect(cloud.files).toHaveLength(1);
+    cloud.uploadFile = upload;
+    await manager.sync();
+    expect(manager.getStatus().error).toBeNull();
+    expect(await getSyncConflicts()).toHaveLength(0);
+    expect(await cloud.listFiles()).toHaveLength(1);
+    expect(JSON.parse(cloud.files[1].content).title).toBe("During upload");
   });
-  it("retries interrupted sync without losing local data or advancing successful-sync time", async () => {
+  it("retries a failed upload without losing local data or advancing successful-sync time", async () => {
     const cloud = new Cloud();
     const id = await seed();
     const upload = cloud.uploadFile.bind(cloud);
-    cloud.uploadFile = async (metadata, content) => {
-      await upload(metadata, content);
+    cloud.uploadFile = async () => {
       throw new Error("Connection lost");
     };
     const manager = new SyncManager(cloud);
@@ -231,18 +237,79 @@ describe("durable sync with real IndexedDB", () => {
     expect(cloud.files).toHaveLength(1);
     expect(await getSong(id)).toBeDefined();
   });
+  it("recognizes an upload committed before its response was lost", async () => {
+    const cloud = new Cloud();
+    await seed();
+    const upload = cloud.uploadFile.bind(cloud);
+    cloud.uploadFile = async (metadata, content) => {
+      await upload(metadata, content);
+      throw new Error("Response lost");
+    };
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    expect(manager.getStatus().error).toBeNull();
+    expect(cloud.files).toHaveLength(1);
+    const firstRevision = cloud.files[0].metadata.revision;
+    cloud.uploadFile = upload;
+    await manager.sync();
+    expect(cloud.files).toHaveLength(1);
+    expect(cloud.files[0].metadata.revision).toBe(firstRevision);
+  });
+  it("tolerates duplicate identical files but rejects a reused revision with different content", async () => {
+    const cloud = new Cloud();
+    await seed();
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    const duplicate = structuredClone(cloud.files[0]);
+    duplicate.metadata.gdriveId = crypto.randomUUID();
+    const duplicateValue = JSON.parse(duplicate.content);
+    duplicate.content = JSON.stringify({
+      ...duplicateValue,
+      _sync: { revision: duplicateValue._sync.revision, parents: duplicateValue._sync.parents },
+    }); // Unversioned duplicates predate the checksum contract.
+    cloud.files.push(duplicate);
+    await manager.sync();
+    expect(manager.getStatus().error).toBeNull();
+    expect(cloud.files).toHaveLength(2);
+    cloud.files[1].content = cloud.files[1].content.replace("[C]Original", "[D]Changed");
+    await manager.sync();
+    expect(manager.getStatus().error).toContain("reuse a revision ID");
+    expect(cloud.files).toHaveLength(2);
+  });
   it("rejects invalid remote identity and preserves the library", async () => {
     const cloud = new Cloud();
     const id = await seed();
     const song = await getSong(id);
+    const revision = crypto.randomUUID();
     await cloud.uploadFile(
-      { id: "remote", title: "Invalid", type: "song", lastModified: song?.lastModified ?? "" },
-      JSON.stringify(song),
+      { id: "remote", title: "Invalid", type: "song", lastModified: song?.lastModified ?? "", revision, parents: [] },
+      JSON.stringify({ ...song, _sync: { revision, parents: [] } }),
     );
     const manager = new SyncManager(cloud);
     await manager.sync();
     expect(manager.getStatus().error).toContain("Invalid remote song data");
     expect(await getAllSongs()).toHaveLength(1);
+  });
+  it("stops before uploading when a remote file declares a newer format", async () => {
+    const cloud = new Cloud();
+    await seed();
+    cloud.files.push({
+      metadata: {
+        id: "future-song",
+        title: "Future",
+        type: "song",
+        lastModified: "2026-01-01T00:00:00Z",
+        revision: "future",
+        parents: [],
+        formatVersion: 2,
+        gdriveId: "future-file",
+      },
+      content: "{}",
+    });
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    expect(manager.getStatus().error).toContain("Unsupported sync format version 2");
+    expect(cloud.files).toHaveLength(1);
   });
   it("syncs healthy records when another download fails and retries only the missing item", async () => {
     const cloud = new Cloud();
@@ -305,9 +372,10 @@ describe("durable sync with real IndexedDB", () => {
     const cloud = new Cloud();
     const id = await seed();
     const local = (await getSong(id)) as Song;
+    const revision = crypto.randomUUID();
     await cloud.uploadFile(
-      { id, title: "Remote", type: "song", lastModified: local.lastModified },
-      JSON.stringify({ ...local, title: "Remote" }),
+      { id, title: "Remote", type: "song", lastModified: local.lastModified, revision, parents: [] },
+      JSON.stringify({ ...local, title: "Remote", _sync: { revision, parents: [] } }),
     );
     await new SyncManager(cloud).sync();
     expect(await getSyncConflicts()).toHaveLength(1);
@@ -384,7 +452,39 @@ it("keeps provider baselines separate and preserves first-sync differences", asy
   expect(await getSyncConflicts()).toHaveLength(0);
   expect(second.files).toHaveLength(2);
 });
-it("does not overwrite remote content changed in place under an acknowledged revision", async () => {
+it("relays a remote edit between configured providers without merging their histories", async () => {
+  const id = await seed();
+  const first = Object.assign(new Cloud(), { getScope: () => "gdrive:folder" });
+  const second = Object.assign(new Cloud(), { getScope: () => "dropbox:account" });
+  const managerA = new SyncManager(first);
+  const managerB = new SyncManager(second);
+  await managerA.sync();
+  await managerB.sync();
+  const original = (await getSong(id)) as Song;
+  const parent = second.files[0].metadata.revision;
+  if (!parent) throw new Error("Missing revision");
+  const edited = { ...original, content: "[G]Edited on another Dropbox device" };
+  const next = await createSyncFile(edited, [parent]);
+  await second.uploadFile(
+    {
+      id,
+      title: edited.title,
+      type: "song",
+      lastModified: edited.lastModified,
+      revision: next.revision,
+      parents: [parent],
+    },
+    next.content,
+  );
+  await managerB.sync();
+  expect((await getSong(id))?.content).toBe(edited.content);
+  await managerA.sync();
+  expect(first.files).toHaveLength(2);
+  expect(first.files[1].metadata.parents).toEqual([first.files[0].metadata.revision]);
+  expect(JSON.parse(first.files[1].content).content).toBe(edited.content);
+  expect(await getSyncConflicts()).toHaveLength(0);
+});
+it("rejects a versioned remote file changed in place under an acknowledged revision", async () => {
   const id = await seed();
   const cloud = new Cloud();
   const manager = new SyncManager(cloud);
@@ -396,22 +496,22 @@ it("does not overwrite remote content changed in place under an acknowledged rev
     content: "[D]Remote edit with same revision",
   });
   await manager.sync();
-  expect((await getSyncConflicts())[0].remote[0].record).toMatchObject({
-    content: "[D]Remote edit with same revision",
-  });
+  expect(manager.getStatus().error).toContain("checksum mismatch");
+  expect(await getSyncConflicts()).toHaveLength(0);
   expect(cloud.files).toHaveLength(1);
 });
-it("rejects a reviewed remote version changed before resolution is shared", async () => {
+it("rejects a reviewed legacy remote version changed before resolution is shared", async () => {
   const id = await seed();
   const cloud = new Cloud();
   const manager = new SyncManager(cloud);
   await manager.sync();
   await updateSong(id, { content: "[G]Local edit" });
   const value = JSON.parse(cloud.files[0].content);
-  cloud.files[0].content = JSON.stringify({ ...value, content: "[D]Remote edit" });
+  const legacy = { ...value, _sync: { revision: value._sync.revision, parents: value._sync.parents } };
+  cloud.files[0].content = JSON.stringify({ ...legacy, content: "[D]Remote edit" });
   await manager.sync();
   await resolveConflict(`song:${id}`, "local");
-  cloud.files[0].content = JSON.stringify({ ...value, content: "[E]Another remote edit" });
+  cloud.files[0].content = JSON.stringify({ ...legacy, content: "[E]Another remote edit" });
   await manager.sync();
   expect(await getSyncConflicts()).toHaveLength(1);
   expect(cloud.files).toHaveLength(1);

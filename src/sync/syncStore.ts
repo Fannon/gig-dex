@@ -73,6 +73,24 @@ export async function getSyncBase(type: RecordType, id: string, scope = "") {
 export async function getSyncConflicts() {
   return (await initDB()).getAll("syncConflicts");
 }
+/** Record a committed upload even when a local edit made full acknowledgement unsafe. */
+export async function noteUploadedRevision(
+  type: RecordType,
+  record: LibraryRecord,
+  revisions: string[],
+  expectedBase: SyncBase | undefined,
+  scope = "",
+) {
+  const db = await initDB();
+  const tx = db.transaction("syncBases", "readwrite");
+  const id = syncKey(type, record.id, scope);
+  if (stableStringify(await tx.store.get(id)) !== stableStringify(expectedBase)) {
+    await tx.done;
+    return;
+  }
+  await tx.store.put({ id, fingerprint: recordFingerprint(record), revisions });
+  await tx.done;
+}
 export async function saveConflict(conflict: SyncConflict) {
   await (await initDB()).put("syncConflicts", conflict);
 }

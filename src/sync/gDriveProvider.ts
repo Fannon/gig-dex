@@ -1,5 +1,6 @@
 import { effectiveClientConfig } from "./clientConfig";
 import { syncHeads } from "./revisionHistory";
+import { parseSyncFile, readSyncResponse, SYNC_FORMAT_VERSION } from "./syncFormat";
 import type { SyncMetadata, SyncProvider } from "./types";
 
 const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -23,6 +24,7 @@ interface GDriveFile {
     type?: string;
     lastModified?: string;
     revision?: string;
+    formatVersion?: string;
     [key: string]: string | undefined;
   };
 }
@@ -210,12 +212,16 @@ export class GoogleDriveProvider implements SyncProvider {
     const result: SyncMetadata[] = [];
     for (const file of files) {
       if (!file.properties?.internalId || !["song", "setlist"].includes(file.properties.type || "")) continue;
+      if (file.properties.formatVersion && file.properties.formatVersion !== String(SYNC_FORMAT_VERSION))
+        throw new Error(
+          `Unsupported sync format version ${file.properties.formatVersion}. Update Gig-Dex before syncing.`,
+        );
       let lastModified = file.properties.lastModified;
       if (!lastModified) {
         // Older uploads only had Drive's upload time, which must not win
         // over a newer local edit. Read the actual record modification time.
-        const record = JSON.parse(await this.downloadFile(file.id));
-        lastModified = record.lastModified;
+        const record = parseSyncFile(await this.downloadFile(file.id));
+        lastModified = typeof record.lastModified === "string" ? record.lastModified : undefined;
       }
       if (typeof lastModified !== "string" || !Number.isFinite(Date.parse(lastModified))) {
         throw new Error("Invalid remote modification time");
@@ -234,6 +240,7 @@ export class GoogleDriveProvider implements SyncProvider {
           .filter(([key]) => /^parent\d+$/.test(key))
           .map(([, parent]) => parent)
           .filter((parent): parent is string => typeof parent === "string"),
+        formatVersion: file.properties.formatVersion ? Number(file.properties.formatVersion) : 0,
       });
     }
     return result;
@@ -245,7 +252,7 @@ export class GoogleDriveProvider implements SyncProvider {
 
   async downloadFile(gdriveId: string): Promise<string> {
     const response = await this.fetchWithAuth(`${GOOGLE_DRIVE_API_BASE}/files/${gdriveId}?alt=media`);
-    return response.text();
+    return readSyncResponse(response);
   }
 
   async uploadFile(metadata: SyncMetadata, content: string): Promise<void> {
@@ -266,6 +273,7 @@ export class GoogleDriveProvider implements SyncProvider {
         type: metadata.type,
         lastModified: metadata.lastModified,
         revision: metadata.revision,
+        formatVersion: String(SYNC_FORMAT_VERSION),
         ...Object.fromEntries((metadata.parents ?? []).map((parent, index) => [`parent${index}`, parent])),
       },
       parents: [folderId],
