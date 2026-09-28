@@ -70,15 +70,15 @@ Limitations to know:
 
 Details: [docs/local-folder-sync.md](docs/local-folder-sync.md)
 
-**3. Direct Google Drive / OneDrive sync: advanced only (bring your own Client ID)**
+**3. Direct Google Drive / OneDrive / Dropbox sync: advanced only (bring your own app registration)**
 
-Gig-Dex *can* talk directly to Google Drive and OneDrive, but there is no shared, ready-to-click cloud integration:
+Gig-Dex *can* talk directly to Google Drive, OneDrive, and Dropbox, but there is no shared, ready-to-click cloud integration:
 
-> You have to register your **own** Google / Microsoft OAuth app ("bring your own Client ID") and paste its ID into Gig-Dex under *Settings → Sync → Advanced setup: cloud Client IDs*.
+> You have to register your **own** cloud app and paste its public Client ID or Dropbox app key into Gig-Dex under *Settings → Sync → Advanced setup: cloud Client IDs*.
 
 That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use option 1 or 2 above.**
 
-If you want to try it anyway, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
+For Dropbox, follow the [Dropbox setup guide](docs/dropbox-sync.md). For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
 
 ### Install it like an app (Android / desktop)
 
@@ -90,7 +90,7 @@ Before an important gig, open your setlist once while online, then try airplane 
 
 ## For developers
 
-Gig-Dex is a React + Vite + TypeScript PWA. Storage is IndexedDB (via `idb`), sync is file-based revision exchange (local folder, Google Drive, OneDrive).
+Gig-Dex is a React + Vite + TypeScript PWA. Storage is IndexedDB (via `idb`), sync is file-based revision exchange (local folder, Google Drive, OneDrive, Dropbox).
 
 ### Quickstart
 
@@ -113,6 +113,7 @@ More commands:
 ### Docs
 
 - Sync design (local folder + bring-your-own Client IDs): [docs/local-folder-sync.md](docs/local-folder-sync.md)
+- Dropbox app setup: [docs/dropbox-sync.md](docs/dropbox-sync.md)
 - Setlists workspace: [docs/sets-workspace.md](docs/sets-workspace.md)
 - Offline / PWA / Android: [docs/pwa-offline-2026-09-27.md](docs/pwa-offline-2026-09-27.md)
 - Performance mode, song defaults: [docs/song-defaults-and-performance.md](docs/song-defaults-and-performance.md), [docs/performance-and-onedrive-2026-09-27.md](docs/performance-and-onedrive-2026-09-27.md)

@@ -27,7 +27,7 @@ export function SyncClientSettings() {
     setError("");
     try {
       await SyncManager.exclusive(async () => {
-        saveClientSettings(clear ? { google: "", microsoft: "", tenant: "" } : settings);
+        saveClientSettings(clear ? { google: "", microsoft: "", tenant: "", dropbox: "" } : settings);
         refreshSyncClientConfig();
       });
       const value = readClientSettings();
@@ -41,14 +41,14 @@ export function SyncClientSettings() {
     }
   };
   const effective = effectiveClientConfig();
-  const source = (key: "google" | "microsoft") =>
+  const source = (key: "google" | "microsoft" | "dropbox") =>
     saved[key] ? "Settings value" : effective[key] ? "Build-time configuration" : "Not configured";
   return (
     <details className="settings-page__client-settings">
       <summary>Advanced setup: cloud Client IDs</summary>
       <p>
-        Add public OAuth Client IDs from your own Google/Microsoft app registrations. Register this app’s redirect URLs
-        first. These settings stay on this browser and apply without a rebuild.
+        Add public OAuth Client IDs or a Dropbox app key from your own cloud app registrations. Register this app’s
+        redirect URLs first. These settings stay on this browser and apply without a rebuild.
       </p>
       <form
         onSubmit={(event) => {
@@ -86,6 +86,16 @@ export function SyncClientSettings() {
           onChange={(event) => setSettings({ ...settings, tenant: event.target.value })}
         />
         <small>Use common for personal and work accounts unless your registration needs a specific tenant.</small>
+        <label htmlFor="sync-dropbox-app-key">Dropbox app key</label>
+        <input
+          id="sync-dropbox-app-key"
+          value={settings.dropbox}
+          placeholder="App key"
+          autoComplete="off"
+          disabled={busy}
+          onChange={(event) => setSettings({ ...settings, dropbox: event.target.value })}
+        />
+        <small>Dropbox: {source("dropbox")}</small>
         <div className="settings-page__option-actions">
           <button type="submit" disabled={busy}>
             Save Client IDs

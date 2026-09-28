@@ -48,8 +48,8 @@ would weaken the cleanup guarantee.
 ## Runtime cloud configuration
 
 Expand **Advanced setup: cloud Client IDs** below the host controls. Enter a Google
-OAuth Client ID, a Microsoft Application (client) ID, and optionally a Microsoft
-tenant (`common` by default for a saved Microsoft ID). Save to enable the host
+OAuth Client ID, a Microsoft Application (client) ID, optionally a Microsoft
+tenant (`common` by default for a saved Microsoft ID), or a Dropbox app key. Save to enable the host
 immediately, without rebuilding. These are public client identifiers, not client
 secrets. Changed app registrations require reconnecting their hosts.
 
@@ -57,11 +57,12 @@ Register the app's origin and redirect URLs in your own OAuth applications. Goog
 uses the Settings page URL as its redirect; Microsoft uses
 `<origin><base-path>onedrive-callback.html` and requires a SPA redirect with personal
 and/or organizational accounts permitted by your registration. The existing OAuth
-flows and permissions are unchanged.
+flows and permissions are unchanged. Dropbox uses
+`<origin><base-path>dropbox-callback.html`; see the [Dropbox setup guide](dropbox-sync.md).
 
 Saved overrides live in this browser's localStorage and take precedence over the
-build's `VITE_GOOGLE_CLIENT_ID`, `VITE_MICROSOFT_CLIENT_ID` and
-`VITE_MICROSOFT_TENANT`. Clearing an override restores the build-time fallback.
+build's `VITE_GOOGLE_CLIENT_ID`, `VITE_MICROSOFT_CLIENT_ID`,
+`VITE_MICROSOFT_TENANT`, and `VITE_DROPBOX_APP_KEY`. Clearing an override restores the build-time fallback.
 Settings displays the effective source. These settings are per browser/device.
 
 Verification covers mocked directory handles, actual IndexedDB migrations,

@@ -3,11 +3,13 @@ export const clientConfigKeys = {
   google: "byoid:google_client_id",
   microsoft: "byoid:microsoft_client_id",
   tenant: "byoid:microsoft_tenant",
+  dropbox: "byoid:dropbox_app_key",
 };
 export interface ClientSettings {
   google: string;
   microsoft: string;
   tenant: string;
+  dropbox: string;
 }
 export function readClientSettings(): ClientSettings {
   const read = (key: string) => {
@@ -21,6 +23,7 @@ export function readClientSettings(): ClientSettings {
     google: read(clientConfigKeys.google),
     microsoft: read(clientConfigKeys.microsoft),
     tenant: read(clientConfigKeys.tenant),
+    dropbox: read(clientConfigKeys.dropbox),
   };
 }
 export function effectiveClientConfig() {
@@ -29,6 +32,7 @@ export function effectiveClientConfig() {
     google: saved.google || import.meta.env.VITE_GOOGLE_CLIENT_ID || "",
     microsoft: saved.microsoft || import.meta.env.VITE_MICROSOFT_CLIENT_ID || "",
     tenant: saved.microsoft ? saved.tenant || "common" : import.meta.env.VITE_MICROSOFT_TENANT || "common",
+    dropbox: saved.dropbox || import.meta.env.VITE_DROPBOX_APP_KEY || "",
   };
 }
 export function saveClientSettings(settings: ClientSettings) {
@@ -41,6 +45,8 @@ export function saveClientSettings(settings: ClientSettings) {
     throw new Error("Enter the Microsoft Application (client) ID, in UUID format.");
   if (clean.tenant && !/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(clean.tenant))
     throw new Error("Enter a Microsoft tenant ID or domain, or use common.");
+  if (clean.dropbox && !/^[a-zA-Z0-9]{8,32}$/.test(clean.dropbox))
+    throw new Error("Enter a Dropbox app key (8–32 letters or digits).");
   const previous = Object.values(clientConfigKeys).map((key) => [key, localStorage.getItem(key)]);
   try {
     for (const key of Object.keys(clientConfigKeys) as (keyof ClientSettings)[]) {

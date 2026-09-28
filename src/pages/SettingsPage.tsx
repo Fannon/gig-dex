@@ -89,8 +89,8 @@ export const SettingsPage = () => {
           <div className="settings-page__sync-intro">
             <p>
               <strong>Choose how to sync.</strong> A folder on this computer is easiest if you already use a cloud
-              folder. Direct Google Drive and OneDrive connections require you to register your own app and enter its
-              Client ID.
+              folder. Direct Google Drive, OneDrive, and Dropbox connections require you to register your own app and
+              enter its public Client ID or app key.
             </p>
             <div className="settings-page__guide-links">
               <a
@@ -106,6 +106,13 @@ export const SettingsPage = () => {
                 rel="noopener noreferrer"
               >
                 Google Drive & OneDrive setup
+              </a>
+              <a
+                href="https://github.com/Fannon/gig-dex/blob/main/docs/dropbox-sync.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Dropbox setup
               </a>
             </div>
           </div>
