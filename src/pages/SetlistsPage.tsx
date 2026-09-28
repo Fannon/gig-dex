@@ -146,8 +146,10 @@ export const SetlistsPage = () => {
 		})
 		.sort((a, b) => collator.compare(a.title, b.title));
 
-	const select = (listId: string) => {
-		navigate(`/setlist/${listId}`);
+	const select = (listId: string, keepSearch = true) => {
+		const params = new URLSearchParams();
+		if (keepSearch && search.trim()) params.set("q", search.trim());
+		navigate(`/setlist/${listId}${params.size ? `?${params}` : ""}`);
 		setSongIndex(0);
 		setPanel("content");
 	};
@@ -224,7 +226,7 @@ export const SetlistsPage = () => {
 			setDraft(null);
 			setSearch("");
 			setTag("");
-			select(listId);
+			select(listId, false);
 		});
 	const duplicate = () =>
 		mutate(async () => {
@@ -237,7 +239,7 @@ export const SetlistsPage = () => {
 			setSetlists(await getAllSetlists());
 			setSearch("");
 			setTag("");
-			select(listId);
+			select(listId, false);
 		});
 	const remove = () => {
 		if (!selected || !confirm(`Delete “${selected.name}”? Your songs will stay in the library.`))

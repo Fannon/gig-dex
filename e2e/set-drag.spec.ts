@@ -99,6 +99,16 @@ test("song membership counts distinct sets and filters only by a complete ID", a
 	const lists = page.locator(".setlists-page__item");
 	await expect(lists).toHaveCount(2);
 	await expect(lists).toContainText(["set", "set"]);
+	await lists.nth(1).click();
+	await expect(page).toHaveURL(new RegExp(`/setlist/[^?]+\\?q=${first}$`));
+	await expect(page.getByLabel("Search setlists", { exact: true })).toHaveValue(first);
+	await expect(lists).toHaveCount(2);
+	await page.reload();
+	await expect(page.getByLabel("Search setlists", { exact: true })).toHaveValue(first);
+	await expect(lists).toHaveCount(2);
+	await page.goBack();
+	await expect(page).toHaveURL(new RegExp(`/setlists\\?q=${first}$`));
+	await expect(lists).toHaveCount(2);
 	await page.getByLabel("Search setlists", { exact: true }).fill(first.slice(0, 12));
 	await expect(lists).toHaveCount(0);
 	await page.getByLabel("Search setlists", { exact: true }).fill(`${first} acoustic`);

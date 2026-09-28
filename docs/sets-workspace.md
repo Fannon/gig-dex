@@ -23,5 +23,5 @@ In normal song mode, **In N Sets** counts distinct sets containing the song,
 rather than repeated occurrences. Clicking it opens Sets with the complete song
 ID in the search. A complete UUID search token filters membership by exact ID;
 partial IDs do not match membership. Other tokens still search set names, tags,
-dates and descriptions, so an ID can be combined with a tag. The link preserves
-the ID filter when reloading. Regular text searches do not search song contents.
+dates and descriptions, so an ID can be combined with a tag. The active query stays in the URL when switching sets and survives reload and
+browser Back. Creating or duplicating a set clears filters to expose the new entry. Regular text searches do not search song contents.
