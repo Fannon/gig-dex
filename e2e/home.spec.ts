@@ -57,16 +57,20 @@ test.describe("Home Page", () => {
     await page.getByRole("link", { name: /Tutorial Song Gig-Dex Demo/ }).click();
     const label = page.locator(".song-view__content .section-instrumental");
     await expect(label).toBeVisible();
+    await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
     const chords = await label.evaluate((element) => {
-      const section = element.closest(".paragraph") ?? element.parentElement;
-      return Array.from(section?.querySelectorAll(".chord") ?? []).map((chord) => ({
-        text: chord.textContent?.trim(),
-        color: getComputedStyle(chord).color,
-      }));
+      const content = element.closest(".song-view__content");
+      const nodes = Array.from(content?.querySelectorAll(".label, .chord") ?? []);
+      const chords: { text: string; color: string }[] = [];
+      for (const node of nodes.slice(nodes.indexOf(element) + 1)) {
+        if (node.classList.contains("label")) break;
+        const text = node.textContent?.trim();
+        if (text) chords.push({ text, color: getComputedStyle(node).color });
+      }
+      return chords;
     });
-    const namedChords = chords.filter((chord) => chord.text);
-    expect(namedChords.map((chord) => chord.text)).toEqual(["C", "G", "Am", "F", "C", "G", "C"]);
-    expect(namedChords.every((chord) => chord.color === "rgb(245, 158, 11)")).toBe(true);
+    expect(chords.map((chord) => chord.text)).toEqual(["C", "G", "Am", "F", "C", "G", "C"]);
+    expect(chords.every((chord) => chord.color === "rgb(245, 158, 11)")).toBe(true);
     await label.scrollIntoViewIfNeeded();
     await page.screenshot({ path: "reports/tutorial-instrumental.png" });
   });
