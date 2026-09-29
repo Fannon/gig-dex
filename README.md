@@ -19,6 +19,7 @@ Gig-Dex keeps all your songs, chords, and setlists in one place, readable on pho
 - **Play in any key:** transpose any song instantly and add a capo without rewriting anything.
 - **Build setlists:** put songs in gig order, including repeats, notes, and per-song key/capo settings.
 - **Perform distraction-free:** big, auto-fitting text, page-by-page or scrolling reading, simple Previous / Next navigation, optional visual beat pulse.
+- **Read your way:** choose chord names, Nashville numbers, or Roman numerals; set a minimum font size and column limit in *Settings → Appearance → Song reading*.
 - **Find songs fast:** search by title, artist, tag, or setlist with `Ctrl+K` (`Cmd+K` on Mac).
 - **Works offline:** once loaded, your library is on your device. No account, no subscription, no cloud required.
 
@@ -40,10 +41,10 @@ It understands the popular [ChordPro](https://www.chordpro.org/) format (`[Am]He
 ### Get started in 3 steps (no account needed)
 
 1. **Open the app** in your browser (link above).
-2. **Add songs:** go to *Settings → Import* and drop in a few `.pro` / `.chopro` / `.txt` ChordPro files, or create a new song and paste text.
+2. **Add songs:** go to *Settings → Library → Import ChordPro songs* and select a few `.pro` / `.chopro` / `.txt` files, or create a new song and paste text.
 3. **Make a setlist:** go to *Sets → New setlist*, tap **+** on songs to add them, then hit **Perform setlist**.
 
-That's it. Everything is saved automatically on that device.
+Press **Save** after editing a song or setlist details. Setlist song order and additions are saved automatically on that device.
 
 ### Your songs are safe: backup & sync
 
@@ -51,17 +52,17 @@ Your library lives **on your device** (in your browser). That means it's private
 
 **1. Backup file: simple and available to everyone**
 
-*Settings → Backup → Export* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. *Settings → Restore backup* brings it back, on any device.
+*Settings → Library → Export library* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. *Settings → Library → Restore backup* brings it back, on any device.
 
 Use this before gigs, before updates, before cleaning up. It just works.
 
-**2. Local folder sync: recommended for automatic sync**
+**2. Local folder sync: use your existing cloud folder**
 
-If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, this is the easiest automatic option:
+If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, this is the simplest way to move your Gig-Dex library between computers:
 
 In *Settings → Sync → Sync from a folder on this computer*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
 
-Gig-Dex writes small files there, and *your existing desktop sync app* carries them to your other computers. No extra login in Gig-Dex, no registration, works offline.
+After editing your library, press **Sync now** in Gig-Dex. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** on the other computer after its desktop sync app finishes transferring the files. No extra login in Gig-Dex, no registration, and folder sync works offline.
 
 Limitations to know:
 
@@ -82,7 +83,7 @@ For Dropbox, follow the [Dropbox setup guide](docs/dropbox-sync.md). For Google 
 
 ### Install it like an app (Android / desktop)
 
-Open the live URL in Chrome, then **⋮ → Add to home screen → Install**. It then opens fullscreen, stays available offline, and can keep the screen awake during a gig (see *Performance options*).
+Open the live URL in Chrome or Edge and use the browser's **Install app** or **Add to home screen** action. It then opens as an app, stays available offline after its files are downloaded, and can keep the screen awake during a gig (see *Performance options*).
 
 Before an important gig, open your setlist once while online, then try airplane mode and close/reopen the app. You'll see exactly what the stage will see.
 
@@ -94,10 +95,10 @@ Gig-Dex is a React + Vite + TypeScript PWA. Storage is IndexedDB (via `idb`), sy
 
 ### Quickstart
 
-This project uses `npm` (also works with `bun` / `yarn`):
+Dependencies are locked with `bun.lock`. Install with Bun; the task scripts also run with npm:
 
 ```bash
-npm install
+bun install --frozen-lockfile
 npm run dev        # start dev server
 npm run validate   # lint + typecheck + unit tests; run after every change
 npm run verify     # validate + build + E2E tests; run before declaring "done"

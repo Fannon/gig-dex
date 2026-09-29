@@ -40,8 +40,12 @@ export const PerformancePage = () => {
   const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<Mode>(() => {
-    const saved = localStorage.getItem("performance_mode");
-    return saved === "scroll" || saved === "pages" ? saved : "auto";
+    try {
+      const saved = localStorage.getItem("performance_mode");
+      return saved === "scroll" || saved === "pages" ? saved : "auto";
+    } catch {
+      return "auto";
+    }
   });
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsDialog = useRef<HTMLDialogElement>(null);
@@ -295,7 +299,11 @@ export const PerformancePage = () => {
             onChange={(event) => {
               const value = event.target.value as Mode;
               setMode(value);
-              localStorage.setItem("performance_mode", value);
+              try {
+                localStorage.setItem("performance_mode", value);
+              } catch {
+                /* Reading mode still applies for this session. */
+              }
               setOptionsOpen(false);
             }}
           >

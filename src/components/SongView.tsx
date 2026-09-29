@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { useSongReading } from "../hooks/useSongReading";
-import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
+import { parseChordPro, transposeChordPro } from "../utils/chordEngine";
 import { savedMinimumFontSize } from "../utils/readingFont";
 import { readingHtml } from "../utils/readingLayout";
 import { savedReadingTheme } from "../utils/readingTheme";
@@ -58,9 +59,8 @@ export const SongView = ({
       window.removeEventListener("storage", update);
     };
   }, []);
-  const [wrapLines, setWrapLines] = useState(true);
+  const [{ chordMode, maxColumns: columnLimit, wrapLines }] = useReadingPreferences();
   const [showChords, setShowChords] = useState(true);
-  const [chordMode, setChordMode] = useState<ChordMode>("standard");
   const wrapperRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastFit = useRef<{ key: string; html: string } | null>(null);
@@ -128,6 +128,7 @@ export const SongView = ({
         wrapper.clientHeight,
         autoSize ? "auto" : fontSize,
         minimumFontSize,
+        columnLimit,
         showChords,
         wrapLines,
         fontEpoch.current,
@@ -140,7 +141,7 @@ export const SongView = ({
       if (contentEl.querySelector(".reading-line")) contentEl.innerHTML = parsed.html;
       contentEl.style.height = "100%";
       const fits = createSongFitChecker(contentEl);
-      const maxColumns = Math.max(1, Math.min(6, Math.floor(wrapper.clientWidth / 160)));
+      const maxColumns = Math.max(1, Math.min(columnLimit || 6, Math.floor(wrapper.clientWidth / 160)));
       const result = parsed.error
         ? { fontSize: autoSize ? Math.max(18, minimumFontSize) : fontSize, columns: 1, fits: false }
         : findSongLayout(
@@ -195,7 +196,7 @@ export const SongView = ({
       observer.disconnect();
       document.fonts.removeEventListener("loadingdone", fontsLoaded);
     };
-  }, [fitToScreen, autoSize, fontSize, minimumFontSize, parsed.html, parsed.error, showChords, wrapLines]);
+  }, [fitToScreen, autoSize, fontSize, minimumFontSize, columnLimit, parsed.html, parsed.error, showChords, wrapLines]);
 
   // Update parent with transposed content if needed
   useEffect(() => {
@@ -234,27 +235,47 @@ export const SongView = ({
     <div className="song-view" data-layout={measuring ? "measuring" : layout.fits ? "fit" : "scroll"}>
       {!hideControls && (
         <div className="song-view__controls">
-          <div className="song-view__control-group">
+          <fieldset className="song-view__control-group" aria-label="Transpose">
             <span className="song-view__control-label">Transpose</span>
             <div className="song-view__buttons">
-              <button type="button" onClick={() => handleTranspose(-1)} className="song-view__btn">
+              <button
+                type="button"
+                onClick={() => handleTranspose(-1)}
+                className="song-view__btn"
+                title="Transpose down one semitone"
+              >
                 -1
               </button>
               <span className="song-view__value">{transpose > 0 ? `+${transpose}` : transpose}</span>
-              <button type="button" onClick={() => handleTranspose(1)} className="song-view__btn">
+              <button
+                type="button"
+                onClick={() => handleTranspose(1)}
+                className="song-view__btn"
+                title="Transpose up one semitone"
+              >
                 +1
               </button>
             </div>
-          </div>
+          </fieldset>
 
-          <div className="song-view__control-group">
+          <fieldset className="song-view__control-group" aria-label="Font size">
             <span className="song-view__control-label">Font Size</span>
             <div className="song-view__buttons">
-              <button type="button" onClick={() => handleFontSize(-2)} className="song-view__btn">
+              <button
+                type="button"
+                onClick={() => handleFontSize(-2)}
+                className="song-view__btn"
+                title="Decrease font size"
+              >
                 A-
               </button>
               <span className="song-view__value">{fontSize}px</span>
-              <button type="button" onClick={() => handleFontSize(2)} className="song-view__btn">
+              <button
+                type="button"
+                onClick={() => handleFontSize(2)}
+                className="song-view__btn"
+                title="Increase font size"
+              >
                 A+
               </button>
             </div>
@@ -269,7 +290,7 @@ export const SongView = ({
                 Auto
               </button>
             )}
-          </div>
+          </fieldset>
 
           <div className="song-view__control-group">
             <label className="song-view__toggle">
@@ -278,42 +299,6 @@ export const SongView = ({
               <span className="song-view__control-label">Chords</span>
             </label>
           </div>
-
-          <div className="song-view__control-group">
-            <span className="song-view__control-label">Notation</span>
-            <div className="song-view__buttons">
-              <button
-                type="button"
-                onClick={() => setChordMode("standard")}
-                className={`song-view__btn ${chordMode === "standard" ? "song-view__btn--active" : ""}`}
-                title="Standard Chords"
-              >
-                Std
-              </button>
-              <button
-                type="button"
-                onClick={() => setChordMode("nashville")}
-                className={`song-view__btn ${chordMode === "nashville" ? "song-view__btn--active" : ""}`}
-                title="Nashville Number System"
-              >
-                1-7
-              </button>
-              <button
-                type="button"
-                onClick={() => setChordMode("roman")}
-                className={`song-view__btn ${chordMode === "roman" ? "song-view__btn--active" : ""}`}
-                title="Roman Numerals"
-              >
-                I-V
-              </button>
-            </div>
-          </div>
-          {!layout.fits && !parsed.error && (
-            <label className="song-view__control-group">
-              <input type="checkbox" checked={wrapLines} onChange={(event) => setWrapLines(event.target.checked)} />
-              <span className="song-view__control-label">Wrap lines</span>
-            </label>
-          )}
         </div>
       )}
 

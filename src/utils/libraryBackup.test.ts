@@ -170,3 +170,33 @@ it("roundtrips provider-scoped conflicts and restores their identities", async (
   await restoreLibrary(backup, "replace");
   expect((await getSyncConflicts())[0].id).toBe(`${scope}::song:${id}`);
 });
+
+it("remaps songs in restored setlist conflicts to the imported song versions", async () => {
+  const songId = await seed();
+  const [list] = await getAllSetlists();
+  const { saveConflict, getSyncConflicts } = await import("../sync/syncStore");
+  await saveConflict({
+    id: `setlist:${list.id}`,
+    recordId: list.id,
+    type: "setlist",
+    local: list,
+    remote: [
+      {
+        revision: "remote",
+        record: { ...list, name: "Remote set", songSettings: [{ transpose: 2 }, { transpose: -1 }] },
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  });
+  const backup = await exportLibrary();
+  await updateSong(songId, { title: "Local edit" });
+  await restoreLibrary(backup, "merge");
+  const importedSong = (await getAllSongs()).find((song) => song.title === "Original");
+  const conflict = (await getSyncConflicts()).find((item) => item.recordId !== list.id);
+  expect(importedSong?.id).not.toBe(songId);
+  expect(conflict?.local).toMatchObject({ songIds: [importedSong?.id, importedSong?.id] });
+  expect(conflict?.remote[0].record).toMatchObject({
+    songIds: [importedSong?.id, importedSong?.id],
+    songSettings: [{ transpose: 2 }, { transpose: -1 }],
+  });
+});

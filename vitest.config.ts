@@ -10,7 +10,8 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     coverage: {
       reporter: ["text", "json", "html"],
-      exclude: ["node_modules/", "src/test/"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/**/*.d.ts", "src/test/"],
     },
   },
 });

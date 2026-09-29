@@ -38,7 +38,10 @@ export const HomePage = () => {
     };
   }, []);
   const visibleSongs = useMemo(
-    () => songs.filter((song) => matchesLibrarySearch(`${song.title} ${song.artist ?? ""}`, song.tags ?? [], query)),
+    () =>
+      songs.filter((song) =>
+        matchesLibrarySearch([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags, query),
+      ),
     [songs, query],
   );
   const addDemo = async () => {

@@ -29,6 +29,7 @@ html, body, #root {
  --bg-primary: #f7f6f2; --bg-secondary: #efeee9; --bg-elevated: #e6e4dd;
  --text-primary: #292b31; --text-secondary: #60616b; --text-muted: #747580;
  --border-color: #d5d2dc; --color-accent: #5745aa;
+ --color-primary: #6752a9;
  .app-shell { color: #292b31; }
  .app-shell, .app-route, .song-page, .home-page, .settings-page, .setlists-page, .performance-page, .song-view__wrapper { background: #f7f6f2; color: #292b31; }
  .workspace-topbar, .library-sidebar, .workspace-search, .performance-page__options, .setlists-page__modal, .song-view__controls, .song-page__header, .setlists-page__header { background: #efeee9; color: #292b31; border-color: #d5d2dc; }
@@ -37,9 +38,16 @@ html, body, #root {
  .app-shell .workspace-topbar .workspace-brand { color: #292b31; background: none; -webkit-text-fill-color: currentColor; }
  .app-shell a { color: #5541a1; }
  .app-shell :is(button,input,select,textarea) { background: #e8e6ed; color: #292b31; border-color: #c6c2d3; }
+ .app-shell :is(input,textarea)::placeholder { color: #66616f; opacity: 1; }
+ .app-shell .song-page__simple-preview > .label { color: #50515d; }
+ .app-shell .song-page__preview-content { background: #efeee9; border-color: #c6c2d3; }
+ .app-shell .song-page__resize-handle { background: #c6c2d3; &:focus-visible { outline: 2px solid #6d54b8; } }
  .app-shell :is(button,a):focus-visible { outline: 2px solid #6d54b8; outline-offset: 2px; }
  .app-shell .workspace-topbar nav a.active, .app-shell .library-sidebar__links a[aria-current=page], .app-shell .setlists-page__item[aria-pressed=true], .app-shell .setlists-page__song[data-selected=true] { background: #ddd6ed; color: #392663; }
- .app-shell :is(.song-page__btn--primary, .setlists-page__add, .setlists-page .primary, .home-page__demo-btn) { background: #6752a9; color: #f7f6f2; }
+ .app-shell :is(.song-page__btn--primary, .song-page__mode-btn--active, .song-view__btn--active, .settings-page__tabs button[aria-current=page], .setlists-page__tabs button[aria-pressed=true], .setlists-page__add, .setlists-page .primary, .home-page__demo-btn) { background: #6752a9; color: #f7f6f2; }
+ .app-shell :is(.song-page__btn--danger, .setlists-page .danger, .settings-page__logout-btn) { color: #a62929; background: #f5e4e1; border-color: #d9aaa4; }
+ .app-shell .song-view__toggle-slider { background: #a8a1b7; }
+ .app-shell .song-view__toggle input:checked + .song-view__toggle-slider { background: #6752a9; }
  .app-shell :is(.song-view__content, .song-page__preview-content) { color: #292b31; .lyrics { color: #292b31; } .chord { color: #875714; } .comment { color: #66606c; }
   .label.section-verse { color: #5548a0; } .label.section-chorus { color: #087f75; } .label.section-prechorus { color: #28649a; } .label.section-bridge { color: #924195; } .label.section-intro { color: #715da0; } .label.section-outro { color: #8c641c; } .label.section-instrumental { color: #a15a2b; }
  }

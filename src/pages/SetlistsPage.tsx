@@ -105,9 +105,6 @@ export const SetlistsPage = () => {
   const selected = setlists.find((list) => list.id === id) ?? (!id ? filtered[0] : undefined);
   const songMap = new Map(songs.map((song) => [song.id, song]));
   const preview = selected ? songMap.get(selected.songIds[songIndex]) : undefined;
-  useEffect(() => {
-    setSongIndex((index) => Math.max(0, Math.min(index, (selected?.songIds.length ?? 1) - 1)));
-  }, [selected?.songIds.length]);
   const originalDraft = draft?.id ? setlists.find((list) => list.id === draft.id) : undefined;
   const dirtyDraft =
     !!draft &&
@@ -146,6 +143,12 @@ export const SetlistsPage = () => {
     setSongIndex(Number.isInteger(routeSongIndex) && routeSongIndex >= 0 ? routeSongIndex : 0);
     if (searchParams.has("song")) setPanel("preview");
   }, [id, routeSongIndex, searchParams]);
+  // Clamp after applying the route selection, including navigation between equally sized sets.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Route changes can reset the index without changing the song count.
+  useEffect(() => {
+    if (selected?.songIds.length !== undefined)
+      setSongIndex((index) => Math.max(0, Math.min(index, selected.songIds.length - 1)));
+  }, [selected?.songIds.length, id, routeSongIndex]);
 
   const mutate = async (action: () => Promise<void>) => {
     if (busyRef.current) return;
@@ -309,7 +312,7 @@ export const SetlistsPage = () => {
           New setlist
         </button>
       </header>
-      {error && (
+      {error && !draft && !addingSongs && (
         <p className="setlists-page__error" role="alert">
           {error}
         </p>
@@ -624,6 +627,7 @@ export const SetlistsPage = () => {
       </main>
       {draft && (
         <WorkspaceDialog title={draft.id ? "Edit setlist" : "New Setlist"} onClose={closeDraft}>
+          {error && <p role="alert">{error}</p>}
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -688,6 +692,7 @@ export const SetlistsPage = () => {
       )}
       {addingSongs && (
         <WorkspaceDialog title="Add songs" onClose={() => setAddingSongs(false)}>
+          {error && <p role="alert">{error}</p>}
           <label>
             Search songs
             <input

@@ -80,7 +80,11 @@ test("chooses multiple columns, preserves section labels and refits after contro
   );
   expect(labelsAttached).toBe(true);
   await page.getByRole("button", { name: "+1", exact: true }).click();
-  await page.getByRole("button", { name: "I-V", exact: true }).click();
+  const settings = await page.context().newPage();
+  await settings.goto("./settings");
+  await settings.getByLabel("Notation", { exact: true }).selectOption("roman");
+  await expect(page.locator(".song-view__content .chord").first()).toContainText("I");
+  await settings.close();
   await expectScreenFit(page);
   await page.getByText("Chords", { exact: true }).click();
   await expect(page.locator(".song-view__content .chord").first()).toBeHidden();
@@ -182,7 +186,7 @@ test("wraps wide phone lyrics at word boundaries with all chords preserved and r
   );
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", "scroll");
   const wrapper = page.locator(".song-view__wrapper");
-  await expect(page.getByLabel("Wrap lines")).toBeChecked();
+  await expect(page.getByLabel("Wrap lines")).toHaveCount(0);
   await expect.poll(() => wrapper.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   const rendered = await page.locator(".reading-line").first().locator(".lyrics").allTextContents();
   expect(rendered.join("")).toBe(lyrics);
@@ -194,10 +198,14 @@ test("wraps wide phone lyrics at word boundaries with all chords preserved and r
   ]);
   const midword = page.locator(".chord-word").filter({ hasText: "midGword" }).first();
   await expect(midword).toBeVisible();
-  await page.getByLabel("Wrap lines").uncheck();
+  const settings = await page.context().newPage();
+  await settings.goto("./settings");
+  await expect(settings.getByLabel("Wrap lines")).toBeChecked();
+  await settings.getByLabel("Wrap lines").uncheck();
   await expect(page.locator(".reading-line")).toHaveCount(0);
   await expect.poll(() => wrapper.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-  await page.getByLabel("Wrap lines").check();
+  await settings.getByLabel("Wrap lines").check();
+  await settings.close();
   const songUrl = page.url();
   await expect(page.getByLabel("Minimum font", { exact: true })).toHaveCount(0);
   await expect(page.locator(".song-view__layout-status")).toHaveCount(0);

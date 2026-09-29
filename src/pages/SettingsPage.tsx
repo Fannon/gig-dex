@@ -5,14 +5,17 @@ import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
 import { PwaSettings } from "../components/PwaSettings";
 import { SyncActivityLog } from "../components/SyncActivityLog";
+import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import type { SyncStatus } from "../sync/types";
 import { applyMinimumFontSize, minimumFontSizes, savedMinimumFontSize } from "../utils/readingFont";
+import { columnLimits } from "../utils/readingPreferences";
 import { applyReadingTheme, type ReadingTheme, savedReadingTheme } from "../utils/readingTheme";
 import "./SettingsPage.scss";
 
 export const SettingsPage = () => {
   const [minimumFontSize, setMinimumFontSize] = useState(savedMinimumFontSize);
   const [readingTheme, setReadingTheme] = useState(savedReadingTheme);
+  const [reading, setReading] = useReadingPreferences();
   const [searchParams, setSearchParams] = useSearchParams();
   const sections = ["appearance", "library", "sync", "offline", "about"] as const;
   type Section = (typeof sections)[number];
@@ -58,6 +61,23 @@ export const SettingsPage = () => {
                 <option value="light">Light</option>
               </select>
             </label>
+          </section>
+          <section className="settings-page__section settings-page__appearance">
+            <h2>Song reading</h2>
+            <label>
+              Notation
+              <select
+                aria-label="Notation"
+                value={reading.chordMode}
+                onChange={(event) =>
+                  setReading({ ...reading, chordMode: event.target.value as typeof reading.chordMode })
+                }
+              >
+                <option value="standard">Standard (C, Am)</option>
+                <option value="nashville">Nashville (1–7)</option>
+                <option value="roman">Roman (I–VII)</option>
+              </select>
+            </label>
             <label>
               Minimum font
               <select
@@ -76,9 +96,32 @@ export const SettingsPage = () => {
                 ))}
               </select>
             </label>
+            <label>
+              Columns
+              <select
+                aria-label="Columns"
+                value={reading.maxColumns}
+                onChange={(event) => setReading({ ...reading, maxColumns: Number(event.target.value) })}
+              >
+                {columnLimits.map((limit) => (
+                  <option key={limit} value={limit}>
+                    {limit === 0 ? "Automatic" : limit === 1 ? "Single column" : `Up to ${limit} columns`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Wrap lines
+              <input
+                type="checkbox"
+                checked={reading.wrapLines}
+                onChange={(event) => setReading({ ...reading, wrapLines: event.target.checked })}
+              />
+            </label>
             <p className="settings-page__hint">
-              Smallest text used when fitting songs to this screen. Longer songs scroll when they cannot fit at this
-              size.
+              Applies to all songs on this device, including setlist previews and performance. Number notation needs a
+              song key. Auto-fit uses up to your column limit without going below the minimum font. Songs that cannot
+              fit scroll in one column; wrapping keeps wide lyrics readable.
             </p>
           </section>
         </div>

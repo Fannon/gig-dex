@@ -283,7 +283,8 @@
  .settings-page__sync-box .settings-page__option { align-items: flex-start; .settings-page__option-text { flex-basis: 100%; } }
 }
 
-.settings-page__appearance > label { display: grid; grid-template-columns: 140px auto; align-items: center; gap: 12px; margin: 8px 0; select { justify-self: start; } }
+.settings-page__appearance { max-width: 680px; }
+.settings-page__appearance > label { display: grid; grid-template-columns: minmax(100px, 140px) minmax(0, 1fr); align-items: center; gap: 12px; margin: 8px 0; select { justify-self: start; max-width: 100%; } input[type=checkbox] { justify-self: start; width: 20px; height: 20px; accent-color: var(--color-primary); } }
 .settings-page__hint { font-size: .85rem; color: var(--text-secondary); line-height: 1.45; margin: .75rem 0 0; }
 
 .settings-page__tabs {

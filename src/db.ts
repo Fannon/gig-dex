@@ -197,14 +197,17 @@ export const addSong = async (song: Omit<Song, "id" | "lastModified" | "createdA
 
 export const updateSong = async (id: string, updates: Partial<Song>): Promise<void> => {
   const db = await initDB();
-  const existing = await db.get("songs", id);
+  const tx = db.transaction("songs", "readwrite");
+  void tx.done.catch(() => {});
+  const existing = await tx.store.get(id);
   if (!existing) throw new Error("Song not found");
 
-  await db.put("songs", {
+  await tx.store.put({
     ...existing,
     ...updates,
     lastModified: now(),
   });
+  await tx.done;
   notifyLibraryChanged();
 };
 
@@ -279,14 +282,17 @@ export const addSetlist = async (setlist: Omit<Setlist, "id" | "lastModified" | 
 
 export const updateSetlist = async (id: string, updates: Partial<Setlist>): Promise<void> => {
   const db = await initDB();
-  const existing = await db.get("setlists", id);
+  const tx = db.transaction("setlists", "readwrite");
+  void tx.done.catch(() => {});
+  const existing = await tx.store.get(id);
   if (!existing) throw new Error("Setlist not found");
 
-  await db.put("setlists", {
+  await tx.store.put({
     ...existing,
     ...updates,
     lastModified: now(),
   });
+  await tx.done;
   notifyLibraryChanged();
 };
 

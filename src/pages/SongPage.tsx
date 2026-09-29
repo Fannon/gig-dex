@@ -85,6 +85,7 @@ export const SongPage = () => {
   const [tagInput, setTagInput] = useState("");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [dirty, setDirty] = useState(false);
   const allowLeave = useUnsavedEdits(isEditing && dirty);
   const [readingTranspose, setReadingTranspose] = useState(0);
@@ -157,6 +158,8 @@ export const SongPage = () => {
             subtitle: loadedSong.subtitle ?? extractMetadata(loadedSong.content).subtitle,
           });
           setReadingTranspose(loadedSong.defaultTranspose ?? 0);
+          setTagInput("");
+          setSaveError("");
           setDirty(false);
         } else {
           navigate("/");
@@ -177,6 +180,7 @@ export const SongPage = () => {
     openedSongId.current = id;
     setIsEditing(startInEditMode);
     setSetMessage("");
+    setSaveError("");
     setDirty(false);
     if (isNew) {
       setSong({ title: "", artist: "", content: "", key: "", tags: [] });
@@ -233,6 +237,8 @@ export const SongPage = () => {
   }, [isResizing]);
 
   const handleSave = async () => {
+    if (saving) return;
+    setSaveError("");
     // Build the final ChordPro content with metadata
     let lyricsContent = "";
 
@@ -254,7 +260,7 @@ export const SongPage = () => {
     // Build metadata from form fields, merged with existing extended metadata
     const metadata: SongMetadata = {
       // Primary fields from form
-      title: song.title || undefined,
+      title: song.title?.trim() || undefined,
       artist: song.artist || undefined,
       key: song.key || undefined,
       tempo: song.tempo || undefined,
@@ -273,19 +279,23 @@ export const SongPage = () => {
     // Inject metadata into the content
     const contentToSave = injectMetadata(lyricsContent, metadata);
 
-    if (!song.title || !lyricsContent.trim()) {
-      alert("Please enter a title and content");
+    if (!song.title?.trim() || !lyricsContent.trim()) {
+      setSaveError("Please enter a title and content.");
       return;
     }
 
     if (!Number.isInteger(song.defaultTranspose ?? 0) || Math.abs(song.defaultTranspose ?? 0) > 24) {
-      alert("Standard transposition must be a whole number between -24 and 24.");
+      setSaveError("Standard transposition must be a whole number between -24 and 24.");
+      return;
+    }
+    if (song.tempo !== undefined && (!Number.isInteger(song.tempo) || song.tempo < 20 || song.tempo > 300)) {
+      setSaveError("Tempo must be a whole number between 20 and 300 BPM.");
       return;
     }
     setSaving(true);
     try {
       const songData = {
-        title: song.title,
+        title: song.title.trim(),
         artist: song.artist || "Unknown",
         content: contentToSave,
         key: song.key,
@@ -301,7 +311,7 @@ export const SongPage = () => {
         album: existingMetadata.album,
         year: existingMetadata.year,
         duration: existingMetadata.duration,
-        tags: song.tags || [],
+        tags: [...new Set([...(song.tags ?? []), tagInput.trim()].filter(Boolean))],
       };
 
       if (isNew) {
@@ -311,8 +321,9 @@ export const SongPage = () => {
         navigate(`/song/${newId}`, { replace: true });
       } else if (id) {
         await updateSong(id, songData);
-        setSong((prev) => ({ ...prev, content: contentToSave }));
+        setSong((prev) => ({ ...prev, ...songData }));
       }
+      setTagInput("");
       setIsEditing(false);
       setDirty(false);
       setReadingTranspose(song.defaultTranspose ?? 0);
@@ -322,21 +333,21 @@ export const SongPage = () => {
       }
     } catch (error) {
       console.error("Failed to save song:", error);
-      alert("Failed to save song");
+      setSaveError("Could not save the song. Your edits are still here; please try again.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleAddTag = () => {
-    setDirty(true);
     if (tagInput.trim() && !song.tags?.includes(tagInput.trim())) {
+      setDirty(true);
       setSong((prev) => ({
         ...prev,
         tags: [...(prev.tags || []), tagInput.trim()],
       }));
-      setTagInput("");
     }
+    setTagInput("");
   };
 
   const handleRemoveTag = (tag: string) => {
@@ -423,6 +434,7 @@ export const SongPage = () => {
         )}
 
         {occurrence.error && <p role="alert">{occurrence.error}</p>}
+        {saveError && <p role="alert">{saveError}</p>}
         {setMessage && <output className="song-page__set-message">{setMessage}</output>}
         <div className="song-page__actions">
           {!isEditing && (
@@ -462,7 +474,7 @@ export const SongPage = () => {
               </Link>
               <button
                 type="button"
-                className="song-page__btn song-page__btn--secondary"
+                className="song-page__btn song-page__btn--danger"
                 onClick={() => {
                   if (!id || !confirm(`Delete “${song.title}”? It will also be removed from setlists.`)) return;
                   void deleteSong(id)
@@ -479,6 +491,7 @@ export const SongPage = () => {
             <>
               <button
                 type="button"
+                disabled={saving}
                 onClick={async () => {
                   if (dirty && !confirm("Discard unsaved changes?")) return;
                   allowLeave();
@@ -574,7 +587,7 @@ export const SongPage = () => {
                 onChange={(e) =>
                   setSong((prev) => ({
                     ...prev,
-                    tempo: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                    tempo: e.target.value ? Number(e.target.value) : undefined,
                   }))
                 }
                 placeholder="120"
@@ -610,10 +623,11 @@ export const SongPage = () => {
               />
             </div>
             <div className="song-page__field song-page__field--flex3">
-              <div className="label">Tags</div>
+              <label htmlFor="song-tag">Tags</label>
               <div className="song-page__tags-row">
                 <div className="song-page__tags-input">
                   <input
+                    id="song-tag"
                     type="text"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
@@ -625,7 +639,7 @@ export const SongPage = () => {
                     }}
                     placeholder="Add tag..."
                   />
-                  <button type="button" onClick={handleAddTag}>
+                  <button type="button" onClick={handleAddTag} aria-label="Add tag" disabled={!tagInput.trim()}>
                     +
                   </button>
                 </div>
@@ -634,7 +648,7 @@ export const SongPage = () => {
                     {song.tags.map((tag) => (
                       <span key={tag} className="song-page__tag">
                         {tag}
-                        <button type="button" onClick={() => handleRemoveTag(tag)}>
+                        <button type="button" onClick={() => handleRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
                           ×
                         </button>
                       </span>
@@ -651,6 +665,7 @@ export const SongPage = () => {
               type="button"
               className={`song-page__mode-btn ${editorMode === "simple" ? "song-page__mode-btn--active" : ""}`}
               onClick={() => switchEditorMode("simple")}
+              aria-pressed={editorMode === "simple"}
             >
               Simple
             </button>
@@ -658,6 +673,7 @@ export const SongPage = () => {
               type="button"
               className={`song-page__mode-btn ${editorMode === "advanced" ? "song-page__mode-btn--active" : ""}`}
               onClick={() => switchEditorMode("advanced")}
+              aria-pressed={editorMode === "advanced"}
             >
               Advanced (ChordPro)
             </button>
@@ -690,10 +706,22 @@ Whisper words of wisdom, let it be`}
                   className={`song-page__resize-handle ${isResizing ? "song-page__resize-handle--active" : ""}`}
                   onMouseDown={handleResizeStart}
                   role="separator"
+                  aria-label="Resize editor and preview"
                   aria-orientation="vertical"
                   aria-valuenow={splitRatio * 100}
                   aria-valuemin={20}
                   aria-valuemax={80}
+                  onKeyDown={(event) => {
+                    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    setSplitRatio((ratio) =>
+                      event.key === "Home"
+                        ? 0.2
+                        : event.key === "End"
+                          ? 0.8
+                          : Math.max(0.2, Math.min(0.8, ratio + (event.key === "ArrowRight" ? 0.05 : -0.05))),
+                    );
+                  }}
                   tabIndex={0}
                 />
                 <div
@@ -723,7 +751,21 @@ Whisper words of wisdom, let it be`}
                 <textarea
                   id="advanced-content"
                   value={song.content || ""}
-                  onChange={(e) => setSong((prev) => ({ ...prev, content: e.target.value }))}
+                  onChange={(event) => {
+                    const content = event.target.value;
+                    setSong((previous) => {
+                      const oldMetadata = extractMetadata(previous.content || "");
+                      const newMetadata = extractMetadata(content);
+                      // Reflect pasted/edited directives in the form, while preserving form edits
+                      // when the raw directive is unchanged or absent.
+                      const changedMetadata = Object.fromEntries(
+                        Object.entries(newMetadata).filter(
+                          ([key, value]) => value !== undefined && value !== oldMetadata[key as keyof SongMetadata],
+                        ),
+                      );
+                      return { ...previous, ...changedMetadata, content };
+                    });
+                  }}
                   placeholder={`{start_of_verse: Verse 1}
 [G]Amazing [G7]grace, how [C]sweet the [G]sound
 That [G]saved a [Em]wretch like [D]me

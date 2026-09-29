@@ -187,7 +187,16 @@ export async function restoreLibrary(backup: LibraryBackup, mode: "merge" | "rep
       const existing = await tx.objectStore("syncConflicts").get(key);
       const versions = [
         ...(existing?.remote ?? []),
-        ...conflict.remote.map((version) => ({ ...version, record: { ...version.record, id } })),
+        ...conflict.remote.map((version) => ({
+          ...version,
+          record: {
+            ...version.record,
+            id,
+            ...(!isDeletion(version.record) && "songIds" in version.record
+              ? { songIds: version.record.songIds.map((songId) => remap.get(songId) ?? songId) }
+              : {}),
+          },
+        })),
       ];
       await tx.objectStore("syncConflicts").put({
         ...conflict,

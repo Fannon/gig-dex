@@ -66,6 +66,32 @@ describe("Database", () => {
     });
   });
 
+  it("preserves independent song and setlist changes made concurrently", async () => {
+    const songId = await addSong({ title: "Original", artist: "", content: "[C]Test", tags: [] });
+    await Promise.all([updateSong(songId, { title: "Edited" }), updateSong(songId, { tags: ["gig"] })]);
+    expect(await getSong(songId)).toMatchObject({ title: "Edited", tags: ["gig"] });
+
+    const listId = await addSetlist({ name: "Original", songIds: [] });
+    await Promise.all([
+      updateSetlist(listId, { name: "Edited" }),
+      updateSetlist(listId, { songIds: [songId], songSettings: [{ transpose: 2 }] }),
+    ]);
+    expect(await getSetlist(listId)).toMatchObject({
+      name: "Edited",
+      songIds: [songId],
+      songSettings: [{ transpose: 2 }],
+    });
+  });
+
+  it("does not resurrect records when deletion races an update", async () => {
+    const songId = await addSong({ title: "Original", artist: "", content: "[C]Test", tags: [] });
+    const listId = await addSetlist({ name: "Original", songIds: [] });
+    await Promise.all([updateSong(songId, { title: "Edited" }), deleteSong(songId)]);
+    await Promise.all([updateSetlist(listId, { name: "Edited" }), deleteSetlist(listId)]);
+    expect(await getSong(songId)).toBeUndefined();
+    expect(await getSetlist(listId)).toBeUndefined();
+  });
+
   describe("Song Operations", () => {
     it("should add a song and retrieve it", async () => {
       const songId = await addSong({
