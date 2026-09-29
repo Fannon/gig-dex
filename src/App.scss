@@ -44,8 +44,8 @@ html, body, #root {
  .app-shell .song-page__resize-handle { background: #c6c2d3; &:focus-visible { outline: 2px solid #6d54b8; } }
  .app-shell :is(button,a):focus-visible { outline: 2px solid #6d54b8; outline-offset: 2px; }
  .app-shell .workspace-topbar nav a.active, .app-shell .library-sidebar__links a[aria-current=page], .app-shell .setlists-page__item[aria-pressed=true], .app-shell .setlists-page__song[data-selected=true] { background: #ddd6ed; color: #392663; }
- .app-shell :is(.song-page__btn--primary, .song-page__mode-btn--active, .song-view__btn--active, .settings-page__tabs button[aria-current=page], .setlists-page__tabs button[aria-pressed=true], .setlists-page__add, .setlists-page .primary, .home-page__demo-btn) { background: #6752a9; color: #f7f6f2; }
- .app-shell :is(.song-page__btn--danger, .setlists-page .danger, .settings-page__logout-btn) { color: #a62929; background: #f5e4e1; border-color: #d9aaa4; }
+ .app-shell :is(.song-page__btn--primary, .song-page__mode-btn--active, .song-view__btn--active, .settings-page__tabs button[aria-current=page], .setlists-page__tabs button[aria-pressed=true], .setlists-page__add, .setlists-page .primary, .home-page__demo-btn, .data-management__restore button:not(.data-management__cancel):not(.data-management__replace)) { background: #6752a9; color: #f7f6f2; }
+ .app-shell :is(.song-page__btn--danger, .setlists-page .danger, .settings-page__logout-btn, .data-management__replace) { color: #a62929; background: #f5e4e1; border-color: #d9aaa4; }
  .app-shell .song-view__toggle-slider { background: #a8a1b7; }
  .app-shell .song-view__toggle input:checked + .song-view__toggle-slider { background: #6752a9; }
  .app-shell :is(.song-view__content, .song-page__preview-content) { color: #292b31; .lyrics { color: #292b31; } .chord { color: #875714; } .comment { color: #66606c; }

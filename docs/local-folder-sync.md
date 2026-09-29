@@ -21,6 +21,9 @@ with instructions to select a replacement. Unrelated files are ignored, and a
 folder with many unrelated JSON files shows a recommendation to use a dedicated
 folder. A malformed recognized revision stops sync until the file transfer or
 repair finishes; it is never silently treated as a missing remote record.
+Ordinary Gig-Dex backup files in the folder are ignored. To import one, select
+it in Settings → Library → Restore backup, choose Merge, press **Import**, and
+then press **Sync now** to write the imported records into the sync folder.
 
 The directory handle and a random folder identity live in IndexedDB's
 `syncHandles` store. That identity survives app restarts and selecting the same

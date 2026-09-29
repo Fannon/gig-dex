@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { notifyLibraryChanged } from "../db";
+import { getAllSetlists, getAllSongs, notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import {
   exportLibrary,
@@ -16,6 +16,7 @@ export const DataManagement = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [backup, setBackup] = useState<LibraryBackup | null>(null);
+  const [backupName, setBackupName] = useState("");
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [results, setResults] = useState<ImportResult[]>([]);
   const run = async (action: () => Promise<void>) => {
@@ -35,7 +36,11 @@ export const DataManagement = () => {
   };
   return (
     <section className="settings-page__section data-management">
-      <h2>Library</h2>
+      <h2>Import / Restore</h2>
+      <p className="data-management__intro">
+        JSON backups can add songs and setlists to this device. A backup placed in your sync folder is ignored until you
+        select it here. After importing, use Sync now under Sync to share the changes.
+      </p>
       <button
         type="button"
         className="settings-page__option"
@@ -66,6 +71,9 @@ export const DataManagement = () => {
       </button>
       <label className="data-management__file">
         Restore backup
+        <small>
+          Choose a Gig-Dex .json file to preview its songs and setlists. Selecting a file does not change your library.
+        </small>
         <input
           type="file"
           accept=".json,application/json"
@@ -74,9 +82,11 @@ export const DataManagement = () => {
             const file = event.target.files?.[0];
             event.target.value = "";
             setBackup(null);
+            setBackupName("");
             if (file)
               void run(async () => {
                 setBackup(parseBackup(await file.text()));
+                setBackupName(file.name);
                 setMode("merge");
               });
           }}
@@ -84,49 +94,74 @@ export const DataManagement = () => {
       </label>
       {backup && (
         <div className="data-management__restore">
+          <p className="data-management__source">Selected: {backupName}</p>
           <p>
-            Ready to restore <strong>{backup.songs.length} songs</strong> and{" "}
-            <strong>{backup.setlists.length} setlists</strong>.
+            This file contains <strong>{backup.songs.length} songs</strong> and{" "}
+            <strong>{backup.setlists.length} setlists</strong>. Nothing has been imported yet.
           </p>
+          {backup.setlists.length > 0 && (
+            <details>
+              <summary>Show setlists in this file</summary>
+              <ul>
+                {backup.setlists.map((setlist) => (
+                  <li key={setlist.id}>{setlist.name}</li>
+                ))}
+              </ul>
+            </details>
+          )}
           <label>
             Restore mode
             <select value={mode} onChange={(event) => setMode(event.target.value as "merge" | "replace")}>
-              <option value="merge">Add alongside existing library</option>
-              <option value="replace">Replace existing library</option>
+              <option value="merge">Merge — keep existing library</option>
+              <option value="replace">Replace — remove existing library</option>
             </select>
           </label>
-          <p>
+          <p className="data-management__mode-help">
             {mode === "merge"
-              ? "Identical records are skipped. Different versions are kept as separate copies with their setlist references."
-              : "This replaces all current songs and setlists. Export your current library first if you want to keep it."}
+              ? "Keeps your current library. New records are added; identical records with the same ID are skipped. If an ID has different content, both versions are kept. Titles are not used to detect duplicates."
+              : `Removes every current song and setlist on this device, then imports only the ${backup.songs.length} songs and ${backup.setlists.length} setlists in this file. Use this only with a complete backup.`}
           </p>
           <button
             type="button"
             disabled={busy}
+            className={mode === "replace" ? "data-management__replace" : undefined}
             onClick={() => {
               if (
                 mode === "replace" &&
                 !confirm(
-                  `Replace your library with ${backup.songs.length} songs and ${backup.setlists.length} setlists from this backup?`,
+                  `Remove all current songs and setlists from this device and replace them with ${backup.songs.length} songs and ${backup.setlists.length} setlists from this file?`,
                 )
               )
                 return;
               void run(async () => {
                 await restoreLibrary(backup, mode);
+                const [songs, setlists] = await Promise.all([getAllSongs(), getAllSetlists()]);
                 setBackup(null);
-                setMessage("Backup restored successfully.");
+                setBackupName("");
+                setMessage(
+                  `${mode === "merge" ? "Import complete" : "Library replaced"} on this device. You now have ${songs.length} songs and ${setlists.length} setlists. Use Sync now under Sync to share them with other devices.`,
+                );
               });
             }}
           >
-            Restore library
+            {mode === "merge" ? "Import" : "Replace library"}
           </button>
-          <button type="button" disabled={busy} onClick={() => setBackup(null)}>
+          <button
+            type="button"
+            className="data-management__cancel"
+            disabled={busy}
+            onClick={() => {
+              setBackup(null);
+              setBackupName("");
+            }}
+          >
             Cancel restore
           </button>
         </div>
       )}
       <label className="data-management__file">
         Import ChordPro songs
+        <small>Adds songs from .cho, .chordpro, or text files. This does not import setlists or .json backups.</small>
         <input
           type="file"
           multiple
@@ -148,7 +183,9 @@ export const DataManagement = () => {
               });
           }}
         />
-        <small>Select multiple files. Matching source text is skipped; different versions are kept.</small>
+        <small>
+          Select multiple files. Only identical song text is skipped; songs with the same title can both be added.
+        </small>
       </label>
       {busy && <output>Working…</output>}
       {message && <output>{message}</output>}

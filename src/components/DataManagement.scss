@@ -1,12 +1,120 @@
 .data-management {
-  output { display: block; margin-top: 1rem; }
-  &__file { display: flex; flex-direction: column; gap: .5rem; padding: 1rem; background: #ffffff06; border: 1px solid #ffffff12; border-radius: 10px; margin-top: .75rem; font-size: .9rem; }
-  input { width: 100%; min-width: 0; font-size: .85rem; }
-  input::file-selector-button, &__restore button { padding: .55rem .8rem; border: 0; border-radius: 6px; background: #6152dd; color: white; margin-right: .5rem; cursor: pointer; }
-  &__restore { padding: 1rem; border: 1px solid #a59ae545; border-radius: 10px; margin-top: .75rem; font-size: .9rem; label { display: flex; flex-direction: column; gap: .5rem; } select { background: #25253b; color: white; padding: .6rem; border-radius: 6px; border: 1px solid #57516f; } button { margin-top: .5rem; } }
-  small, details { color: #b0b0c4; font-size: .8rem; }
-  details { margin-top: .75rem; overflow-wrap: anywhere; }
-  details ul { max-height: 20rem; overflow-y: auto; }
-  &__error { color: #fca5a5; }
-  button:disabled, input:disabled { opacity: .5; }
+  max-width: 760px;
+  text-align: left;
+
+  &__intro,
+  &__mode-help {
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  &__file {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    margin-top: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    font-size: 0.9rem;
+  }
+
+  > .data-management__file {
+    align-items: stretch;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    text-align: left;
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.85rem;
+  }
+
+  input::file-selector-button,
+  &__restore button {
+    min-height: 40px;
+    padding: 0.55rem 0.8rem;
+    margin-right: 0.5rem;
+    border: 0;
+    border-radius: 6px;
+    background: var(--color-accent);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  &__restore {
+    padding: 1rem;
+    margin-top: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    font-size: 0.9rem;
+
+    p {
+      margin: 0 0 0.75rem;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    select {
+      min-height: 44px;
+      padding: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    button {
+      margin-top: 0.5rem;
+    }
+
+    .data-management__replace {
+      background: #a62929;
+      color: #fff;
+    }
+
+    .data-management__cancel {
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-primary);
+    }
+  }
+
+  &__source {
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+  }
+
+  small,
+  details {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+  }
+
+  details {
+    margin-top: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+
+  details ul {
+    max-height: 20rem;
+    overflow-y: auto;
+  }
+
+  &__error {
+    color: #fca5a5;
+  }
+
+  button:disabled,
+  input:disabled {
+    opacity: 0.5;
+  }
 }

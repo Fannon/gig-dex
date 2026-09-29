@@ -5,6 +5,8 @@ test("import multiple songs, report duplicates and invalid content, export and r
   page,
 }) => {
   await page.goto("./settings?section=library");
+  await expect(page.getByRole("heading", { name: "Import / Restore" })).toBeVisible();
+  await expect(page.locator(".data-management__file").first()).toHaveCSS("align-items", "stretch");
   const content = "{title: Harbor}\n{artist: River Band}\n{composer: Original Composer}\n[C]Original test song";
   await page.getByLabel("Import ChordPro songs").setInputFiles([
     { name: "harbor.cho", mimeType: "text/plain", buffer: Buffer.from(content) },
@@ -39,9 +41,12 @@ test("import multiple songs, report duplicates and invalid content, export and r
     mimeType: "application/json",
     buffer: Buffer.from(backup),
   });
-  await expect(page.getByText(/Ready to restore/)).toBeVisible();
-  await page.getByRole("button", { name: "Restore library", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Backup restored successfully.");
+  await expect(page.getByText("Selected: backup.json")).toBeVisible();
+  await expect(page.getByLabel("Restore mode")).toHaveValue("merge");
+  await expect(page.getByText(/Selecting a file does not change your library/)).toBeVisible();
+  await expect(page.getByText(/Nothing has been imported yet/)).toBeVisible();
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Import complete on this device.");
   await page
     .getByLabel("Restore backup")
     .setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from("{}") });
@@ -67,12 +72,13 @@ test("replace restore requires confirmation and restores an empty library", asyn
   );
   await page.getByLabel("Restore backup").setInputFiles({ name: "empty.json", mimeType: "application/json", buffer });
   await page.getByLabel("Restore mode").selectOption("replace");
+  await expect(page.getByText(/Removes every current song and setlist/)).toBeVisible();
   page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "Restore library", exact: true }).click();
-  await expect(page.getByText(/Ready to restore/)).toBeVisible();
+  await page.getByRole("button", { name: "Replace library", exact: true }).click();
+  await expect(page.getByText("Selected: empty.json")).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Restore library", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Backup restored successfully.");
+  await page.getByRole("button", { name: "Replace library", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Library replaced on this device.");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(0);
   await page.goto("./");
   await expect(page.getByText("No songs yet")).toBeVisible();

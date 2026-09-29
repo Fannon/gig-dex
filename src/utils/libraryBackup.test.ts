@@ -61,6 +61,29 @@ describe("library backups and imports", () => {
     expect(lists.some((list) => list.songIds.every((songId) => songId === imported?.id))).toBe(true);
     expect(lists.some((list) => list.songIds.every((songId) => songId === id))).toBe(true);
   });
+  it("adds setlists from a partial backup without replacing or duplicating existing songs", async () => {
+    const songId = await seed();
+    const full = await exportLibrary();
+    const partial = {
+      ...full,
+      setlists: ["one", "two", "three"].map((id) => ({
+        ...full.setlists[0],
+        id,
+        name: `Reconstructed ${id}`,
+      })),
+    };
+    await restoreLibrary(partial, "merge");
+    expect(await getAllSongs()).toHaveLength(1);
+    expect((await getAllSetlists()).map((list) => list.name).sort()).toEqual([
+      "Gig",
+      "Reconstructed one",
+      "Reconstructed three",
+      "Reconstructed two",
+    ]);
+    expect((await getAllSetlists()).every((list) => list.songIds.every((id) => id === songId))).toBe(true);
+    await restoreLibrary(partial, "merge");
+    expect(await getAllSetlists()).toHaveLength(4);
+  });
   it("rejects invalid backups before touching existing data", async () => {
     await seed();
     const original = await exportLibrary();

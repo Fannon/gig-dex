@@ -52,7 +52,7 @@ Your library lives **on your device** (in your browser). That means it's private
 
 **1. Backup file: simple and available to everyone**
 
-*Settings → Library → Export library* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. *Settings → Library → Restore backup* brings it back, on any device.
+*Settings → Library → Export library* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. To add one on any device, select it under *Settings → Library → Restore backup*, review the file preview, leave **Restore mode** on **Merge**, then press **Import**. Selecting the file alone does not import it. **Replace library** removes the current library first; use it only with a complete backup.
 
 Use this before gigs, before updates, before cleaning up. It just works.
 
@@ -63,6 +63,8 @@ If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your compute
 In *Settings → Sync → Sync from a folder on this computer*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
 
 After editing your library, press **Sync now** in Gig-Dex. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** on the other computer after its desktop sync app finishes transferring the files. No extra login in Gig-Dex, no registration, and folder sync works offline.
+
+Placing a backup `.json` file in the sync folder does not import it. Select it through *Settings → Library → Restore backup*, press **Import**, then press **Sync now** to share the imported records.
 
 Limitations to know:
 
