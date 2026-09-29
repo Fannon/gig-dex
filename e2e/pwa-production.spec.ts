@@ -10,7 +10,8 @@ test("production upgrade waits for editors and readers across tabs; offline rela
   try {
     await page.goto(fixture.url);
     await page.getByRole("button", { name: "Add Demo Song" }).click();
-    await page.locator("#sidebar-songs .library-sidebar__links a").first().click();
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+    await page.locator("#sidebar-songs .library-sidebar__links a").filter({ hasText: "Amazing Grace" }).click();
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByRole("button", { name: "Advanced (ChordPro)", exact: true }).click();
     await page
@@ -89,7 +90,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     cold.once("dialog", (dialog) => dialog.accept());
     await cold.getByRole("button", { name: "Repair app files" }).click();
     await cold.goto(fixture.url);
-    await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline Gig-Dex Demo/ })).toBeVisible();
+    await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline Traditional/ })).toBeVisible();
     expect(await cold.evaluate(() => caches.has("unrelated-app-cache"))).toBe(true);
     await cold.goto(songUrl);
     await expect(cold.locator(".song-page__title")).toHaveText("Edited offline");
