@@ -66,6 +66,8 @@ After editing your library, press **Sync now** in Gig-Dex. It writes small files
 
 Placing a backup `.json` file in the sync folder does not import it. Select it through *Settings → Library → Restore backup*, press **Import**, then press **Sync now** to share the imported records.
 
+Older Chordle imports may contain `x_chordle_` lines and German chord spelling (`H` means B natural; `B` means B flat). Gig-Dex reads that explicit source marker when showing those songs. In *Settings → Library*, **Clean up Chordle imports** converts the marked songs to standard chord pitches and removes the old metadata on this device; then use **Sync now**. The global *Settings → Appearance → Notation* choice can display standard stored chords using German spelling without changing their pitches.
+
 Limitations to know:
 
 - Picking a folder only works in Chrome or Edge on desktop (browser limitation).

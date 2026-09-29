@@ -7,7 +7,7 @@ import {
   HtmlTableFormatter,
   TextFormatter,
 } from "chordsheetjs";
-
+import { cleanChordleContent, standardToGermanChord } from "./chordleImport";
 import { colorSongSections, simpleSectionLabel } from "./songSections";
 
 export { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "./demoSong";
@@ -20,7 +20,7 @@ export interface ParsedSong {
   html: string;
 }
 
-export type ChordMode = "standard" | "nashville" | "roman";
+export type ChordMode = "standard" | "german" | "nashville" | "roman";
 
 const SUPERSCRIPTS: Record<string, string> = {
   "0": "⁰",
@@ -63,10 +63,17 @@ function safeFormattedHtml(html: string): string {
 export const parseChordPro = (chordProText: string, options: { mode?: ChordMode } = {}): ParsedSong => {
   const { mode = "standard" } = options;
   const parser = new ChordProParser();
-  const song = parser.parse(escapeHtmlText(chordProText));
+  const song = parser.parse(escapeHtmlText(cleanChordleContent(chordProText)));
 
   // Convert notation if requested
-  if (mode !== "standard" && song.key) {
+  if (mode === "german") {
+    for (const line of song.lines) {
+      for (const item of line.items) {
+        if ("chords" in item && typeof item.chords === "string" && item.chords)
+          item.chords = standardToGermanChord(item.chords);
+      }
+    }
+  } else if (mode !== "standard" && song.key) {
     const songKey = song.key.toString();
     for (const line of song.lines) {
       for (const item of line.items) {
@@ -106,7 +113,7 @@ export const parseChordPro = (chordProText: string, options: { mode?: ChordMode 
   return {
     title: song.title ? decodeHtmlText(song.title) : null,
     artist: artist ? decodeHtmlText(artist) : null,
-    key: song.key?.toString() || null,
+    key: song.key ? (mode === "german" ? standardToGermanChord(song.key.toString()) : song.key.toString()) : null,
     tempo: song.metadata.getSingle("tempo") || null,
     html,
   };
@@ -116,10 +123,11 @@ export const parseChordPro = (chordProText: string, options: { mode?: ChordMode 
  * Transpose a ChordPro song by a number of semitones
  */
 export const transposeChordPro = (chordProText: string, semitones: number): string => {
-  if (semitones === 0) return chordProText;
+  const standardContent = cleanChordleContent(chordProText);
+  if (semitones === 0) return standardContent;
 
   const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
+  const song = parser.parse(standardContent);
 
   // Transpose the song
   const transposedSong = song.transpose(semitones);
@@ -134,7 +142,7 @@ export const transposeChordPro = (chordProText: string, semitones: number): stri
  */
 export const chordProToText = (chordProText: string): string => {
   const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
+  const song = parser.parse(cleanChordleContent(chordProText));
   const formatter = new TextFormatter();
   return formatter.format(song);
 };
@@ -181,7 +189,7 @@ export function normalizeSimpleSpacing(text: string) {
  */
 export const chordProToSimple = (chordProText: string): string => {
   const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
+  const song = parser.parse(cleanChordleContent(chordProText));
   const formatter = new ChordsOverWordsFormatter();
   return normalizeSimpleSpacing(formatter.format(song));
 };
@@ -245,13 +253,14 @@ export interface SongMetadata {
  */
 export const extractMetadata = (chordProText: string): SongMetadata => {
   const parser = new ChordProParser();
+  const standardContent = cleanChordleContent(chordProText);
   let song: ReturnType<typeof parser.parse>;
   try {
-    song = parser.parse(chordProText);
+    song = parser.parse(standardContent);
   } catch {
     // Broken lyric/chord markup must not prevent metadata preservation or repair.
     song = parser.parse(
-      chordProText
+      standardContent
         .split("\n")
         .filter((line) => /^\s*\{[^{}]*\}\s*$/.test(line))
         .join("\n"),
@@ -314,7 +323,7 @@ export const stripMetadata = (chordProText: string): string => {
     /^\s*\{duration:.*?\}\s*$/gim,
   ];
 
-  let result = chordProText;
+  let result = cleanChordleContent(chordProText);
   for (const pattern of metadataPatterns) {
     result = result.replace(pattern, "");
   }
@@ -360,7 +369,7 @@ export const injectMetadata = (chordProText: string, metadata: SongMetadata): st
  */
 export const getSongKey = (chordProText: string): string | null => {
   const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
+  const song = parser.parse(cleanChordleContent(chordProText));
   return song.key?.toString() || null;
 };
 

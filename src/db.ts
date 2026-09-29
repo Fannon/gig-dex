@@ -2,6 +2,7 @@ import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 import type { SyncMetadata } from "./sync/types";
+import { cleanChordleContent, germanToStandardChord, hasGermanChordleNotation } from "./utils/chordleImport";
 import { matchesLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
@@ -255,6 +256,30 @@ export const getSong = async (id: string): Promise<Song | undefined> => {
 export const getAllSongs = async (): Promise<Song[]> => {
   const db = await initDB();
   return db.getAllFromIndex("songs", "by-updated");
+};
+
+/** Convert explicitly marked Chordle imports and remove their private directives. */
+export const cleanChordleSongs = async (): Promise<number> => {
+  const db = await initDB();
+  const tx = db.transaction("songs", "readwrite");
+  const songs = await tx.store.getAll();
+  let count = 0;
+  const updatedAt = now();
+  for (const song of songs) {
+    const content = cleanChordleContent(song.content);
+    if (content === song.content) continue;
+    const german = hasGermanChordleNotation(song.content);
+    await tx.store.put({
+      ...song,
+      content,
+      key: german && song.key ? germanToStandardChord(song.key) : song.key,
+      lastModified: updatedAt,
+    });
+    count++;
+  }
+  await tx.done;
+  if (count) notifyLibraryChanged();
+  return count;
 };
 
 export const searchSongs = async (query: string): Promise<Song[]> => {

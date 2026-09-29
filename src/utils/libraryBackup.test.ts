@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { addSetlist, addSong, getAllSetlists, getAllSongs, initDB, updateSong } from "../db";
+import { addSetlist, addSong, cleanChordleSongs, getAllSetlists, getAllSongs, initDB, updateSong } from "../db";
 import { exportLibrary, importChordPro, parseBackup, restoreLibrary } from "./libraryBackup";
 
 beforeEach(async () => {
@@ -26,6 +26,19 @@ async function seed() {
   return id;
 }
 describe("library backups and imports", () => {
+  it("cleans imported German Chordle metadata and can clean existing songs once", async () => {
+    const source = "{title: German song}\n{x_chordle_notation:German}\n{x_chordle_id:old}\n{key:H}\n[Hm] [B]";
+    const result = await importChordPro([{ name: "german.cho", content: source }]);
+    expect(result[0].status).toBe("imported");
+    expect((await getAllSongs())[0]).toMatchObject({ key: "B", content: "{title: German song}\n{key:B}\n[Bm] [Bb]" });
+    const id = await addSong({ title: "Old Chordle", artist: "", content: source, key: "H", tags: [] });
+    expect(await cleanChordleSongs()).toBe(1);
+    expect((await getAllSongs()).find((song) => song.id === id)).toMatchObject({
+      key: "B",
+      content: "{title: German song}\n{key:B}\n[Bm] [Bb]",
+    });
+    expect(await cleanChordleSongs()).toBe(0);
+  });
   it("exports all metadata and repeated song references, and restores atomically", async () => {
     await seed();
     const backup = await exportLibrary();

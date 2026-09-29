@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Setlist, Song } from "../db";
 import { parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
+import { applyReadingPreferences } from "./readingPreferences";
 import {
   defaultSongSetting,
   occurrenceContent,
@@ -29,6 +30,20 @@ describe("setlist occurrence settings", () => {
     expect(transposeKey("Am", 2)).toBe("Bm");
     expect(transposeKey("Bb", -2)).toBe("Ab");
     expect(settingLabel(song, { transpose: 2, capo: 0 })).toBe("Bm | T+2 | 4/4");
+  });
+  it("shows the key in German spelling while transposing legacy Chordle songs correctly", () => {
+    applyReadingPreferences({ chordMode: "german", maxColumns: 0, wrapLines: true });
+    try {
+      expect(settingLabel({ ...song, key: "G", content: "{x_chordle_notation:German}\n[G] [Hm]" })).toBe(
+        "G | 4/4 | Capo 2",
+      );
+      expect(settingLabel({ ...song, key: "H", content: "{x_chordle_notation:German}\n[Hm]" })).toBe(
+        "H | 4/4 | Capo 2",
+      );
+      expect(settingLabel({ ...song, key: "Bb", content: "[Bb]" })).toBe("B | 4/4 | Capo 2");
+    } finally {
+      applyReadingPreferences({ chordMode: "standard", maxColumns: 0, wrapLines: true });
+    }
   });
   it("changes occurrence capo without modifying the shared song", () => {
     expect(occurrenceContent(song, { transpose: 0, capo: 4 })).toBe("{capo: 4}\n\n[Am]A synthetic line");

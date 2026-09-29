@@ -74,6 +74,7 @@ export const SettingsPage = () => {
                 }
               >
                 <option value="standard">Standard (C, Am)</option>
+                <option value="german">German (H = B, B = Bb)</option>
                 <option value="nashville">Nashville (1–7)</option>
                 <option value="roman">Roman (I–VII)</option>
               </select>
@@ -119,9 +120,10 @@ export const SettingsPage = () => {
               />
             </label>
             <p className="settings-page__hint">
-              Applies to all songs on this device, including setlist previews and performance. Number notation needs a
-              song key. Auto-fit uses up to your column limit without going below the minimum font. Songs that cannot
-              fit scroll in one column; wrapping keeps wide lyrics readable.
+              Applies to all songs on this device, including setlist previews and performance. German changes how
+              standard chords are shown; imported Chordle songs marked as German are converted to standard pitches
+              first. Number notation needs a song key. Auto-fit uses up to your column limit without going below the
+              minimum font. Songs that cannot fit scroll in one column; wrapping keeps wide lyrics readable.
             </p>
           </section>
         </div>

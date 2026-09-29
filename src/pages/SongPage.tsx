@@ -17,6 +17,7 @@ import {
   simpleToChordPro,
   stripMetadata,
 } from "../utils/chordEngine";
+import { cleanChordleContent, germanToStandardChord, hasGermanChordleNotation } from "../utils/chordleImport";
 import { defaultSongSetting, occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import "./SongPage.scss";
 
@@ -153,8 +154,11 @@ export const SongPage = () => {
       try {
         const loadedSong = await getSong(songId);
         if (loadedSong) {
+          const german = hasGermanChordleNotation(loadedSong.content);
           setSong({
             ...loadedSong,
+            content: cleanChordleContent(loadedSong.content),
+            key: german && loadedSong.key ? germanToStandardChord(loadedSong.key) : loadedSong.key,
             subtitle: loadedSong.subtitle ?? extractMetadata(loadedSong.content).subtitle,
           });
           setReadingTranspose(loadedSong.defaultTranspose ?? 0);

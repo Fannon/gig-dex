@@ -1,4 +1,6 @@
 import type { Setlist, SetlistSongSettings, Song } from "../db";
+import { germanToStandardChord, hasGermanChordleNotation, standardToGermanChord } from "./chordleImport";
+import { savedReadingPreferences } from "./readingPreferences";
 import { tempoMeter } from "./tempo";
 
 export const defaultSongSetting = (song: Pick<Song, "defaultTranspose"> | undefined): SetlistSongSettings => ({
@@ -23,11 +25,15 @@ export function transposeKey(key: string | undefined, transpose: number): string
 export function settingLabel(song: Song | undefined, setting?: SetlistSongSettings) {
   const transpose = setting?.transpose ?? 0;
   const key = song?.key ?? /\{key:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
+  const standardKey = key && hasGermanChordleNotation(song?.content ?? "") ? germanToStandardChord(key) : key;
+  const transposedKey = transposeKey(standardKey, transpose);
+  const displayedKey =
+    savedReadingPreferences().chordMode === "german" ? standardToGermanChord(transposedKey) : transposedKey;
   const capo = setting?.capo ?? song?.capo;
   const bpm = song?.tempo ?? Number(/\{tempo:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]);
   const time = song?.time || /\{time:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
   return [
-    transposeKey(key, transpose),
+    displayedKey,
     transpose ? `T${transpose > 0 ? "+" : ""}${transpose}` : "",
     bpm > 0 ? `${bpm}bpm` : "",
     tempoMeter(time).label,

@@ -23,6 +23,12 @@ it("persists notation, column limits and line wrapping together", async () => {
   expect(savedReadingPreferences()).toEqual(preferences);
 });
 
+it("persists German chord display", async () => {
+  const { applyReadingPreferences, savedReadingPreferences } = await import("./readingPreferences");
+  applyReadingPreferences({ chordMode: "german", maxColumns: 1, wrapLines: true });
+  expect(savedReadingPreferences().chordMode).toBe("german");
+});
+
 it("keeps preferences for this session when storage writes fail", async () => {
   const { applyReadingPreferences, savedReadingPreferences } = await import("./readingPreferences");
   const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {

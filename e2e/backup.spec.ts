@@ -83,3 +83,32 @@ test("replace restore requires confirmation and restores an empty library", asyn
   await page.goto("./");
   await expect(page.getByText("No songs yet")).toBeVisible();
 });
+
+test("cleans German Chordle imports and offers German chord display", async ({ page }) => {
+  await page.goto("./settings?section=library");
+  const id = await page.evaluate(async () => {
+    const base = location.pathname.replace(/settings$/, "");
+    const { addSong } = await import(`${base}src/db.ts`);
+    return addSong({
+      title: "German legacy",
+      artist: "",
+      content: "{title: German legacy}\n{x_chordle_notation:German}\n{x_chordle_id:old}\n{key:G}\n[G] [Hm] [B]",
+      key: "G",
+      tags: [],
+    });
+  });
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: /Clean up Chordle imports/ }).click();
+  await expect(page.getByRole("status")).toContainText("Cleaned 1 Chordle songs");
+  const cleaned = await page.evaluate(async (songId) => {
+    const base = location.pathname.replace(/settings$/, "");
+    const { getSong } = await import(`${base}src/db.ts`);
+    return (await getSong(songId))?.content;
+  }, id);
+  expect(cleaned).toContain("[G] [Bm] [Bb]");
+  expect(cleaned).not.toContain("x_chordle");
+  await page.goto("./settings?section=appearance");
+  await page.getByLabel("Notation").selectOption("german");
+  await page.goto(`./song/${id}`);
+  await expect(page.locator(".song-view__content")).toContainText("Hm");
+});

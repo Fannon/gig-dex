@@ -14,7 +14,10 @@ function normalize(value: unknown): ReadingPreferences {
   if (!value || typeof value !== "object") return { ...defaults };
   const record = value as Partial<ReadingPreferences>;
   return {
-    chordMode: record.chordMode === "nashville" || record.chordMode === "roman" ? record.chordMode : "standard",
+    chordMode:
+      record.chordMode === "german" || record.chordMode === "nashville" || record.chordMode === "roman"
+        ? record.chordMode
+        : "standard",
     maxColumns: columnLimits.some((limit) => limit === record.maxColumns) ? (record.maxColumns ?? 0) : 0,
     wrapLines: typeof record.wrapLines === "boolean" ? record.wrapLines : true,
   };

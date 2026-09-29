@@ -1,5 +1,6 @@
 import { initDB, notifyLibraryChanged, type Setlist, type Song } from "../db";
 import { type DeletionRecord, isDeletion, type LibraryRecord, type SyncConflict, syncKey } from "../sync/records";
+import { cleanChordleContent } from "./chordleImport";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
 import { stableStringify } from "./recordFingerprint";
 
@@ -234,7 +235,7 @@ export async function importChordPro(files: { name: string; content: string }[])
   const results: ImportResult[] = [];
   for (const file of files) {
     try {
-      const content = file.content.replace(/^\uFEFF/, "");
+      const content = cleanChordleContent(file.content.replace(/^\uFEFF/, ""));
       if (!content.trim()) throw new Error("Empty file.");
       let warning = "";
       try {

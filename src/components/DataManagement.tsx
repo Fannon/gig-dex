@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getAllSetlists, getAllSongs, notifyLibraryChanged } from "../db";
+import { cleanChordleSongs, getAllSetlists, getAllSongs, notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import {
   exportLibrary,
@@ -187,6 +187,41 @@ export const DataManagement = () => {
           Select multiple files. Only identical song text is skipped; songs with the same title can both be added.
         </small>
       </label>
+      <button
+        type="button"
+        className="settings-page__option"
+        disabled={busy}
+        onClick={() =>
+          void run(async () => {
+            const songs = await getAllSongs();
+            const affected = songs.filter((song) => song.content.includes("x_chordle_")).length;
+            if (affected === 0) {
+              setMessage("No Chordle metadata needs cleanup on this device.");
+              return;
+            }
+            if (
+              !confirm(
+                `Clean up ${affected} Chordle songs on this device? This removes x_chordle metadata and converts explicitly marked German chords to standard pitches. Export a backup first if you want to keep the original files.`,
+              )
+            )
+              return;
+            const count = await cleanChordleSongs();
+            setMessage(
+              count
+                ? `Cleaned ${count} Chordle songs on this device. German source chords now use standard pitch names and x_chordle metadata was removed. Use Sync now under Sync to share the changes.`
+                : "No Chordle metadata needs cleanup on this device.",
+            );
+          })
+        }
+      >
+        <div className="settings-page__option-text">
+          <h3>Clean up Chordle imports</h3>
+          <p>
+            Convert songs marked as German to standard chord pitches and remove their old x_chordle metadata. Export a
+            backup first if you want to keep the original files.
+          </p>
+        </div>
+      </button>
       {busy && <output>Working…</output>}
       {message && <output>{message}</output>}
       {error && (
