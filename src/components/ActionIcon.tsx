@@ -6,6 +6,7 @@ const paths = {
   delete: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7",
   cancel: "M6 6l12 12M6 18L18 6",
   save: "M4 12l5 5L20 6",
+  sync: "M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5",
 };
 export function ActionIcon({ name }: { name: keyof typeof paths }) {
   return (

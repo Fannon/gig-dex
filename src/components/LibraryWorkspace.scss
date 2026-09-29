@@ -110,7 +110,7 @@
   border-radius: 8px;
   text-decoration: none;
   &:hover, &:focus-visible { color: white; background: var(--bg-elevated); }
-  svg { width: 19px; height: 19px; }
+  svg { width: 20px; height: 20px; }
   &[data-syncing=true] svg { color: var(--color-accent); animation: workspace-sync-spin .8s linear infinite; }
   &[data-needs-attention=true] svg { color: #fca5a5; }
   .workspace-sync-alert { position: absolute; top: 0; right: 0; width: .85rem; height: .85rem; margin: 0; font-size: .6rem; }

@@ -16,6 +16,7 @@ import { getSyncConflicts } from "../sync/syncStore";
 import { matchesLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
+import { ActionIcon } from "./ActionIcon";
 import { HighlightedText } from "./HighlightedText";
 import "./LibraryWorkspace.scss";
 
@@ -337,18 +338,7 @@ export function LibraryWorkspace() {
           }
           title={syncNeedsAttention ? "Sync needs attention" : syncRunning ? "Syncing library" : "Sync settings"}
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M20 7v5h-5M4 17v-5h5" />
-            <path d="M5.7 9A7 7 0 0 1 18 6l2 1M4 17l2 1a7 7 0 0 0 12.3-2" />
-          </svg>
+          <ActionIcon name="sync" />
           {syncNeedsAttention && (
             <span className="workspace-sync-alert" aria-hidden="true">
               !
