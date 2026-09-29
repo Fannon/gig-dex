@@ -210,14 +210,14 @@ export const DataManagement = () => {
             }
             if (
               !confirm(
-                `Clean up ${affected} imported songs on this device? This removes x_chordle metadata, converts German H chords to standard B, and adds tags from explicit FJ/GSB songbook references. Export a backup first if you want to keep the original files.`,
+                `Clean up ${affected} imported ${affected === 1 ? "song" : "songs"} on this device? This removes x_chordle metadata, converts German H chords to standard B, and adds tags from explicit FJ/GSB songbook references. Export a backup first if you want to keep the original files.`,
               )
             )
               return;
             const count = await cleanChordleSongs();
             setMessage(
               count
-                ? `Cleaned ${count} imported songs on this device. Connected sync starts automatically; check Sync for its status.`
+                ? `Cleaned ${count} imported ${count === 1 ? "song" : "songs"} on this device. Connected sync starts automatically; check Sync for its status.`
                 : "No imported songs need cleanup on this device.",
             );
           })

@@ -98,8 +98,8 @@ test("cleans German Chordle imports and offers German chord display", async ({ p
     });
   });
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: /Clean up Chordle imports/ }).click();
-  await expect(page.getByRole("status")).toContainText("Cleaned 1 Chordle songs");
+  await page.getByRole("button", { name: /Clean up imported songs/ }).click();
+  await expect(page.getByRole("status")).toContainText("Cleaned 1 imported song");
   const cleaned = await page.evaluate(async (songId) => {
     const base = location.pathname.replace(/settings$/, "");
     const { getSong } = await import(`${base}src/db.ts`);
