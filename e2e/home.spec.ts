@@ -15,7 +15,7 @@ test.describe("Home Page", () => {
       page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Songs", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: /^Sets$/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Settings/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
     // Check empty state
     await expect(page.locator(".home-page__empty")).toBeVisible();

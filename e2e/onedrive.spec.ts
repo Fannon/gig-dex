@@ -162,7 +162,7 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
     const { oneDriveProvider } = await import(`${base}src/sync/index.ts`);
     oneDriveProvider.isEnabled = () => true;
   }, new URL(page.url()).pathname);
-  await page.getByRole("link", { name: /Settings/i }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Sync", exact: true }).click();
   const host = page.getByRole("region", { name: "OneDrive sync", exact: true });
   await host.getByRole("button", { name: "Sync now", exact: true }).click();
@@ -210,7 +210,7 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
     .click();
   await expect(page.locator("#sidebar-songs .library-sidebar__links strong")).toHaveText("Edited while offline");
   await context.setOffline(false);
-  await page.getByRole("link", { name: /Settings/i }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Sync", exact: true }).click();
   await host.getByRole("button", { name: "Sync now", exact: true }).click();
   await expect(host.getByRole("button", { name: "Sync now", exact: true })).toBeEnabled();

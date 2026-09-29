@@ -314,23 +314,47 @@ export function LibraryWorkspace() {
           <NavLink to="/setlists" className={location.pathname.startsWith("/setlist/") ? "active" : undefined}>
             Sets
           </NavLink>
-          <NavLink
-            to={syncNeedsAttention ? "/settings?section=sync" : pwaIssue ? "/settings?section=offline" : "/settings"}
-          >
+          <NavLink to={pwaIssue ? "/settings?section=offline" : "/settings"}>
             Settings
-            {syncRunning && (
-              <output className="workspace-sync-running" aria-label="Syncing library" title="Syncing library" />
-            )}
-            {(syncNeedsAttention || pwaIssue) && (
-              <span
-                className="workspace-sync-alert"
-                title={syncNeedsAttention ? "Sync needs attention" : "Offline app needs attention"}
-              >
+            {pwaIssue && (
+              <span className="workspace-sync-alert" title="Offline app needs attention">
                 !
               </span>
             )}
           </NavLink>
         </nav>
+        <Link
+          to="/settings?section=sync"
+          className="workspace-sync-link"
+          data-syncing={syncRunning}
+          data-needs-attention={syncNeedsAttention}
+          aria-label={
+            syncNeedsAttention
+              ? "Sync needs attention — open sync settings"
+              : syncRunning
+                ? "Syncing library — open sync settings"
+                : "Sync settings"
+          }
+          title={syncNeedsAttention ? "Sync needs attention" : syncRunning ? "Syncing library" : "Sync settings"}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20 7v5h-5M4 17v-5h5" />
+            <path d="M5.7 9A7 7 0 0 1 18 6l2 1M4 17l2 1a7 7 0 0 0 12.3-2" />
+          </svg>
+          {syncNeedsAttention && (
+            <span className="workspace-sync-alert" aria-hidden="true">
+              !
+            </span>
+          )}
+        </Link>
         {performance && <div className="workspace-performance" ref={setPerformanceHost} />}
         <button className="workspace-search-button" type="button" onClick={() => setSearchOpen(true)}>
           Search songs & setlists <kbd>Ctrl+K</kbd>

@@ -4,9 +4,25 @@ test.describe("Settings Page", () => {
   test("should navigate to settings page", async ({ page }) => {
     await page.goto("./");
 
-    await page.getByRole("link", { name: /Settings/i }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page).toHaveURL("./settings");
     await expect(page.locator(".settings-page__content h1")).toContainText("Settings");
+  });
+
+  test("sync has its own navbar link to sync settings", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto("./");
+    const syncLink = page.getByRole("link", { name: "Sync settings" });
+    await expect(syncLink).toBeVisible();
+    expect(await page.locator(".workspace-topbar").evaluate((header) => header.scrollWidth <= header.clientWidth)).toBe(
+      true,
+    );
+    await expect(
+      page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Settings" }),
+    ).toBeVisible();
+    await syncLink.click();
+    await expect(page).toHaveURL("./settings?section=sync");
+    await expect(page.getByRole("heading", { name: "Active syncs" })).toBeVisible();
   });
 
   test("should display data management options", async ({ page }) => {

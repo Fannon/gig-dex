@@ -104,7 +104,7 @@ test("a failed route download shows a recovery view with the library preserved",
   await page.goto("./");
   await page.getByRole("button", { name: "Add Demo Song" }).click();
   await context.route("**/src/pages/SettingsPage.tsx*", (route) => route.abort());
-  await page.getByRole("link", { name: /Settings/i }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "This view couldn’t load" })).toBeVisible();
   await page.getByRole("link", { name: "Go to your library" }).click();
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
