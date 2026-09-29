@@ -123,6 +123,41 @@ test("connected folder automatically syncs saved songs, setlists, and ChordPro i
   await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(3);
 });
 
+test("connected folder pulls a new song automatically when the app opens", async ({ page }) => {
+  await page.addInitScript(() => {
+    const root = navigator.storage.getDirectory();
+    window.showDirectoryPicker = async () => (await root).getDirectoryHandle("Startup pull", { create: true });
+    FileSystemHandle.prototype.requestPermission = async () => "granted";
+    FileSystemHandle.prototype.queryPermission = async () => "granted";
+  });
+  await page.goto("./settings?section=sync");
+  const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
+  await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
+  await expect(host.getByText(/Last synced/)).toBeVisible();
+  await page.evaluate(async () => {
+    const base = location.pathname.replace(/settings$/, "");
+    const { createSyncFile, revisionFilename } = await import(`${base}src/sync/syncFormat.ts`);
+    const date = new Date().toISOString();
+    const song = {
+      id: crypto.randomUUID(),
+      title: "Remote startup song",
+      artist: "",
+      content: "{title: Remote startup song}\n[C]Ready",
+      tags: [],
+      createdAt: date,
+      lastModified: date,
+    };
+    const { revision, content } = await createSyncFile(song, []);
+    const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("Startup pull");
+    const file = await folder.getFileHandle(revisionFilename("song", revision), { create: true });
+    const writable = await file.createWritable();
+    await writable.write(content);
+    await writable.close();
+  });
+  await page.reload();
+  await expect(page.locator("#sidebar-songs").getByRole("link", { name: /Remote startup song/ })).toBeVisible();
+});
+
 test("runtime Client IDs enable cloud hosts without rebuilding, persist, and reject invalid values", async ({
   page,
 }) => {
