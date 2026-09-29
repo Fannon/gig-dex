@@ -89,7 +89,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     cold.once("dialog", (dialog) => dialog.accept());
     await cold.getByRole("button", { name: "Repair app files" }).click();
     await cold.goto(fixture.url);
-    await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline Traditional/ })).toBeVisible();
+    await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline Gig-Dex Demo/ })).toBeVisible();
     expect(await cold.evaluate(() => caches.has("unrelated-app-cache"))).toBe(true);
     await cold.goto(songUrl);
     await expect(cold.locator(".song-page__title")).toHaveText("Edited offline");
