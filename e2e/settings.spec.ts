@@ -23,8 +23,8 @@ test.describe("Settings Page", () => {
     await page.goto("./settings");
 
     await page.getByRole("button", { name: "Sync", exact: true }).click();
-    // Check for Sync section header
-    await expect(page.locator(".settings-page__section h2").filter({ hasText: "Sync" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Active syncs" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add sync provider" })).toBeVisible();
 
     // Check for either "Google Drive Sync" (when not configured) or "Connect Google Drive" (when configured)
     await expect(page.locator(".settings-page__option-text h3").filter({ hasText: /Google Drive/i })).toBeVisible();

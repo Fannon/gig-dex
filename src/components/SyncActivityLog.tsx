@@ -15,7 +15,6 @@ export function SyncActivityLog({ provider }: { provider: string }) {
   const ownEntries = entries.filter((entry) => entry.provider === provider);
   return (
     <section className="settings-page__activity" aria-label={`${provider} sync activity`}>
-      <h3>Recent activity</h3>
       {ownEntries.length ? (
         <ul>
           {ownEntries.map((entry, index) => (
