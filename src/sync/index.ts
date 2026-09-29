@@ -19,10 +19,10 @@ export const localFolderSyncManager = new SyncManager(localFolderProvider);
 export const dropboxProvider = new DropboxProvider();
 export const dropboxSyncManager = new SyncManager(dropboxProvider);
 export const syncHosts: { provider: import("./types").SyncProvider; manager: SyncManager }[] = [
+  { provider: dropboxProvider, manager: dropboxSyncManager },
   { provider: localFolderProvider, manager: localFolderSyncManager },
   { provider: gDriveProvider, manager: syncManager },
   { provider: oneDriveProvider, manager: oneDriveSyncManager },
-  { provider: dropboxProvider, manager: dropboxSyncManager },
 ];
 
 export function refreshSyncClientConfig() {

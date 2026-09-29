@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cleanChordleSongs, getAllSetlists, getAllSongs, notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
+import { cleanChordleContent, inferSongbookTags, standardizeSourceKey } from "../utils/chordleImport";
 import {
   exportLibrary,
   type ImportResult,
@@ -39,7 +40,8 @@ export const DataManagement = () => {
       <h2>Import / Restore</h2>
       <p className="data-management__intro">
         JSON backups can add songs and setlists to this device. A backup placed in your sync folder is ignored until you
-        select it here. After importing, use Sync now under Sync to share the changes.
+        select it here. Connected Dropbox, OneDrive, and folder sync share completed imports automatically while this
+        app is open; use Sync now to check the result or pull changes from another device.
       </p>
       <button
         type="button"
@@ -139,7 +141,7 @@ export const DataManagement = () => {
                 setBackup(null);
                 setBackupName("");
                 setMessage(
-                  `${mode === "merge" ? "Import complete" : "Library replaced"} on this device. You now have ${songs.length} songs and ${setlists.length} setlists. Use Sync now under Sync to share them with other devices.`,
+                  `${mode === "merge" ? "Import complete" : "Library replaced"} on this device. You now have ${songs.length} songs and ${setlists.length} setlists. Connected sync starts automatically; check Sync for its status.`,
                 );
               });
             }}
@@ -194,31 +196,38 @@ export const DataManagement = () => {
         onClick={() =>
           void run(async () => {
             const songs = await getAllSongs();
-            const affected = songs.filter((song) => song.content.includes("x_chordle_")).length;
+            const affected = songs.filter(
+              (song) =>
+                cleanChordleContent(song.content) !== song.content ||
+                (song.key && standardizeSourceKey(song.content, song.key) !== song.key) ||
+                inferSongbookTags(song.content, song.copyright).some(
+                  (tag) => !song.tags.some((existing) => existing.toLowerCase() === tag),
+                ),
+            ).length;
             if (affected === 0) {
-              setMessage("No Chordle metadata needs cleanup on this device.");
+              setMessage("No imported songs need cleanup on this device.");
               return;
             }
             if (
               !confirm(
-                `Clean up ${affected} Chordle songs on this device? This removes x_chordle metadata and converts explicitly marked German chords to standard pitches. Export a backup first if you want to keep the original files.`,
+                `Clean up ${affected} imported songs on this device? This removes x_chordle metadata, converts German H chords to standard B, and adds tags from explicit FJ/GSB songbook references. Export a backup first if you want to keep the original files.`,
               )
             )
               return;
             const count = await cleanChordleSongs();
             setMessage(
               count
-                ? `Cleaned ${count} Chordle songs on this device. German source chords now use standard pitch names and x_chordle metadata was removed. Use Sync now under Sync to share the changes.`
-                : "No Chordle metadata needs cleanup on this device.",
+                ? `Cleaned ${count} imported songs on this device. Connected sync starts automatically; check Sync for its status.`
+                : "No imported songs need cleanup on this device.",
             );
           })
         }
       >
         <div className="settings-page__option-text">
-          <h3>Clean up Chordle imports</h3>
+          <h3>Clean up imported songs</h3>
           <p>
-            Convert songs marked as German to standard chord pitches and remove their old x_chordle metadata. Export a
-            backup first if you want to keep the original files.
+            Remove old x_chordle metadata, convert German H chords to standard B, and add FJ/GSB tags from explicit
+            songbook references. Export a backup first if you want to keep the original files.
           </p>
         </div>
       </button>

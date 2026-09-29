@@ -18,6 +18,9 @@ import type { SyncMetadata, SyncProvider, SyncStatus } from "./types";
 export class SyncManager {
   private static busy = false;
   private scope = "";
+  static isBusy(): boolean {
+    return SyncManager.busy;
+  }
   static async exclusive<T>(operation: () => Promise<T>): Promise<T> {
     if (SyncManager.busy) throw new Error("Another sync or cleanup is running. Please wait.");
     SyncManager.busy = true;
@@ -59,6 +62,7 @@ export class SyncManager {
     const releaseUpdate = blockPwaUpdate();
     this.status.isSyncing = true;
     this.status.error = null;
+    window.dispatchEvent(new Event("gigdex-sync-status"));
     try {
       if (!(await this.provider.authenticate()))
         throw new Error(`Could not connect to ${this.provider.name}. Try again.`);

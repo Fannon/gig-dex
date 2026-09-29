@@ -92,6 +92,36 @@ test("folder picker connects, survives reload, handles denied permission and swi
   expect(retained).toEqual([3, 3]);
 });
 
+test("connected folder automatically syncs saved songs, setlists, and ChordPro imports", async ({ page }) => {
+  await page.addInitScript(() => {
+    const root = navigator.storage.getDirectory();
+    window.showDirectoryPicker = async () => (await root).getDirectoryHandle("Automatic sync", { create: true });
+    FileSystemHandle.prototype.requestPermission = async () => "granted";
+    FileSystemHandle.prototype.queryPermission = async () => "granted";
+  });
+  await page.goto("./settings?section=sync");
+  const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
+  await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
+  await expect(host.getByText(/Last synced/)).toBeVisible();
+  await page.goto("./");
+  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  const files = () =>
+    page.evaluate(async () => {
+      const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("Automatic sync");
+      const names: string[] = [];
+      for await (const entry of folder.values()) names.push(entry.name);
+      return names;
+    });
+  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(2);
+  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-setlist-")).length).toBe(1);
+  await page.goto("./settings?section=library");
+  await page
+    .getByLabel("Import ChordPro songs")
+    .setInputFiles({ name: "imported.cho", mimeType: "text/plain", buffer: Buffer.from("{title: Imported}\n[C]Line") });
+  await expect(page.getByText("1 imported, 0 duplicates skipped, 0 failed.")).toBeVisible();
+  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(3);
+});
+
 test("runtime Client IDs enable cloud hosts without rebuilding, persist, and reject invalid values", async ({
   page,
 }) => {

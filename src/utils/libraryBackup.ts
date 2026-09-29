@@ -1,6 +1,6 @@
-import { initDB, notifyLibraryChanged, type Setlist, type Song } from "../db";
+import { initDB, notifyLibraryMutated, type Setlist, type Song } from "../db";
 import { type DeletionRecord, isDeletion, type LibraryRecord, type SyncConflict, syncKey } from "../sync/records";
-import { cleanChordleContent } from "./chordleImport";
+import { cleanChordleContent, inferSongbookTags, standardizeSourceKey } from "./chordleImport";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
 import { stableStringify } from "./recordFingerprint";
 
@@ -146,18 +146,31 @@ export async function restoreLibrary(backup: LibraryBackup, mode: "merge" | "rep
     const remap = new Map<string, string>();
     for (const song of valid.songs) {
       const existing = mode === "merge" ? songMap.get(song.id) : undefined;
+      const tags = [...song.tags];
+      for (const tag of inferSongbookTags(song.content, song.copyright))
+        if (!tags.some((existingTag) => existingTag.toLowerCase() === tag)) tags.push(tag);
+      const normalized = {
+        ...song,
+        content: cleanChordleContent(song.content),
+        key: song.key ? standardizeSourceKey(song.content, song.key) : song.key,
+        tags,
+      };
       const changed =
         mode === "merge" &&
-        (deleted.has(song.id) || (!!existing && stableStringify(song) !== stableStringify(existing)));
+        (deleted.has(song.id) ||
+          (!!existing &&
+            stableStringify(song) !== stableStringify(existing) &&
+            stableStringify(normalized) !== stableStringify(existing)));
       const id = changed ? crypto.randomUUID() : song.id;
       remap.set(song.id, id);
       await tx.objectStore("tombstones").delete(id);
-      if (!existing || changed)
+      if (!existing || changed) {
         await songStore.put({
-          ...song,
+          ...normalized,
           id,
           lastModified: mode === "replace" || changed ? now : song.lastModified,
         });
+      }
     }
     for (const list of valid.setlists) {
       const updated = { ...list, songIds: list.songIds.map((id) => remap.get(id) ?? id) };
@@ -208,7 +221,7 @@ export async function restoreLibrary(backup: LibraryBackup, mode: "merge" | "rep
       });
     }
     await tx.done;
-    notifyLibraryChanged();
+    notifyLibraryMutated();
   } catch (error) {
     try {
       tx.abort();
@@ -251,6 +264,8 @@ export async function importChordPro(files: { name: string; content: string }[])
             .filter(Boolean),
         ),
       ];
+      for (const tag of inferSongbookTags(content, metadata.copyright))
+        if (!tags.some((existing) => existing.toLowerCase() === tag)) tags.push(tag);
       drafts.push({
         file: file.name,
         warning,
@@ -298,7 +313,7 @@ export async function importChordPro(files: { name: string; content: string }[])
       results.push({ file: draft.file, status: "imported", message: draft.warning || "Imported." });
     }
     await tx.done;
-    notifyLibraryChanged();
+    if (results.some((result) => result.status === "imported")) notifyLibraryMutated();
   } catch (error) {
     try {
       tx.abort();

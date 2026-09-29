@@ -32,10 +32,12 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
     void refresh();
     window.addEventListener("focus", refresh);
     window.addEventListener(CLIENT_CONFIG_EVENT, update);
+    window.addEventListener("gigdex-sync-status", update);
     return () => {
       mounted = false;
       window.removeEventListener("focus", refresh);
       window.removeEventListener(CLIENT_CONFIG_EVENT, update);
+      window.removeEventListener("gigdex-sync-status", update);
     };
   }, [provider, update]);
   const sync = async () => {
@@ -100,7 +102,12 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
           </div>
         </div>
       ) : !connected && !folder ? (
-        <button type="button" className="settings-page__option" onClick={() => void sync()} disabled={busy || !ready}>
+        <button
+          type="button"
+          className="settings-page__option"
+          onClick={() => void sync()}
+          disabled={busy || status.isSyncing || !ready}
+        >
           <div className="settings-page__option-text">
             <h3>{provider.pickFolder ? "Sync from a folder on this computer" : `Connect ${provider.name}`}</h3>
             <p>{description}</p>
@@ -122,16 +129,16 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
             <button
               type="button"
               className="settings-page__sync-btn"
-              disabled={busy || !ready}
+              disabled={busy || status.isSyncing || !ready}
               onClick={() => void sync()}
             >
-              {busy ? "Syncing…" : "Sync now"}
+              {busy || status.isSyncing ? "Syncing…" : "Sync now"}
             </button>
             {provider.pickFolder && (
               <button
                 type="button"
                 className="settings-page__sync-btn"
-                disabled={busy || !ready}
+                disabled={busy || status.isSyncing || !ready}
                 onClick={() => void changeFolder()}
               >
                 Choose a different folder
@@ -140,7 +147,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
             <button
               type="button"
               className="settings-page__logout-btn"
-              disabled={busy || !ready}
+              disabled={busy || status.isSyncing || !ready}
               onClick={() => void logout()}
             >
               Stop syncing

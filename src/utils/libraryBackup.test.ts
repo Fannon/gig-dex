@@ -39,6 +39,24 @@ describe("library backups and imports", () => {
     });
     expect(await cleanChordleSongs()).toBe(0);
   });
+  it("adds only explicit songbook tags during cleanup and normalizes incoming backups", async () => {
+    const source = "{x_chordle_notation:Standard}\n{copyright:FJ1:65, GSB:29}\n{key:H}\n[Hm] [B]";
+    const id = await addSong({ title: "Source-tagged song", artist: "", content: source, key: "H", tags: ["live"] });
+    expect(await cleanChordleSongs()).toBe(1);
+    const cleaned = (await getAllSongs()).find((song) => song.id === id);
+    expect(cleaned).toMatchObject({ key: "B", tags: ["live", "fj1", "gsb"] });
+    expect(cleaned?.content).toBe("{copyright:FJ1:65, GSB:29}\n{key:B}\n[Bm] [B]");
+    const backup = await exportLibrary();
+    backup.songs[0] = { ...backup.songs[0], content: source, key: "H", tags: ["live"] };
+    await restoreLibrary(backup, "merge");
+    expect(await getAllSongs()).toHaveLength(1);
+    backup.songs[0].id = crypto.randomUUID();
+    await restoreLibrary(backup, "merge");
+    expect(await getAllSongs()).toHaveLength(2);
+    const imported = (await getAllSongs()).find((song) => song.id !== id);
+    expect(imported).toMatchObject({ key: "B", tags: ["live", "fj1", "gsb"] });
+    expect(imported?.content).not.toContain("x_chordle_");
+  });
   it("exports all metadata and repeated song references, and restores atomically", async () => {
     await seed();
     const backup = await exportLibrary();

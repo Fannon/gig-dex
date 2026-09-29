@@ -61,4 +61,10 @@ describe("chordEngine Nashville support", () => {
     expect(parsed.html).toContain("G/H");
     expect(parsed.html).toContain("G/B");
   });
+
+  it("normalizes unambiguous H chords in Chordle songs marked Standard without guessing bare B", () => {
+    const source = "{x_chordle_notation:Standard}\n{key:H}\n[Hm] [G/H] [B] [Bb] [D/Fis] [fism]";
+    expect(cleanChordleContent(source)).toBe("{key:B}\n[Bm] [G/B] [B] [Bb] [D/F#] [F#m]");
+    expect(parseChordPro(source).key).toBe("B");
+  });
 });

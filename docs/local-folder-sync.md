@@ -13,17 +13,20 @@ Chromium PWA uses the same folder connection as its browser origin. Permissions
 may need to be granted again after reopening. [Chrome's File System Access guide](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
 explains handle persistence and permission renewal.
 
-**Sync Now** merges songs, sets and deletion markers through the existing conflict
-review. It requests read/write permission again when needed. **Change folder**
-merges with the selected folder; **Disconnect** forgets the connection and leaves
+After a completed song or setlist edit, import, or library cleanup, Gig-Dex starts
+folder sync automatically while the app is open and permission remains granted.
+**Sync now** also pulls changes from other devices and merges songs, sets and
+deletion markers through conflict review. It requests read/write permission again
+when needed. **Choose a different folder** merges with the selected folder;
+**Stop syncing** forgets the connection and leaves
 the library and disk files intact. Moved or unavailable folders produce an error
 with instructions to select a replacement. Unrelated files are ignored, and a
 folder with many unrelated JSON files shows a recommendation to use a dedicated
 folder. A malformed recognized revision stops sync until the file transfer or
 repair finishes; it is never silently treated as a missing remote record.
 Ordinary Gig-Dex backup files in the folder are ignored. To import one, select
-it in Settings → Library → Restore backup, choose Merge, press **Import**, and
-then press **Sync now** to write the imported records into the sync folder.
+it in Settings → Library → Restore backup, choose Merge, and press **Import**.
+The connected folder then syncs the imported records automatically.
 
 The directory handle and a random folder identity live in IndexedDB's
 `syncHandles` store. That identity survives app restarts and selecting the same
@@ -31,8 +34,8 @@ connected folder again. Changing folders or reconnecting after disconnect create
 a new scope for acknowledgements/conflicts. Folder names do not determine scope.
 Handles, Client IDs and OAuth tokens are excluded from library backups.
 
-Each revision is a plaintext `gigdex-song-<UUID>.json` or
-`gigdex-setlist-<UUID>.json`, containing the same record and `_sync` envelope as the
+Each revision is a plaintext `gigdex-song-<revision>.json` or
+`gigdex-setlist-<revision>.json`, containing the same record and `_sync` envelope as the
 cloud providers. Song IDs/titles never enter filenames. Independent edits append
 unique revisions, preserve branches, and join after conflict review; they never
 overwrite an existing revision with different content. File writes publish on

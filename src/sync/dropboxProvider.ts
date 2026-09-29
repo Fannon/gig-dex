@@ -156,8 +156,19 @@ export class DropboxProvider implements SyncProvider {
       throw new Error("Dropbox sign-in expired. Connect again.");
     }
     if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      throw new Error(result.error_summary ?? `Dropbox request failed (${response.status}).`);
+      const raw = await response.text().catch(() => "");
+      let summary = "";
+      try {
+        const result = JSON.parse(raw);
+        if (typeof result.error_summary === "string") summary = result.error_summary;
+        else if (typeof result.error?.message === "string") summary = result.error.message;
+      } catch {
+        summary = raw;
+      }
+      const reason = summary.trim().replace(/\s+/g, " ").slice(0, 350);
+      throw new Error(
+        `Dropbox ${parsed.pathname.replace(/^\/2\//, "")} failed (${response.status})${reason ? `: ${reason}` : "."}`,
+      );
     }
     return response;
   }

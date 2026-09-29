@@ -133,11 +133,19 @@ export const SettingsPage = () => {
         <div hidden={active !== "sync"}>
           <div className="settings-page__sync-intro">
             <p>
-              <strong>Choose how to sync.</strong> A folder on this computer is easiest if you already use a cloud
-              folder. Direct Google Drive, OneDrive, and Dropbox connections require you to register your own app and
-              enter its public Client ID or app key.
+              <strong>Choose how to sync.</strong> Dropbox is the simplest direct option across desktop and mobile after
+              you register a Dropbox app once. On desktop Chrome or Edge, a folder inside your existing cloud drive
+              needs no app registration. Connected Dropbox, OneDrive, and folder sync run after library edits while
+              Gig-Dex is open; use Sync now to pull changes from another device.
             </p>
             <div className="settings-page__guide-links">
+              <a
+                href="https://github.com/Fannon/gig-dex/blob/main/docs/dropbox-sync.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Dropbox setup guide
+              </a>
               <a
                 href="https://github.com/Fannon/gig-dex/blob/main/docs/local-folder-sync.md"
                 target="_blank"
@@ -151,13 +159,6 @@ export const SettingsPage = () => {
                 rel="noopener noreferrer"
               >
                 Google Drive & OneDrive setup
-              </a>
-              <a
-                href="https://github.com/Fannon/gig-dex/blob/main/docs/dropbox-sync.md"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Dropbox setup
               </a>
             </div>
           </div>

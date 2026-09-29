@@ -56,17 +56,23 @@ Your library lives **on your device** (in your browser). That means it's private
 
 Use this before gigs, before updates, before cleaning up. It just works.
 
-**2. Local folder sync: use your existing cloud folder**
+**2. Dropbox sync: easiest direct option across desktop and mobile**
 
-If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, this is the simplest way to move your Gig-Dex library between computers:
+Dropbox works directly in the browser on desktop and mobile. You first register your own free Dropbox app, copy its public app key into *Settings → Sync → Advanced setup*, and connect your account. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
+
+Once connected, Gig-Dex syncs after you save a song or setlist or finish an import while the app is open. Use **Sync now** on another device to pull those changes before editing there. Dropbox needs internet access, and you may need to reconnect after closing the browser session.
+
+**3. Local folder sync: use your existing cloud folder**
+
+If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, folder sync needs no separate app registration:
 
 In *Settings → Sync → Sync from a folder on this computer*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
 
-After editing your library, press **Sync now** in Gig-Dex. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** on the other computer after its desktop sync app finishes transferring the files. No extra login in Gig-Dex, no registration, and folder sync works offline.
+Gig-Dex syncs after saved edits and imports while the app is open. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** on the other computer after its desktop sync app finishes transferring the files. No extra login in Gig-Dex, no registration, and folder sync works offline.
 
-Placing a backup `.json` file in the sync folder does not import it. Select it through *Settings → Library → Restore backup*, press **Import**, then press **Sync now** to share the imported records.
+Placing a backup `.json` file in the sync folder does not import it. Select it through *Settings → Library → Restore backup* and press **Import**; the connected folder then syncs automatically.
 
-Older Chordle imports may contain `x_chordle_` lines and German chord spelling (`H` means B natural; `B` means B flat). Gig-Dex reads that explicit source marker when showing those songs. In *Settings → Library*, **Clean up Chordle imports** converts the marked songs to standard chord pitches and removes the old metadata on this device; then use **Sync now**. The global *Settings → Appearance → Notation* choice can display standard stored chords using German spelling without changing their pitches.
+Older Chordle imports may contain `x_chordle_` lines and German chord spelling (`H` means B natural; `B` means B flat). Gig-Dex reads the explicit German source marker, and also recognizes unambiguous `H` chords in songs marked Standard. In *Settings → Library*, **Clean up imported songs** converts those chords to standard pitch names, removes old metadata, and adds FJ/GSB tags when the song has an explicit songbook reference. The global *Settings → Appearance → Notation* choice can display standard stored chords using German spelling without changing their pitches.
 
 Limitations to know:
 
@@ -75,15 +81,15 @@ Limitations to know:
 
 Details: [docs/local-folder-sync.md](docs/local-folder-sync.md)
 
-**3. Direct Google Drive / OneDrive / Dropbox sync: advanced only (bring your own app registration)**
+**4. Direct Google Drive / OneDrive sync: advanced setup**
 
-Gig-Dex *can* talk directly to Google Drive, OneDrive, and Dropbox, but there is no shared, ready-to-click cloud integration:
+Gig-Dex can also talk directly to Google Drive and OneDrive, but there is no shared, ready-to-click cloud integration:
 
-> You have to register your **own** cloud app and paste its public Client ID or Dropbox app key into Gig-Dex under *Settings → Sync → Advanced setup: cloud Client IDs*.
+> You have to register your **own** cloud app and paste its public Client ID into Gig-Dex under *Settings → Sync → Advanced setup: cloud Client IDs*.
 
-That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use option 1 or 2 above.**
+That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use Dropbox or a local folder.**
 
-For Dropbox, follow the [Dropbox setup guide](docs/dropbox-sync.md). For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
+For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
 
 ### Install it like an app (Android / desktop)
 

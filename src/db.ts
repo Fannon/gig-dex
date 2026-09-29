@@ -2,7 +2,7 @@ import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 import type { SyncMetadata } from "./sync/types";
-import { cleanChordleContent, germanToStandardChord, hasGermanChordleNotation } from "./utils/chordleImport";
+import { cleanChordleContent, inferSongbookTags, standardizeSourceKey } from "./utils/chordleImport";
 import { matchesLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
@@ -173,8 +173,13 @@ export const initDB = async (): Promise<IDBPDatabase<GigDexDB>> => {
 };
 
 export const LIBRARY_CHANGED_EVENT = "gig-dex-library-changed";
+export const LIBRARY_MUTATED_EVENT = "gig-dex-library-mutated";
 export const notifyLibraryChanged = () => {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(LIBRARY_CHANGED_EVENT));
+};
+export const notifyLibraryMutated = () => {
+  notifyLibraryChanged();
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(LIBRARY_MUTATED_EVENT));
 };
 
 // Helper to generate IDs and timestamps
@@ -192,7 +197,7 @@ export const addSong = async (song: Omit<Song, "id" | "lastModified" | "createdA
     createdAt: currentTime,
   };
   await db.add("songs", newSong);
-  notifyLibraryChanged();
+  notifyLibraryMutated();
   return newSong.id;
 };
 
@@ -209,13 +214,13 @@ export const updateSong = async (id: string, updates: Partial<Song>): Promise<vo
     lastModified: now(),
   });
   await tx.done;
-  notifyLibraryChanged();
+  notifyLibraryMutated();
 };
 
 export const saveSong = async (song: Song): Promise<void> => {
   const db = await initDB();
   await db.put("songs", song);
-  notifyLibraryChanged();
+  notifyLibraryMutated();
 };
 
 export const deleteSong = async (id: string): Promise<void> => {
@@ -245,7 +250,7 @@ export const deleteSong = async (id: string): Promise<void> => {
   }
 
   await tx.done;
-  notifyLibraryChanged();
+  notifyLibraryMutated();
 };
 
 export const getSong = async (id: string): Promise<Song | undefined> => {
@@ -258,7 +263,7 @@ export const getAllSongs = async (): Promise<Song[]> => {
   return db.getAllFromIndex("songs", "by-updated");
 };
 
-/** Convert explicitly marked Chordle imports and remove their private directives. */
+/** Clean legacy import metadata and add tags backed by explicit songbook numbers. */
 export const cleanChordleSongs = async (): Promise<number> => {
   const db = await initDB();
   const tx = db.transaction("songs", "readwrite");
@@ -267,18 +272,22 @@ export const cleanChordleSongs = async (): Promise<number> => {
   const updatedAt = now();
   for (const song of songs) {
     const content = cleanChordleContent(song.content);
-    if (content === song.content) continue;
-    const german = hasGermanChordleNotation(song.content);
+    const key = song.key ? standardizeSourceKey(song.content, song.key) : song.key;
+    const tags = [...song.tags];
+    for (const tag of inferSongbookTags(song.content, song.copyright))
+      if (!tags.some((existing) => existing.toLowerCase() === tag)) tags.push(tag);
+    if (content === song.content && key === song.key && tags.length === song.tags.length) continue;
     await tx.store.put({
       ...song,
       content,
-      key: german && song.key ? germanToStandardChord(song.key) : song.key,
+      key,
+      tags,
       lastModified: updatedAt,
     });
     count++;
   }
   await tx.done;
-  if (count) notifyLibraryChanged();
+  if (count) notifyLibraryMutated();
   return count;
 };
 
@@ -301,7 +310,7 @@ export const addSetlist = async (setlist: Omit<Setlist, "id" | "lastModified" | 
     createdAt: currentTime,
   };
   await db.add("setlists", newSetlist);
-  notifyLibraryChanged();
+  notifyLibraryMutated();
   return newSetlist.id;
 };
 
@@ -318,13 +327,13 @@ export const updateSetlist = async (id: string, updates: Partial<Setlist>): Prom
     lastModified: now(),
   });
   await tx.done;
-  notifyLibraryChanged();
+  notifyLibraryMutated();
 };
 
 export const saveSetlist = async (setlist: Setlist): Promise<void> => {
   const db = await initDB();
   await db.put("setlists", setlist);
-  notifyLibraryChanged();
+  notifyLibraryMutated();
 };
 
 export const deleteSetlist = async (id: string): Promise<void> => {
@@ -342,7 +351,7 @@ export const deleteSetlist = async (id: string): Promise<void> => {
     });
   await tx.objectStore("setlists").delete(id);
   await tx.done;
-  notifyLibraryChanged();
+  notifyLibraryMutated();
 };
 
 export const getSetlist = async (id: string): Promise<Setlist | undefined> => {

@@ -8,8 +8,10 @@ document.documentElement.dataset.readingTheme = savedReadingTheme();
 
 import { initDB } from "./db";
 import { startPwa } from "./pwa/lifecycle";
+import { startAutomaticSync } from "./sync/automaticSync";
 
 startPwa();
+startAutomaticSync();
 
 // Initialize the database on app start
 initDB()

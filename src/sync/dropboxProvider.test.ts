@@ -109,3 +109,12 @@ it("refreshes an expired session and keeps account scope", async () => {
   await provider.logout();
   expect(sessionStorage.getItem("dropbox_tokens")).toBeNull();
 });
+
+it("shows Dropbox's plain-text 400 reason for folder listing failures", async () => {
+  mocked.mockResolvedValueOnce(
+    new Response('Error in call to API function "files/list_folder": missing scope', { status: 400 }),
+  );
+  await expect(new DropboxProvider("testappkey123").listFiles()).rejects.toThrow(
+    'Dropbox files/list_folder failed (400): Error in call to API function "files/list_folder": missing scope',
+  );
+});
