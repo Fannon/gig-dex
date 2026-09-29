@@ -36,9 +36,9 @@ test("Dropbox popup uses PKCE, connects through settings, and rejects mismatched
     route.fulfill({ json: { entries: [], has_more: false } }),
   );
   await page.goto("./settings?section=sync");
-  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
+  await page.getByText("Configure Dropbox", { exact: true }).click();
   await page.getByLabel("Dropbox app key").fill("testappkey123");
-  await page.getByRole("button", { name: "Save Client IDs" }).click();
+  await page.getByRole("button", { name: "Save Dropbox settings" }).click();
   const host = page.getByRole("region", { name: "Dropbox sync", exact: true });
   await expect(host.getByRole("button", { name: /Connect Dropbox/ })).toBeVisible();
   await host.getByRole("button", { name: /Connect Dropbox/ }).click();

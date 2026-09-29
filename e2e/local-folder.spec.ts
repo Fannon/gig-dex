@@ -52,7 +52,8 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await host.getByRole("button", { name: "Sync now", exact: true }).click();
   await expect(host.getByRole("alert")).toContainText("permission denied");
   await expect(page.locator(".workspace-sync-alert")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Recent sync activity" })).toContainText("permission denied");
+  await host.getByText("Recent activity", { exact: true }).click();
+  await expect(page.getByRole("region", { name: "Local Folder sync activity" })).toContainText("permission denied");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.evaluate(() => {
     const state = (window as unknown as { folderFixture: FolderFixture }).folderFixture;
@@ -65,7 +66,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
   expect(
     await page.evaluate(() => (window as unknown as { folderFixture: FolderFixture }).folderFixture.pickerActivation),
   ).toEqual([true]);
-  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
+  await page.getByText("Configure Dropbox", { exact: true }).click();
   await page.screenshot({ path: "reports/local-folder/settings-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Toggle sidebar", exact: true }).click();
@@ -126,24 +127,30 @@ test("runtime Client IDs enable cloud hosts without rebuilding, persist, and rej
   page,
 }) => {
   await page.goto("./settings?section=sync");
-  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
+  await page.getByText("Configure Google Drive", { exact: true }).click();
   await page.getByLabel("Google Client ID", { exact: true }).fill("123-test.apps.googleusercontent.com");
+  await page.getByRole("button", { name: "Save Google Drive settings" }).click();
+  await page.getByText("Configure OneDrive", { exact: true }).click();
   await page.getByLabel("Microsoft Client ID", { exact: true }).fill("not-a-client-id");
-  await page.getByRole("button", { name: "Save Client IDs" }).click();
+  await page.getByRole("button", { name: "Save OneDrive settings" }).click();
   await expect(page.getByRole("alert")).toContainText("UUID format");
-  expect(await page.evaluate(() => localStorage.getItem("byoid:google_client_id"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("byoid:google_client_id"))).toBe(
+    "123-test.apps.googleusercontent.com",
+  );
   await page.getByLabel("Microsoft Client ID", { exact: true }).fill("00000000-0000-4000-8000-000000000001");
-  await page.getByRole("button", { name: "Save Client IDs" }).click();
-  await expect(page.getByText(/Client settings saved/)).toBeVisible();
+  await page.getByRole("button", { name: "Save OneDrive settings" }).click();
+  await expect(page.getByText(/OneDrive settings saved/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Connect Google Drive/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Connect OneDrive/ })).toBeVisible();
   await page.reload();
-  await page.getByText("Advanced setup: cloud Client IDs", { exact: true }).click();
+  await page.getByText("Configure Google Drive", { exact: true }).click();
+  await page.getByText("Configure OneDrive", { exact: true }).click();
   await expect(page.getByLabel("Google Client ID", { exact: true })).toHaveValue("123-test.apps.googleusercontent.com");
   await expect(page.getByText("Google: Settings value", { exact: true })).toBeVisible();
   await expect(page.getByText("Microsoft: Settings value", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Clear overrides" }).click();
+  await page.getByRole("button", { name: "Clear Google Drive override" }).click();
   await expect(page.getByLabel("Google Client ID", { exact: true })).toHaveValue("");
+  await page.getByRole("button", { name: "Clear OneDrive override" }).click();
   expect(await page.evaluate(() => localStorage.getItem("byoid:microsoft_client_id"))).toBeNull();
 });
 

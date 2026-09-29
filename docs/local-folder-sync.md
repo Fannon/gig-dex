@@ -53,9 +53,10 @@ would weaken the cleanup guarantee.
 
 ## Runtime cloud configuration
 
-Expand **Advanced setup: cloud Client IDs** below the host controls. Enter a Google
-OAuth Client ID, a Microsoft Application (client) ID, optionally a Microsoft
-tenant (`common` by default for a saved Microsoft ID), or a Dropbox app key. Save to enable the host
+Under **Settings → Sync → Add sync provider**, expand **Configure Google Drive**,
+**Configure OneDrive**, or **Configure Dropbox** beside that provider. Enter the
+relevant OAuth Client ID or Dropbox app key. OneDrive also accepts a Microsoft
+tenant (`common` by default for a saved Microsoft ID). Save to enable the host
 immediately, without rebuilding. These are public client identifiers, not client
 secrets. Changed app registrations require reconnecting their hosts.
 

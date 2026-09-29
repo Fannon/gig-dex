@@ -143,6 +143,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    padding: 0.5rem 1rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%);
   }
 
   &__option-actions {
@@ -276,6 +280,10 @@
 
 .settings-page__sync-box .settings-page__option {
  flex-wrap: wrap;
+ padding: .5rem 0;
+ border: 0;
+ background: transparent;
+ &:hover { background: transparent; transform: none; box-shadow: none; }
  .settings-page__option-text { flex: 1 1 220px; min-width: 0; }
  .settings-page__option-actions { flex-wrap: wrap; gap: .5rem; button { white-space: nowrap; } }
 }
@@ -331,6 +339,12 @@
 .settings-page__advanced { margin: .5rem 0 1rem; summary { min-height: 44px; cursor: pointer; padding: .6rem; } }
 .pwa-settings__summary { color: var(--text-secondary); line-height: 1.5; }
 .settings-page__guide-links { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; }
+.settings-page__sync-guide { align-self: flex-start; color: #c2bbfc; font-size: .85rem; padding: .25rem 0; }
+.settings-page__sync-box .settings-page__advanced,
+.settings-page__sync-box .settings-page__client-settings { margin: 0; border-top: 1px solid var(--border-color); }
+.settings-page__sync-box .settings-page__advanced > summary,
+.settings-page__sync-box .settings-page__client-settings > summary { padding: .6rem 0; }
+.settings-page__sync-box .settings-page__activity { max-width: none; margin: 0 0 .5rem; }
 .settings-page__sync-box .settings-page__option--disabled { opacity: 1; cursor: default; color: var(--text-secondary); }
 .settings-page__sync-box .settings-page__option--disabled .settings-page__option-text h3 { color: var(--text-primary); }
 .settings-page__sync-error { overflow-wrap: anywhere; }

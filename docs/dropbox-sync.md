@@ -12,7 +12,7 @@ Gig-Dex can sync directly with a Dropbox account from desktop or mobile browsers
    - Local development: `http://localhost:5173/dropbox-callback.html` (adjust the port if Vite uses another one)
    - A custom deployment: `<origin><base-path>dropbox-callback.html`
 5. Copy the **App key** from Settings. Do not copy the app secret into Gig-Dex.
-6. Open **Gig-Dex → Settings → Sync → Advanced setup: cloud Client IDs**, paste the key into **Dropbox app key**, and save. Then select **Connect Dropbox** and approve the requested permissions. Repeat the app key entry and connection on each browser or device.
+6. Open **Gig-Dex → Settings → Sync → Add sync provider → Configure Dropbox**, paste the key into **Dropbox app key**, and save. Then select **Connect Dropbox** and approve the requested permissions. Repeat the app key entry and connection on each browser or device.
 
 Dropbox may restrict an app in development mode to its registered users. Add other accounts as development users in the App Console, or follow Dropbox's production approval process before sharing it more widely.
 

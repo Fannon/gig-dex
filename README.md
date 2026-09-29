@@ -58,7 +58,7 @@ Use this before gigs, before updates, before cleaning up. It just works.
 
 **2. Dropbox sync: easiest direct option across desktop and mobile**
 
-Dropbox works directly in the browser on desktop and mobile. You first register your own free Dropbox app, copy its public app key into *Settings → Sync → Advanced setup*, and connect your account. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
+Dropbox works directly in the browser on desktop and mobile. You first register your own free Dropbox app, copy its public app key into *Settings → Sync → Add sync provider → Configure Dropbox*, and connect your account. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
 
 Once connected, Gig-Dex syncs after you save a song or setlist or finish an import while the app is open. Use **Sync now** on another device to pull those changes before editing there. Dropbox needs internet access, and you may need to reconnect after closing the browser session.
 
@@ -85,7 +85,7 @@ Details: [docs/local-folder-sync.md](docs/local-folder-sync.md)
 
 Gig-Dex can also talk directly to Google Drive and OneDrive, but there is no shared, ready-to-click cloud integration:
 
-> You have to register your **own** cloud app and paste its public Client ID into Gig-Dex under *Settings → Sync → Advanced setup: cloud Client IDs*.
+> You have to register your **own** cloud app and paste its public Client ID into Gig-Dex under *Settings → Sync → Configure Google Drive/OneDrive*.
 
 That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use Dropbox or a local folder.**
 

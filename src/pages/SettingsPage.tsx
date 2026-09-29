@@ -4,7 +4,6 @@ import { CloudSync } from "../components/CloudSync";
 import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
 import { PwaSettings } from "../components/PwaSettings";
-import { SyncActivityLog } from "../components/SyncActivityLog";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import type { SyncStatus } from "../sync/types";
 import { applyMinimumFontSize, minimumFontSizes, savedMinimumFontSize } from "../utils/readingFont";
@@ -133,38 +132,14 @@ export const SettingsPage = () => {
         <div hidden={active !== "sync"}>
           <div className="settings-page__sync-intro">
             <p>
-              <strong>Choose how to sync.</strong> Dropbox is the simplest direct option across desktop and mobile after
-              you register a Dropbox app once. On desktop Chrome or Edge, a folder inside your existing cloud drive
-              needs no app registration. Connected Dropbox, OneDrive, and folder sync run after library edits while
-              Gig-Dex is open; use Sync now to pull changes from another device.
+              Connected providers appear under Active syncs. Add sync provider shows the other choices and their setup
+              guides. Dropbox works directly on desktop and mobile after app registration; a folder on desktop Chrome or
+              Edge needs no registration. Connected Dropbox, OneDrive, and folder sync run after library edits while
+              Gig-Dex is open. Use Sync now to pull changes from another device.
             </p>
-            <div className="settings-page__guide-links">
-              <a
-                href="https://github.com/Fannon/gig-dex/blob/main/docs/dropbox-sync.md"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Dropbox setup guide
-              </a>
-              <a
-                href="https://github.com/Fannon/gig-dex/blob/main/docs/local-folder-sync.md"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Folder sync guide
-              </a>
-              <a
-                href="https://github.com/Fannon/gig-dex/blob/main/docs/local-folder-sync.md#runtime-cloud-configuration"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Google Drive & OneDrive setup
-              </a>
-            </div>
           </div>
           <CloudSync onStatus={setSyncStatus} />
           <ConflictReview status={syncStatus} />
-          <SyncActivityLog />
         </div>
         <div hidden={active !== "offline"}>
           <PwaSettings />

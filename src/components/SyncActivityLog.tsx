@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { readSyncActivity, SYNC_ACTIVITY_EVENT } from "../sync/activity";
 
-export function SyncActivityLog() {
+export function SyncActivityLog({ provider }: { provider: string }) {
   const [entries, setEntries] = useState(readSyncActivity);
   useEffect(() => {
     const refresh = () => setEntries(readSyncActivity());
@@ -12,17 +12,16 @@ export function SyncActivityLog() {
       window.removeEventListener("storage", refresh);
     };
   }, []);
+  const ownEntries = entries.filter((entry) => entry.provider === provider);
   return (
-    <section className="settings-page__activity" aria-label="Recent sync activity">
+    <section className="settings-page__activity" aria-label={`${provider} sync activity`}>
       <h3>Recent activity</h3>
-      {entries.length ? (
+      {ownEntries.length ? (
         <ul>
-          {entries.map((entry, index) => (
+          {ownEntries.map((entry, index) => (
             <li key={`${entry.time}:${entry.provider}:${index}`} data-kind={entry.kind}>
               <time dateTime={entry.time}>{new Date(entry.time).toLocaleString()}</time>
-              <span>
-                {entry.provider}: {entry.message}
-              </span>
+              <span>{entry.message}</span>
             </li>
           ))}
         </ul>

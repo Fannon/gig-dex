@@ -3,7 +3,9 @@ import { refreshSyncClientConfig } from "../sync";
 import { clientConfigKeys, effectiveClientConfig, readClientSettings, saveClientSettings } from "../sync/clientConfig";
 import { SyncManager } from "../sync/syncManager";
 
-export function SyncClientSettings() {
+type CloudProvider = "Dropbox" | "Google Drive" | "OneDrive";
+
+export function SyncClientSettings({ provider }: { provider: CloudProvider }) {
   const [settings, setSettings] = useState(readClientSettings);
   const [saved, setSaved] = useState(readClientSettings);
   const [busy, setBusy] = useState(false);
@@ -27,15 +29,23 @@ export function SyncClientSettings() {
     setError("");
     try {
       await SyncManager.exclusive(async () => {
-        saveClientSettings(clear ? { google: "", microsoft: "", tenant: "", dropbox: "" } : settings);
+        const current = readClientSettings();
+        saveClientSettings({
+          ...current,
+          ...(provider === "Dropbox"
+            ? { dropbox: clear ? "" : settings.dropbox }
+            : provider === "Google Drive"
+              ? { google: clear ? "" : settings.google }
+              : { microsoft: clear ? "" : settings.microsoft, tenant: clear ? "" : settings.tenant }),
+        });
         refreshSyncClientConfig();
       });
       const value = readClientSettings();
       setSettings(value);
       setSaved(value);
-      setMessage(clear ? "Saved overrides cleared." : "Client settings saved. Changed hosts need reconnecting.");
+      setMessage(clear ? `${provider} override cleared.` : `${provider} settings saved. Reconnect if prompted.`);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not save client settings.");
+      setError(error instanceof Error ? error.message : `Could not save ${provider} settings.`);
     } finally {
       setBusy(false);
     }
@@ -45,10 +55,12 @@ export function SyncClientSettings() {
     saved[key] ? "Settings value" : effective[key] ? "Build-time configuration" : "Not configured";
   return (
     <details className="settings-page__client-settings">
-      <summary>Advanced setup: cloud Client IDs</summary>
+      <summary>Configure {provider}</summary>
       <p>
-        Add public OAuth Client IDs or a Dropbox app key from your own cloud app registrations. Register this app’s
-        redirect URLs first. These settings stay on this browser and apply without a rebuild.
+        {provider === "Dropbox"
+          ? "Add the public app key from your Dropbox app registration. Register this site’s redirect URL first."
+          : "Add the public Client ID from your cloud app registration. Register this site’s redirect URL first."}{" "}
+        This setting stays in this browser.
       </p>
       <form
         onSubmit={(event) => {
@@ -56,52 +68,64 @@ export function SyncClientSettings() {
           void save();
         }}
       >
-        <label htmlFor="sync-google-client-id">Google Client ID</label>
-        <input
-          id="sync-google-client-id"
-          value={settings.google}
-          placeholder="…apps.googleusercontent.com"
-          autoComplete="off"
-          disabled={busy}
-          onChange={(event) => setSettings({ ...settings, google: event.target.value })}
-        />
-        <small>Google: {source("google")}</small>
-        <label htmlFor="sync-microsoft-client-id">Microsoft Client ID</label>
-        <input
-          id="sync-microsoft-client-id"
-          value={settings.microsoft}
-          placeholder="Application (client) ID"
-          autoComplete="off"
-          disabled={busy}
-          onChange={(event) => setSettings({ ...settings, microsoft: event.target.value })}
-        />
-        <small>Microsoft: {source("microsoft")}</small>
-        <label htmlFor="sync-microsoft-tenant">Microsoft tenant</label>
-        <input
-          id="sync-microsoft-tenant"
-          value={settings.tenant}
-          placeholder="common"
-          autoComplete="off"
-          disabled={busy}
-          onChange={(event) => setSettings({ ...settings, tenant: event.target.value })}
-        />
-        <small>Use common for personal and work accounts unless your registration needs a specific tenant.</small>
-        <label htmlFor="sync-dropbox-app-key">Dropbox app key</label>
-        <input
-          id="sync-dropbox-app-key"
-          value={settings.dropbox}
-          placeholder="App key"
-          autoComplete="off"
-          disabled={busy}
-          onChange={(event) => setSettings({ ...settings, dropbox: event.target.value })}
-        />
-        <small>Dropbox: {source("dropbox")}</small>
+        {provider === "Dropbox" && (
+          <>
+            <label htmlFor="sync-dropbox-app-key">Dropbox app key</label>
+            <input
+              id="sync-dropbox-app-key"
+              value={settings.dropbox}
+              placeholder="App key"
+              autoComplete="off"
+              disabled={busy}
+              onChange={(event) => setSettings({ ...settings, dropbox: event.target.value })}
+            />
+            <small>Dropbox: {source("dropbox")}</small>
+          </>
+        )}
+        {provider === "Google Drive" && (
+          <>
+            <label htmlFor="sync-google-client-id">Google Client ID</label>
+            <input
+              id="sync-google-client-id"
+              value={settings.google}
+              placeholder="…apps.googleusercontent.com"
+              autoComplete="off"
+              disabled={busy}
+              onChange={(event) => setSettings({ ...settings, google: event.target.value })}
+            />
+            <small>Google: {source("google")}</small>
+          </>
+        )}
+        {provider === "OneDrive" && (
+          <>
+            <label htmlFor="sync-microsoft-client-id">Microsoft Client ID</label>
+            <input
+              id="sync-microsoft-client-id"
+              value={settings.microsoft}
+              placeholder="Application (client) ID"
+              autoComplete="off"
+              disabled={busy}
+              onChange={(event) => setSettings({ ...settings, microsoft: event.target.value })}
+            />
+            <small>Microsoft: {source("microsoft")}</small>
+            <label htmlFor="sync-microsoft-tenant">Microsoft tenant</label>
+            <input
+              id="sync-microsoft-tenant"
+              value={settings.tenant}
+              placeholder="common"
+              autoComplete="off"
+              disabled={busy}
+              onChange={(event) => setSettings({ ...settings, tenant: event.target.value })}
+            />
+            <small>Use common for personal and work accounts unless your registration needs a specific tenant.</small>
+          </>
+        )}
         <div className="settings-page__option-actions">
           <button type="submit" disabled={busy}>
-            Save Client IDs
+            Save {provider} settings
           </button>
           <button type="button" disabled={busy} onClick={() => void save(true)}>
-            Clear overrides
+            Clear {provider} override
           </button>
         </div>
       </form>
