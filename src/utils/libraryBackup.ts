@@ -1,8 +1,7 @@
 import { initDB, notifyLibraryMutated, type Setlist, type Song } from "../db";
 import { type DeletionRecord, isDeletion, type LibraryRecord, type SyncConflict, syncKey } from "../sync/records";
-import { cleanChordleContent, inferSongbookTags, standardizeSourceKey } from "./chordleImport";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
-import { stableStringify } from "./recordFingerprint";
+import { recordFingerprint, stableStringify } from "./recordFingerprint";
 
 export interface LibraryBackup {
   format: "gig-dex";
@@ -146,27 +145,15 @@ export async function restoreLibrary(backup: LibraryBackup, mode: "merge" | "rep
     const remap = new Map<string, string>();
     for (const song of valid.songs) {
       const existing = mode === "merge" ? songMap.get(song.id) : undefined;
-      const tags = [...song.tags];
-      for (const tag of inferSongbookTags(song.content, song.copyright))
-        if (!tags.some((existingTag) => existingTag.toLowerCase() === tag)) tags.push(tag);
-      const normalized = {
-        ...song,
-        content: cleanChordleContent(song.content),
-        key: song.key ? standardizeSourceKey(song.content, song.key) : song.key,
-        tags,
-      };
       const changed =
         mode === "merge" &&
-        (deleted.has(song.id) ||
-          (!!existing &&
-            stableStringify(song) !== stableStringify(existing) &&
-            stableStringify(normalized) !== stableStringify(existing)));
+        (deleted.has(song.id) || (!!existing && recordFingerprint(song) !== recordFingerprint(existing)));
       const id = changed ? crypto.randomUUID() : song.id;
       remap.set(song.id, id);
       await tx.objectStore("tombstones").delete(id);
       if (!existing || changed) {
         await songStore.put({
-          ...normalized,
+          ...song,
           id,
           lastModified: mode === "replace" || changed ? now : song.lastModified,
         });
@@ -248,7 +235,7 @@ export async function importChordPro(files: { name: string; content: string }[])
   const results: ImportResult[] = [];
   for (const file of files) {
     try {
-      const content = cleanChordleContent(file.content.replace(/^\uFEFF/, ""));
+      const content = file.content.replace(/^\uFEFF/, "");
       if (!content.trim()) throw new Error("Empty file.");
       let warning = "";
       try {
@@ -264,8 +251,6 @@ export async function importChordPro(files: { name: string; content: string }[])
             .filter(Boolean),
         ),
       ];
-      for (const tag of inferSongbookTags(content, metadata.copyright))
-        if (!tags.some((existing) => existing.toLowerCase() === tag)) tags.push(tag);
       drafts.push({
         file: file.name,
         warning,

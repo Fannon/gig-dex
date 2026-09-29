@@ -13,9 +13,9 @@ Chromium PWA uses the same folder connection as its browser origin. Permissions
 may need to be granted again after reopening. [Chrome's File System Access guide](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
 explains handle persistence and permission renewal.
 
-After a completed song or setlist edit, import, or library cleanup, Gig-Dex starts
+Gig-Dex checks the folder when it opens with permission. After a completed song or setlist edit or import, it starts
 folder sync automatically while the app is open and permission remains granted.
-**Sync now** also pulls changes from other devices and merges songs, sets and
+**Sync now** pulls changes that arrived while the app stayed open and merges songs, sets and
 deletion markers through conflict review. It requests read/write permission again
 when needed. **Choose a different folder** merges with the selected folder;
 **Stop syncing** forgets the connection and leaves

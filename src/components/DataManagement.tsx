@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { cleanChordleSongs, getAllSetlists, getAllSongs, notifyLibraryChanged } from "../db";
+import { getAllSetlists, getAllSongs, notifyLibraryChanged } from "../db";
 import { blockPwaUpdate } from "../pwa/lifecycle";
-import { cleanChordleContent, inferSongbookTags, standardizeSourceKey } from "../utils/chordleImport";
 import {
   exportLibrary,
   type ImportResult,
@@ -41,7 +40,7 @@ export const DataManagement = () => {
       <p className="data-management__intro">
         JSON backups can add songs and setlists to this device. A backup placed in your sync folder is ignored until you
         select it here. Connected Dropbox, OneDrive, and folder sync share completed imports automatically while this
-        app is open; use Sync now to check the result or pull changes from another device.
+        app is open. They also check for remote changes when Gig-Dex opens. Use Sync now for an immediate check.
       </p>
       <button
         type="button"
@@ -189,48 +188,6 @@ export const DataManagement = () => {
           Select multiple files. Only identical song text is skipped; songs with the same title can both be added.
         </small>
       </label>
-      <button
-        type="button"
-        className="settings-page__option"
-        disabled={busy}
-        onClick={() =>
-          void run(async () => {
-            const songs = await getAllSongs();
-            const affected = songs.filter(
-              (song) =>
-                cleanChordleContent(song.content) !== song.content ||
-                (song.key && standardizeSourceKey(song.content, song.key) !== song.key) ||
-                inferSongbookTags(song.content, song.copyright).some(
-                  (tag) => !song.tags.some((existing) => existing.toLowerCase() === tag),
-                ),
-            ).length;
-            if (affected === 0) {
-              setMessage("No imported songs need cleanup on this device.");
-              return;
-            }
-            if (
-              !confirm(
-                `Clean up ${affected} imported ${affected === 1 ? "song" : "songs"} on this device? This removes x_chordle metadata, converts German H chords to standard B, and adds tags from explicit FJ/GSB songbook references. Export a backup first if you want to keep the original files.`,
-              )
-            )
-              return;
-            const count = await cleanChordleSongs();
-            setMessage(
-              count
-                ? `Cleaned ${count} imported ${count === 1 ? "song" : "songs"} on this device. Connected sync starts automatically; check Sync for its status.`
-                : "No imported songs need cleanup on this device.",
-            );
-          })
-        }
-      >
-        <div className="settings-page__option-text">
-          <h3>Clean up imported songs</h3>
-          <p>
-            Remove old x_chordle metadata, convert German H chords to standard B, and add FJ/GSB tags from explicit
-            songbook references. Export a backup first if you want to keep the original files.
-          </p>
-        </div>
-      </button>
       {busy && <output>Working…</output>}
       {message && <output>{message}</output>}
       {error && (

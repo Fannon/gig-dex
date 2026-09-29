@@ -2,7 +2,6 @@ import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 import type { SyncMetadata } from "./sync/types";
-import { cleanChordleContent, inferSongbookTags, standardizeSourceKey } from "./utils/chordleImport";
 import { matchesLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
@@ -261,34 +260,6 @@ export const getSong = async (id: string): Promise<Song | undefined> => {
 export const getAllSongs = async (): Promise<Song[]> => {
   const db = await initDB();
   return db.getAllFromIndex("songs", "by-updated");
-};
-
-/** Clean legacy import metadata and add tags backed by explicit songbook numbers. */
-export const cleanChordleSongs = async (): Promise<number> => {
-  const db = await initDB();
-  const tx = db.transaction("songs", "readwrite");
-  const songs = await tx.store.getAll();
-  let count = 0;
-  const updatedAt = now();
-  for (const song of songs) {
-    const content = cleanChordleContent(song.content);
-    const key = song.key ? standardizeSourceKey(song.content, song.key) : song.key;
-    const tags = [...song.tags];
-    for (const tag of inferSongbookTags(song.content, song.copyright))
-      if (!tags.some((existing) => existing.toLowerCase() === tag)) tags.push(tag);
-    if (content === song.content && key === song.key && tags.length === song.tags.length) continue;
-    await tx.store.put({
-      ...song,
-      content,
-      key,
-      tags,
-      lastModified: updatedAt,
-    });
-    count++;
-  }
-  await tx.done;
-  if (count) notifyLibraryMutated();
-  return count;
 };
 
 export const searchSongs = async (query: string): Promise<Song[]> => {

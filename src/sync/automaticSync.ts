@@ -26,15 +26,17 @@ export function startAutomaticSync(
       return;
     }
     // Google Drive's current OAuth flow can open a popup when its token expires.
-    const connected = hosts.filter(
+    const available = hosts.filter(
       ({ provider, manager }) =>
         provider.name !== "Google Drive" &&
         provider.isEnabled() &&
         provider.isAuthenticated?.() &&
         !manager.getStatus().error,
     );
+    const waitForNetwork = !navigator.onLine && available.some(({ provider }) => provider.name !== "Local Folder");
+    const connected = available.filter(({ provider }) => provider.name === "Local Folder" || navigator.onLine);
     if (!connected.length) return;
-    pending = false;
+    pending = waitForNetwork;
     running = true;
     try {
       for (const { manager } of connected) {
@@ -46,7 +48,7 @@ export function startAutomaticSync(
       }
     } finally {
       running = false;
-      if (pending && !stopped) schedule();
+      if (pending && !stopped && navigator.onLine) schedule();
     }
   };
   const changed = () => {
@@ -59,6 +61,10 @@ export function startAutomaticSync(
   window.addEventListener(LIBRARY_MUTATED_EVENT, changed);
   window.addEventListener("focus", retry);
   window.addEventListener("online", retry);
+  // Pull remote changes once when an already connected app opens. The same
+  // coalescing path handles edits that occur while the initial check is pending.
+  pending = true;
+  schedule(0);
   return () => {
     stopped = true;
     if (timer) clearTimeout(timer);

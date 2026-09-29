@@ -60,7 +60,7 @@ Use this before gigs, before updates, before cleaning up. It just works.
 
 Dropbox works directly in the browser on desktop and mobile. You first register your own free Dropbox app, copy its public app key into *Settings → Sync → Add sync provider → Configure Dropbox*, and connect your account. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
 
-Once connected, Gig-Dex syncs after you save a song or setlist or finish an import while the app is open. Use **Sync now** on another device to pull those changes before editing there. Dropbox needs internet access, and you may need to reconnect after closing the browser session.
+Once connected, Gig-Dex checks for remote changes when it opens and syncs after you save a song or setlist or finish an import. Use **Sync now** for an immediate check if another device changed the library while this app stayed open. Dropbox needs internet access, and you may need to reconnect after closing the browser session.
 
 **3. Local folder sync: use your existing cloud folder**
 
@@ -68,16 +68,16 @@ If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your compute
 
 In *Settings → Sync → Sync from a folder on this computer*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
 
-Gig-Dex syncs after saved edits and imports while the app is open. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** on the other computer after its desktop sync app finishes transferring the files. No extra login in Gig-Dex, no registration, and folder sync works offline.
+Gig-Dex checks the folder when it opens and syncs after saved edits and imports while the app is open. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** if files arrive while Gig-Dex stays open and you want to pull them immediately. No extra login in Gig-Dex, no registration, and folder sync works offline.
 
 Placing a backup `.json` file in the sync folder does not import it. Select it through *Settings → Library → Restore backup* and press **Import**; the connected folder then syncs automatically.
 
-Older Chordle imports may contain `x_chordle_` lines and German chord spelling (`H` means B natural; `B` means B flat). Gig-Dex reads the explicit German source marker, and also recognizes unambiguous `H` chords in songs marked Standard. In *Settings → Library*, **Clean up imported songs** converts those chords to standard pitch names, removes old metadata, and adds FJ/GSB tags when the song has an explicit songbook reference. The global *Settings → Appearance → Notation* choice can display standard stored chords using German spelling without changing their pitches.
+The song editor supports simple chords-over-words text and standard ChordPro. Library file import accepts ChordPro; full library import/export uses Gig-Dex JSON. The global *Settings → Appearance → Notation* choice can display standard stored chords using German spelling (`H` for B natural, `B` for B flat) without changing their pitches.
 
 Limitations to know:
 
 - Picking a folder only works in Chrome or Edge on desktop (browser limitation).
-- On your phone/tablet, use the backup file above to transfer songs because mobile browsers can't pick sync folders.
+- On your phone/tablet, use Dropbox direct sync or a backup file because mobile browsers can't pick local sync folders.
 
 Details: [docs/local-folder-sync.md](docs/local-folder-sync.md)
 
@@ -90,6 +90,8 @@ Gig-Dex can also talk directly to Google Drive and OneDrive, but there is no sha
 That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use Dropbox or a local folder.**
 
 For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
+
+Direct Google Drive still needs **Sync now** because its sign-in flow can open a popup; connected OneDrive sessions check automatically on open.
 
 ### Install it like an app (Android / desktop)
 

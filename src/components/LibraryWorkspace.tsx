@@ -65,6 +65,7 @@ export function LibraryWorkspace() {
   const [lists, setLists] = useState<Setlist[]>([]);
   const [error, setError] = useState("");
   const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
+  const [syncRunning, setSyncRunning] = useState(() => syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(
     () => readPreference("sidebar-open", window.matchMedia("(max-width: 800px)").matches ? "false" : "true") === "true",
@@ -101,6 +102,7 @@ export function LibraryWorkspace() {
   useEffect(() => {
     let disposed = false;
     const refreshSyncAttention = () => {
+      setSyncRunning(syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
       const statusIssue = syncHosts.some(({ manager }) => {
         const status = manager.getStatus();
         return !!status.error || !!status.conflictCount;
@@ -316,6 +318,9 @@ export function LibraryWorkspace() {
             to={syncNeedsAttention ? "/settings?section=sync" : pwaIssue ? "/settings?section=offline" : "/settings"}
           >
             Settings
+            {syncRunning && (
+              <output className="workspace-sync-running" aria-label="Syncing library" title="Syncing library" />
+            )}
             {(syncNeedsAttention || pwaIssue) && (
               <span
                 className="workspace-sync-alert"

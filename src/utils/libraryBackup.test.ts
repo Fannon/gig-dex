@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { addSetlist, addSong, cleanChordleSongs, getAllSetlists, getAllSongs, initDB, updateSong } from "../db";
+import { addSetlist, addSong, getAllSetlists, getAllSongs, initDB, updateSong } from "../db";
 import { exportLibrary, importChordPro, parseBackup, restoreLibrary } from "./libraryBackup";
 
 beforeEach(async () => {
@@ -26,36 +26,28 @@ async function seed() {
   return id;
 }
 describe("library backups and imports", () => {
-  it("cleans imported German Chordle metadata and can clean existing songs once", async () => {
-    const source = "{title: German song}\n{x_chordle_notation:German}\n{x_chordle_id:old}\n{key:H}\n[Hm] [B]";
-    const result = await importChordPro([{ name: "german.cho", content: source }]);
+  it("imports standard ChordPro without rewriting source chords", async () => {
+    const source = "{title: Standard song}\n{key:B}\n[Bm] [Bb]";
+    const result = await importChordPro([{ name: "standard.cho", content: source }]);
     expect(result[0].status).toBe("imported");
-    expect((await getAllSongs())[0]).toMatchObject({ key: "B", content: "{title: German song}\n{key:B}\n[Bm] [Bb]" });
-    const id = await addSong({ title: "Old Chordle", artist: "", content: source, key: "H", tags: [] });
-    expect(await cleanChordleSongs()).toBe(1);
-    expect((await getAllSongs()).find((song) => song.id === id)).toMatchObject({
-      key: "B",
-      content: "{title: German song}\n{key:B}\n[Bm] [Bb]",
-    });
-    expect(await cleanChordleSongs()).toBe(0);
+    expect((await getAllSongs())[0]).toMatchObject({ key: "B", content: source });
   });
-  it("adds only explicit songbook tags during cleanup and normalizes incoming backups", async () => {
-    const source = "{x_chordle_notation:Standard}\n{copyright:FJ1:65, GSB:29}\n{key:H}\n[Hm] [B]";
-    const id = await addSong({ title: "Source-tagged song", artist: "", content: source, key: "H", tags: ["live"] });
-    expect(await cleanChordleSongs()).toBe(1);
-    const cleaned = (await getAllSongs()).find((song) => song.id === id);
-    expect(cleaned).toMatchObject({ key: "B", tags: ["live", "fj1", "gsb"] });
-    expect(cleaned?.content).toBe("{copyright:FJ1:65, GSB:29}\n{key:B}\n[Bm] [B]");
+  it("preserves backup metadata and does not infer tags from copyright text", async () => {
+    const source = "{copyright:Private collection}\n{key:B}\n[Bm] [B]";
+    const id = await addSong({ title: "Copyright song", artist: "", content: source, key: "B", tags: ["live"] });
     const backup = await exportLibrary();
-    backup.songs[0] = { ...backup.songs[0], content: source, key: "H", tags: ["live"] };
+    await restoreLibrary(backup, "replace");
+    const cleaned = (await getAllSongs()).find((song) => song.id === id);
+    expect(cleaned).toMatchObject({ key: "B", tags: ["live"] });
+    expect(cleaned?.content).toBe(source);
     await restoreLibrary(backup, "merge");
     expect(await getAllSongs()).toHaveLength(1);
     backup.songs[0].id = crypto.randomUUID();
     await restoreLibrary(backup, "merge");
     expect(await getAllSongs()).toHaveLength(2);
     const imported = (await getAllSongs()).find((song) => song.id !== id);
-    expect(imported).toMatchObject({ key: "B", tags: ["live", "fj1", "gsb"] });
-    expect(imported?.content).not.toContain("x_chordle_");
+    expect(imported).toMatchObject({ key: "B", tags: ["live"] });
+    expect(imported?.content).toBe(source);
   });
   it("exports all metadata and repeated song references, and restores atomically", async () => {
     await seed();

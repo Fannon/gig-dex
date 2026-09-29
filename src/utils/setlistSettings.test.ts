@@ -31,15 +31,10 @@ describe("setlist occurrence settings", () => {
     expect(transposeKey("Bb", -2)).toBe("Ab");
     expect(settingLabel(song, { transpose: 2, capo: 0 })).toBe("Bm | T+2 | 4/4");
   });
-  it("shows the key in German spelling while transposing legacy Chordle songs correctly", () => {
+  it("shows standard keys in German spelling after transposition", () => {
     applyReadingPreferences({ chordMode: "german", maxColumns: 0, wrapLines: true });
     try {
-      expect(settingLabel({ ...song, key: "G", content: "{x_chordle_notation:German}\n[G] [Hm]" })).toBe(
-        "G | 4/4 | Capo 2",
-      );
-      expect(settingLabel({ ...song, key: "H", content: "{x_chordle_notation:German}\n[Hm]" })).toBe(
-        "H | 4/4 | Capo 2",
-      );
+      expect(settingLabel({ ...song, key: "B", content: "[Bm]" })).toBe("H | 4/4 | Capo 2");
       expect(settingLabel({ ...song, key: "Bb", content: "[Bb]" })).toBe("B | 4/4 | Capo 2");
     } finally {
       applyReadingPreferences({ chordMode: "standard", maxColumns: 0, wrapLines: true });

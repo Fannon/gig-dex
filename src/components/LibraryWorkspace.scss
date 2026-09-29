@@ -99,3 +99,16 @@
   font-size: .75rem;
   font-weight: 700;
 }
+.workspace-sync-running {
+  display: inline-block;
+  width: .8rem;
+  height: .8rem;
+  margin-left: .4rem;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  vertical-align: -.1rem;
+  animation: workspace-sync-spin .8s linear infinite;
+}
+@keyframes workspace-sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .workspace-sync-running { animation: none; } }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseChordPro, stripMetadata, transposeChordPro } from "./chordEngine";
-import { cleanChordleContent } from "./chordleImport";
+import { parseChordPro } from "./chordEngine";
 
 describe("chordEngine Nashville support", () => {
   const chordPro = `
@@ -38,33 +37,13 @@ describe("chordEngine Nashville support", () => {
     expect(parsed.html).toContain("G");
   });
 
-  it("converts explicitly German Chordle chords before display and transposition", () => {
-    const source = "{x_chordle_notation:German}\n{x_chordle_id:old}\n{key:H}\n[Hm] [H7] [B] [G/H] [G/B]";
-    const clean = cleanChordleContent(source);
-    expect(clean).not.toContain("x_chordle");
-    expect(clean).toContain("{key:B}");
-    expect(clean).toContain("[Bm] [B7] [Bb] [G/B] [G/Bb]");
-    expect(parseChordPro(source).key).toBe("B");
-    expect(parseChordPro(source, { mode: "german" }).key).toBe("H");
-    expect(parseChordPro(source, { mode: "german" }).html).toContain("Hm");
-    expect(parseChordPro(source, { mode: "german" }).html).toContain("G/B");
-    expect(transposeChordPro(source, 0)).toBe(clean);
-    expect(stripMetadata(source)).not.toContain("x_chordle");
-  });
-
-  it("leaves unmarked chords alone and displays standard B and Bb in German", () => {
+  it("displays standard B and Bb in German without changing the source", () => {
     const source = "{key: B}\n[B] [Bm] [Bb] [Bbm] [G/B] [G/Bb]";
-    expect(cleanChordleContent(source)).toBe(source);
+    expect(parseChordPro(source).key).toBe("B");
     const parsed = parseChordPro(source, { mode: "german" });
     expect(parsed.key).toBe("H");
     expect(parsed.html).toContain("Hm");
     expect(parsed.html).toContain("G/H");
     expect(parsed.html).toContain("G/B");
-  });
-
-  it("normalizes unambiguous H chords in Chordle songs marked Standard without guessing bare B", () => {
-    const source = "{x_chordle_notation:Standard}\n{key:H}\n[Hm] [G/H] [B] [Bb] [D/Fis] [fism]";
-    expect(cleanChordleContent(source)).toBe("{key:B}\n[Bm] [G/B] [B] [Bb] [D/F#] [F#m]");
-    expect(parseChordPro(source).key).toBe("B");
   });
 });

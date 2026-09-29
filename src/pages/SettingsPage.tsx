@@ -120,9 +120,9 @@ export const SettingsPage = () => {
             </label>
             <p className="settings-page__hint">
               Applies to all songs on this device, including setlist previews and performance. German changes how
-              standard chords are shown; imported Chordle songs marked as German are converted to standard pitches
-              first. Number notation needs a song key. Auto-fit uses up to your column limit without going below the
-              minimum font. Songs that cannot fit scroll in one column; wrapping keeps wide lyrics readable.
+              standard chords are shown. Number notation needs a song key. Auto-fit uses up to your column limit without
+              going below the minimum font. Songs that cannot fit scroll in one column; wrapping keeps wide lyrics
+              readable.
             </p>
           </section>
         </div>
@@ -134,8 +134,8 @@ export const SettingsPage = () => {
             <p>
               Connected providers appear under Active syncs. Add sync provider shows the other choices and their setup
               guides. Dropbox works directly on desktop and mobile after app registration; a folder on desktop Chrome or
-              Edge needs no registration. Connected Dropbox, OneDrive, and folder sync run after library edits while
-              Gig-Dex is open. Use Sync now to pull changes from another device.
+              Edge needs no registration. Connected Dropbox, OneDrive, and folder sync check for changes when Gig-Dex
+              opens and after library edits. Use Sync now for an immediate check.
             </p>
           </div>
           <CloudSync onStatus={setSyncStatus} />

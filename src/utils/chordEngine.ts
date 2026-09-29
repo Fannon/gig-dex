@@ -7,7 +7,7 @@ import {
   HtmlTableFormatter,
   TextFormatter,
 } from "chordsheetjs";
-import { cleanChordleContent, standardToGermanChord } from "./chordleImport";
+import { standardToGermanChord } from "./chordNotation";
 import { colorSongSections, simpleSectionLabel } from "./songSections";
 
 export { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "./demoSong";
@@ -63,7 +63,7 @@ function safeFormattedHtml(html: string): string {
 export const parseChordPro = (chordProText: string, options: { mode?: ChordMode } = {}): ParsedSong => {
   const { mode = "standard" } = options;
   const parser = new ChordProParser();
-  const song = parser.parse(escapeHtmlText(cleanChordleContent(chordProText)));
+  const song = parser.parse(escapeHtmlText(chordProText));
 
   // Convert notation if requested
   if (mode === "german") {
@@ -123,11 +123,10 @@ export const parseChordPro = (chordProText: string, options: { mode?: ChordMode 
  * Transpose a ChordPro song by a number of semitones
  */
 export const transposeChordPro = (chordProText: string, semitones: number): string => {
-  const standardContent = cleanChordleContent(chordProText);
-  if (semitones === 0) return standardContent;
+  if (semitones === 0) return chordProText;
 
   const parser = new ChordProParser();
-  const song = parser.parse(standardContent);
+  const song = parser.parse(chordProText);
 
   // Transpose the song
   const transposedSong = song.transpose(semitones);
@@ -142,7 +141,7 @@ export const transposeChordPro = (chordProText: string, semitones: number): stri
  */
 export const chordProToText = (chordProText: string): string => {
   const parser = new ChordProParser();
-  const song = parser.parse(cleanChordleContent(chordProText));
+  const song = parser.parse(chordProText);
   const formatter = new TextFormatter();
   return formatter.format(song);
 };
@@ -189,7 +188,7 @@ export function normalizeSimpleSpacing(text: string) {
  */
 export const chordProToSimple = (chordProText: string): string => {
   const parser = new ChordProParser();
-  const song = parser.parse(cleanChordleContent(chordProText));
+  const song = parser.parse(chordProText);
   const formatter = new ChordsOverWordsFormatter();
   return normalizeSimpleSpacing(formatter.format(song));
 };
@@ -253,14 +252,13 @@ export interface SongMetadata {
  */
 export const extractMetadata = (chordProText: string): SongMetadata => {
   const parser = new ChordProParser();
-  const standardContent = cleanChordleContent(chordProText);
   let song: ReturnType<typeof parser.parse>;
   try {
-    song = parser.parse(standardContent);
+    song = parser.parse(chordProText);
   } catch {
     // Broken lyric/chord markup must not prevent metadata preservation or repair.
     song = parser.parse(
-      standardContent
+      chordProText
         .split("\n")
         .filter((line) => /^\s*\{[^{}]*\}\s*$/.test(line))
         .join("\n"),
@@ -323,7 +321,7 @@ export const stripMetadata = (chordProText: string): string => {
     /^\s*\{duration:.*?\}\s*$/gim,
   ];
 
-  let result = cleanChordleContent(chordProText);
+  let result = chordProText;
   for (const pattern of metadataPatterns) {
     result = result.replace(pattern, "");
   }
@@ -369,7 +367,7 @@ export const injectMetadata = (chordProText: string, metadata: SongMetadata): st
  */
 export const getSongKey = (chordProText: string): string | null => {
   const parser = new ChordProParser();
-  const song = parser.parse(cleanChordleContent(chordProText));
+  const song = parser.parse(chordProText);
   return song.key?.toString() || null;
 };
 

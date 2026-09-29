@@ -84,29 +84,26 @@ test("replace restore requires confirmation and restores an empty library", asyn
   await expect(page.getByText("No songs yet")).toBeVisible();
 });
 
-test("cleans German Chordle imports and offers German chord display", async ({ page }) => {
+test("standard B chords can be displayed with German notation", async ({ page }) => {
   await page.goto("./settings?section=library");
   const id = await page.evaluate(async () => {
     const base = location.pathname.replace(/settings$/, "");
-    const { addSong } = await import(`${base}src/db.ts`);
-    return addSong({
-      title: "German legacy",
-      artist: "",
-      content: "{title: German legacy}\n{x_chordle_notation:German}\n{x_chordle_id:old}\n{key:G}\n[G] [Hm] [B]",
-      key: "G",
-      tags: [],
-    });
+    const { importChordPro } = await import(`${base}src/utils/libraryBackup.ts`);
+    await importChordPro([
+      {
+        name: "standard.cho",
+        content: "{title: Standard song}\n{key:B}\n[Bm] [Bb]",
+      },
+    ]);
+    const { getAllSongs } = await import(`${base}src/db.ts`);
+    return (await getAllSongs())[0].id;
   });
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: /Clean up imported songs/ }).click();
-  await expect(page.getByRole("status")).toContainText("Cleaned 1 imported song");
-  const cleaned = await page.evaluate(async (songId) => {
+  const stored = await page.evaluate(async (songId) => {
     const base = location.pathname.replace(/settings$/, "");
     const { getSong } = await import(`${base}src/db.ts`);
     return (await getSong(songId))?.content;
   }, id);
-  expect(cleaned).toContain("[G] [Bm] [Bb]");
-  expect(cleaned).not.toContain("x_chordle");
+  expect(stored).toContain("[Bm] [Bb]");
   await page.goto("./settings?section=appearance");
   await page.getByLabel("Notation").selectOption("german");
   await page.goto(`./song/${id}`);
