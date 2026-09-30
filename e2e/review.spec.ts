@@ -67,7 +67,8 @@ test("pasted ChordPro metadata survives saving without overriding later form edi
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".song-page__title")).toHaveText("Revised title");
   await page.reload();
-  await expect(page.locator(".song-page__meta-tag")).toContainText("C | 90bpm");
+  await expect(page.locator(".song-page__key")).toHaveText("C");
+  await expect(page.locator(".tempo-indicator__label")).toHaveText("90bpm");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("button", { name: "Advanced (ChordPro)", exact: true }).click();
   await expect(page.locator("#advanced-content")).toHaveValue(/\{title: Revised title\}/);
@@ -257,6 +258,9 @@ test("mobile song controls stay compact and selected colors remain clear in ever
     await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
     await expect(page.getByLabel("Notation", { exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Minimum font", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Song display options" })).toBeHidden();
+    await page.screenshot({ path: `reports/final-review/song-${theme}-phone-collapsed.png` });
+    await page.getByRole("button", { name: "Display options", exact: true }).click();
     const controls = await page.locator(".song-view__controls").boundingBox();
     expect(controls?.height).toBeLessThanOrEqual(110);
     expect((await page.getByRole("button", { name: "+1", exact: true }).boundingBox())?.height).toBeGreaterThanOrEqual(

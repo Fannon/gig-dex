@@ -33,6 +33,13 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
   await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
   await expect(host.getByText(/Last synced/)).toBeVisible();
+  expect(await host.locator(":scope > details > summary").allTextContents()).toEqual([
+    "Recent activity",
+    "History cleanup",
+  ]);
+  await expect(
+    host.locator(".settings-page__option-text p").getByRole("link", { name: "Folder sync guide" }),
+  ).toBeVisible();
   await host.getByText("Recent activity", { exact: true }).click();
   const activity = page.getByRole("region", { name: "Local Folder sync activity" });
   await expect(activity).toContainText("Sent: 3 added · 0 updated · 0 removed");

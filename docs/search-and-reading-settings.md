@@ -32,10 +32,16 @@ setlist previews and performance mode too. Numeric notation requires a song key.
 The column limit applies to automatic screen fitting; scrolling and paginated
 views use one column. Open views react to preference changes in another tab.
 
-The song toolbar keeps transposition, temporary font size, auto-fit, and chord
-visibility. On phones, its group names remain accessible without taking a
-separate visible label, and buttons have larger tap targets. General reading
-preferences no longer add rows above the lyrics.
+The song header keeps compact transpose buttons alongside the song actions.
+Select the sliders icon (**Display options**) to open temporary font size,
+auto-fit and chord visibility controls. Close the panel with the icon, its close
+button or Escape; the current display choices stay in effect while reading that
+song. The panel starts closed when you open another song. General reading
+preferences live in Settings.
+
+Key and tempo have separate badges. The tempo badge includes the beat dots and
+starts or stops the visual beat pulse when selected. Its tooltip includes the
+time signature; songs without tempo retain a written time signature.
 
 The Sets detail header places the date alongside its song count, and Add songs
 shares the action group and its button height. On narrow screens, actions wrap.

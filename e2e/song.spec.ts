@@ -13,7 +13,9 @@ test.describe("Song Page", () => {
     // Verify song page loaded
     await expect(page.locator(".song-page__title")).toContainText("Amazing Grace");
     await expect(page.locator(".song-page__artist")).toContainText("by Traditional");
-    await expect(page.locator(".song-page__meta-tag")).toContainText("G | 72bpm | 4/4");
+    await expect(page.locator(".song-page__key")).toHaveText("G");
+    await expect(page.locator(".tempo-indicator__label")).toHaveText("72bpm");
+    await expect(page.locator(".song-page__title-row")).not.toContainText("4/4");
   });
 
   test("should transpose song", async ({ page }) => {
@@ -23,19 +25,18 @@ test.describe("Song Page", () => {
     await page.getByRole("button", { name: "Add Demo Song" }).click();
 
     // Get initial key display
-    await expect(page.locator(".song-page__meta-tag")).toContainText("G | 72bpm | 4/4");
+    await expect(page.locator(".song-page__key")).toHaveText("G");
+    await expect(page.locator(".tempo-indicator__label")).toHaveText("72bpm");
+    await expect(page.locator(".song-page__title-row")).not.toContainText("4/4");
 
     // Get transpose value
-    const transposeValue = page
-      .locator(".song-view__control-group")
-      .filter({ hasText: "Transpose" })
-      .locator(".song-view__value");
+    const transposeValue = page.getByRole("group", { name: "Transpose", exact: true }).locator(".song-view__value");
     await expect(transposeValue).toContainText("0");
 
     // Transpose up
     await page.getByRole("button", { name: "+1" }).click();
     await expect(transposeValue).toContainText("+1");
-    await expect(page.locator(".song-page__meta-tag")).toContainText(/(Ab|G#) \| T\+1/);
+    await expect(page.locator(".song-page__key")).toHaveText(/^(Ab|G#)$/);
 
     // Transpose down
     await page.getByRole("button", { name: "-1" }).click();
@@ -48,6 +49,8 @@ test.describe("Song Page", () => {
 
     // Add and navigate to demo song
     await page.getByRole("button", { name: "Add Demo Song" }).click();
+
+    await page.getByRole("button", { name: "Display options", exact: true }).click();
 
     // Get current font size value
     const fontSizeValue = page
@@ -72,6 +75,8 @@ test.describe("Song Page", () => {
     // Chords should be visible initially
     const content = page.locator(".song-view__content");
     await expect(content).not.toHaveClass(/song-view__content--hide-chords/);
+
+    await page.getByRole("button", { name: "Display options", exact: true }).click();
 
     // Toggle chords off
     await page.locator(".song-view__toggle").click();

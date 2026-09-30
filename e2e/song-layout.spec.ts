@@ -86,6 +86,7 @@ test("chooses multiple columns, preserves section labels and refits after contro
   await expect(page.locator(".song-view__content .chord").first()).toContainText("I");
   await settings.close();
   await expectScreenFit(page);
+  await page.getByRole("button", { name: "Display options", exact: true }).click();
   await page.getByText("Chords", { exact: true }).click();
   await expect(page.locator(".song-view__content .chord").first()).toBeHidden();
   await expectScreenFit(page);

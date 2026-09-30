@@ -108,9 +108,9 @@ test("sidebar adds and reorders songs, and opens occurrence settings in Songs mo
   await expect(sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(1)).toContainText("T+1");
   await expect(page).toHaveURL(/occurrence=1$/);
   await sidebar.locator("#sidebar-setlist .library-sidebar__links a").nth(1).click();
-  await expect(page.locator(".song-view__control-group").filter({ hasText: "Transpose" })).toContainText("+1");
+  await expect(page.getByRole("group", { name: "Transpose", exact: true })).toContainText("+1");
   await page.reload();
-  await expect(page.locator(".song-view__control-group").filter({ hasText: "Transpose" })).toContainText("+1");
+  await expect(page.getByRole("group", { name: "Transpose", exact: true })).toContainText("+1");
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
   await screenshots();
   await page.screenshot({ path: "reports/workspace/desktop-song.png" });

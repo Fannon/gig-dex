@@ -5,6 +5,7 @@ import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
 import { addSetlist, addSong, deleteSong, getSetlist, getSong, type Song, updateSetlist, updateSong } from "../db";
+import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { useSetlistOccurrence } from "../hooks/useSetlistOccurrence";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { localCalendarDate } from "../utils/calendarDate";
@@ -18,7 +19,12 @@ import {
   stripMetadata,
 } from "../utils/chordEngine";
 import { tagSearchQuery } from "../utils/librarySearch";
-import { defaultSongSetting, occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import {
+  defaultSongSetting,
+  occurrenceContent,
+  occurrenceSettings,
+  songSettingDetails,
+} from "../utils/setlistSettings";
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
@@ -90,6 +96,14 @@ export const SongPage = () => {
   const [dirty, setDirty] = useState(false);
   const allowLeave = useUnsavedEdits(isEditing && dirty);
   const [readingTranspose, setReadingTranspose] = useState(0);
+  const [headerControls, setHeaderControls] = useState<HTMLDivElement | null>(null);
+  const [{ chordMode }] = useReadingPreferences();
+  const readingDetails = songSettingDetails(
+    song as Song,
+    occurrence.list ? occurrence.setting : { transpose: readingTranspose },
+    chordMode,
+  );
+  const hasTempo = Number.isFinite(readingDetails.bpm) && readingDetails.bpm > 0 && readingDetails.bpm <= 400;
   const performanceReturn =
     searchParams.get("from") === "performance"
       ? occurrence.list
@@ -412,10 +426,20 @@ export const SongPage = () => {
             <Link className="song-page__set-count" to={`/setlists?q=${encodeURIComponent(id ?? "")}`}>
               In {songSetCounts.get(id ?? "") ?? 0} Sets
             </Link>
-            <span className="song-page__meta-tag">
-              {settingLabel(song as Song, occurrence.list ? occurrence.setting : { transpose: readingTranspose })}
+            <span className="song-page__meta-tag song-page__key" title="Key">
+              {readingDetails.key}
             </span>
-            <TempoIndicator bpm={song.tempo} time={song.time} compact />
+            <TempoIndicator bpm={readingDetails.bpm} time={readingDetails.time} badge />
+            {!hasTempo && readingDetails.time && (
+              <span className="song-page__meta-tag" title="Time signature">
+                {readingDetails.time}
+              </span>
+            )}
+            {!!readingDetails.capo && (
+              <span className="song-page__meta-tag" title="Capo">
+                Capo {readingDetails.capo}
+              </span>
+            )}
             {song.tags && song.tags.length > 0 && (
               <div className="song-page__tags-inline">
                 {song.tags.map((tag) => (
@@ -445,6 +469,7 @@ export const SongPage = () => {
         <div className="song-page__actions">
           {!isEditing && (
             <>
+              <div className="song-page__reading-actions" ref={setHeaderControls} />
               <button
                 type="button"
                 className="song-page__btn song-page__btn--secondary"
@@ -789,6 +814,7 @@ That [G]saved a [Em]wretch like [D]me
         </div>
       ) : (
         <SongView
+          headerControls={headerControls}
           readingKey={occurrence.list ? `setlist:${occurrence.list.id}:${occurrenceIndex}:${id}` : `song:${id}`}
           key={`${id}:${searchParams.get("setlist")}:${occurrenceIndex}`}
           content={occurrence.list ? occurrenceContent(song as Song, occurrence.setting) : song.content || ""}

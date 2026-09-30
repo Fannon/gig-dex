@@ -6,3 +6,6 @@
 .tempo-indicator__label { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; small { font-size: .65rem; color: #b8b5d5; } }
 
 .tempo-indicator__label { display: block; }
+
+.song-page .tempo-indicator--badge { min-height: 0; padding: .2rem .5rem; gap: .5rem; border: 0; border-radius: 12px; background: #134044; color: #99e5dc; font-size: .75rem; font-weight: 500; }
+:root[data-reading-theme=light] .app-shell .tempo-indicator--badge { background: #d4e6df; color: #256153; .tempo-indicator__label { color: #256153; } }

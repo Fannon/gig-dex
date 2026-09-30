@@ -540,3 +540,11 @@
 .song-page__btn { min-height: 38px; svg { flex-shrink: 0; } }
 
 .song-page__set-count { font-size: .75rem; color: var(--accent-color, #a78bfa); white-space: nowrap; }
+
+.song-page__reading-actions { display: flex; align-items: center; gap: .3rem; }
+.song-page__reading-actions .song-view__buttons { padding: 1px; }
+.song-page__reading-actions .song-view__btn { min-height: 36px; }
+.song-page__actions { align-items: center; }
+
+.song-page .song-page__reading-actions button[aria-expanded=true] { background: var(--color-primary); color: #fff; }
+:root[data-reading-theme=light] .app-shell .song-page__key { background: #ded8ed; color: #493977; }

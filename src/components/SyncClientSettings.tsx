@@ -5,7 +5,13 @@ import { SyncManager } from "../sync/syncManager";
 
 type CloudProvider = "Dropbox" | "Google Drive" | "OneDrive";
 
-export function SyncClientSettings({ provider }: { provider: CloudProvider }) {
+export function SyncClientSettings({
+  provider,
+  guide,
+}: {
+  provider: CloudProvider;
+  guide: { href: string; label: string };
+}) {
   const [settings, setSettings] = useState(readClientSettings);
   const [saved, setSaved] = useState(readClientSettings);
   const [busy, setBusy] = useState(false);
@@ -60,7 +66,11 @@ export function SyncClientSettings({ provider }: { provider: CloudProvider }) {
         {provider === "Dropbox"
           ? "Add the public app key from your Dropbox app registration. Register this site’s redirect URL first."
           : "Add the public Client ID from your cloud app registration. Register this site’s redirect URL first."}{" "}
-        This setting stays in this browser.
+        This setting stays in this browser. See the{" "}
+        <a className="settings-page__sync-guide" href={guide.href} target="_blank" rel="noopener noreferrer">
+          {guide.label}
+        </a>
+        .
       </p>
       <form
         onSubmit={(event) => {

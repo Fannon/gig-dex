@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CloudSync } from "../components/CloudSync";
-import { ConflictReview } from "../components/ConflictReview";
 import { DataManagement } from "../components/DataManagement";
 import { PwaSettings } from "../components/PwaSettings";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
-import type { SyncStatus } from "../sync/types";
 import { applyMinimumFontSize, minimumFontSizes, savedMinimumFontSize } from "../utils/readingFont";
 import { columnLimits } from "../utils/readingPreferences";
 import { applyReadingTheme, type ReadingTheme, savedReadingTheme } from "../utils/readingTheme";
@@ -20,7 +18,6 @@ export const SettingsPage = () => {
   type Section = (typeof sections)[number];
   const requested = searchParams.get("section");
   const active: Section = sections.find((section) => section === requested) ?? "appearance";
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ lastSyncTime: null, isSyncing: false, error: null });
   const select = (section: Section) => {
     setSearchParams(section === "appearance" ? {} : { section });
   };
@@ -132,14 +129,15 @@ export const SettingsPage = () => {
         <div hidden={active !== "sync"}>
           <div className="settings-page__sync-intro">
             <p>
-              Connected providers appear under Active syncs. Add sync provider shows the other choices and their setup
-              guides. Dropbox works directly on desktop and mobile after app registration; a folder on desktop Chrome or
-              Edge needs no registration. Connected Dropbox, OneDrive, and folder sync check for changes when Gig-Dex
-              opens and after library edits. Use Sync now for an immediate check.
+              Manage connected providers under Active syncs. Recent activity shows changes and errors; setup guides are
+              beside the settings they explain. Connect another provider under Add sync provider.
+            </p>
+            <p>
+              Connected Dropbox, OneDrive, and folder sync check for changes when Gig-Dex opens and after library edits.
+              Use Sync now for an immediate check.
             </p>
           </div>
-          <CloudSync onStatus={setSyncStatus} />
-          <ConflictReview status={syncStatus} />
+          <CloudSync />
         </div>
         <div hidden={active !== "offline"}>
           <PwaSettings />

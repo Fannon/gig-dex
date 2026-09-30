@@ -1,4 +1,5 @@
 import { effectiveClientConfig } from "./clientConfig";
+import { fetchSyncResponse, syncHttpError } from "./diagnostics";
 import { syncHeads } from "./revisionHistory";
 import { parseSyncFile, readSyncResponse, SYNC_FORMAT_VERSION } from "./syncFormat";
 import type { SyncMetadata, SyncProvider } from "./types";
@@ -147,7 +148,8 @@ export class GoogleDriveProvider implements SyncProvider {
   private async fetchWithAuth(url: string, options: RequestInit = {}) {
     if (!this.accessToken) throw new Error("Not authenticated");
 
-    const response = await fetch(url, {
+    const context = { provider: this.name, url, method: options.method ?? "GET", secrets: [this.accessToken] };
+    const response = await fetchSyncResponse(context, {
       ...options,
       headers: {
         ...options.headers,
@@ -157,12 +159,11 @@ export class GoogleDriveProvider implements SyncProvider {
 
     if (response.status === 401) {
       this.logout();
-      throw new Error("Authentication expired");
+      throw await syncHttpError(context, response, "Google Drive authentication expired. Connect again");
     }
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || "Google Drive API error");
+      throw await syncHttpError(context, response);
     }
 
     return response;

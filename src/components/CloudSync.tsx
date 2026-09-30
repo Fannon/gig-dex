@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { syncHosts } from "../sync";
 import { CLIENT_CONFIG_EVENT } from "../sync/clientConfig";
+import { logSyncError } from "../sync/diagnostics";
 import { SyncManager } from "../sync/syncManager";
 import type { SyncStatus } from "../sync/types";
+import { ConflictReview } from "./ConflictReview";
 import { RevisionCleanup } from "./RevisionCleanup";
 import { SyncActivityLog } from "./SyncActivityLog";
 import { SyncClientSettings } from "./SyncClientSettings";
@@ -33,11 +35,19 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
   useEffect(() => {
     let mounted = true;
     const refresh = async () => {
-      await provider.ready;
-      await provider.refreshConnection?.();
-      if (mounted) {
-        setReady(true);
-        update();
+      try {
+        await provider.ready;
+        await provider.refreshConnection?.();
+        if (mounted) {
+          setReady(true);
+          update();
+        }
+      } catch (error) {
+        logSyncError(provider.name, "Check connection", error);
+        if (mounted) {
+          setReady(true);
+          setError(error instanceof Error ? error.message : "Could not check the connection.");
+        }
       }
     };
     void refresh();
@@ -74,6 +84,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
       reset();
       update();
     } catch (error) {
+      logSyncError(provider.name, "Disconnect", error);
       setError(error instanceof Error ? error.message : "Could not disconnect.");
     } finally {
       setBusy(false);
@@ -90,6 +101,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
       await manager.sync();
       update();
     } catch (error) {
+      logSyncError(provider.name, "Choose folder", error);
       setError(error instanceof Error ? error.message : "Could not change folders.");
     } finally {
       setBusy(false);
@@ -135,7 +147,20 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
             <p>
               {status.lastSyncTime ? `Last synced ${new Date(status.lastSyncTime).toLocaleString()}` : "Not synced yet"}
             </p>
-            {provider.pickFolder && <p>{description}</p>}
+            {provider.pickFolder && (
+              <p>
+                {description}{" "}
+                <a
+                  className="settings-page__sync-guide"
+                  href={providerGuide.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {providerGuide.label}
+                </a>
+                .
+              </p>
+            )}
           </div>
           <div className="settings-page__option-actions">
             <button
@@ -173,28 +198,35 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
           {error || status.error}
         </p>
       )}
-      {connected && (
-        <details className="settings-page__advanced">
-          <summary>History cleanup</summary>
-          <RevisionCleanup provider={provider} disabled={busy} />
-        </details>
-      )}
-      {provider.name !== "Local Folder" && (
-        <SyncClientSettings provider={provider.name as "Dropbox" | "Google Drive" | "OneDrive"} />
-      )}
-      <a className="settings-page__sync-guide" href={providerGuide.href} target="_blank" rel="noopener noreferrer">
-        {providerGuide.label}
-      </a>
       {(connected || !!folder) && (
         <details className="settings-page__advanced">
           <summary>Recent activity</summary>
           <SyncActivityLog provider={provider.name} />
         </details>
       )}
+      {provider.name !== "Local Folder" && (
+        <SyncClientSettings provider={provider.name as "Dropbox" | "Google Drive" | "OneDrive"} guide={providerGuide} />
+      )}
+      {provider.pickFolder && !connected && !folder && (
+        <p className="settings-page__provider-help">
+          Choose a dedicated Gig-Dex folder. See the{" "}
+          <a className="settings-page__sync-guide" href={providerGuide.href} target="_blank" rel="noopener noreferrer">
+            {providerGuide.label}
+          </a>
+          .
+        </p>
+      )}
+      {connected && (
+        <details className="settings-page__advanced">
+          <summary>History cleanup</summary>
+          <RevisionCleanup provider={provider} disabled={busy} />
+        </details>
+      )}
     </section>
   );
 };
-export const CloudSync = ({ onStatus }: { onStatus: (status: SyncStatus) => void }) => {
+export const CloudSync = () => {
+  const [status, setStatus] = useState<SyncStatus>({ lastSyncTime: null, isSyncing: false, error: null });
   const [, redraw] = useReducer((value: number) => value + 1, 0);
   useEffect(() => {
     void Promise.all(syncHosts.map(({ provider }) => provider.ready)).then(redraw);
@@ -216,18 +248,19 @@ export const CloudSync = ({ onStatus }: { onStatus: (status: SyncStatus) => void
         {active.length ? (
           <div className="settings-page__options">
             {active.map((host) => (
-              <Host key={host.provider.name} host={host} onStatus={onStatus} />
+              <Host key={host.provider.name} host={host} onStatus={setStatus} />
             ))}
           </div>
         ) : (
           <p className="settings-page__hint">No sync provider is connected on this device.</p>
         )}
       </section>
+      <ConflictReview status={status} />
       <section className="settings-page__section">
         <h2>Add sync provider</h2>
         <div className="settings-page__options">
           {available.map((host) => (
-            <Host key={host.provider.name} host={host} onStatus={onStatus} />
+            <Host key={host.provider.name} host={host} onStatus={setStatus} />
           ))}
         </div>
       </section>

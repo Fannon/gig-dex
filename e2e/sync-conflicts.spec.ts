@@ -29,6 +29,9 @@ test("review preserved sync versions and keep both as independent songs", async 
   });
   await page.goto("./settings?section=sync");
   await expect(page.getByRole("heading", { name: "Sync conflicts" })).toBeVisible();
+  const conflicts = await page.getByRole("heading", { name: "Sync conflicts" }).boundingBox();
+  const addProvider = await page.getByRole("heading", { name: "Add sync provider" }).boundingBox();
+  expect(conflicts?.y).toBeLessThan(addProvider?.y ?? 0);
   await page.getByText(/Compare with remote version 1/).click();
   await expect(page.locator(".diff-removed")).toContainText("Local rehearsal words");
   await expect(page.locator(".diff-added")).toContainText("Remote rehearsal words");

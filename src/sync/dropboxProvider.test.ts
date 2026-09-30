@@ -18,6 +18,7 @@ const respond = (value: unknown, headers?: HeadersInit, status = 200) =>
   mocked.mockResolvedValueOnce(new Response(JSON.stringify(value), { status, headers }));
 
 beforeEach(async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
   await (await initDB()).clear("revisionCache");
   sessionStorage.clear();
   sessionStorage.setItem(
@@ -33,7 +34,10 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", mocked);
   vi.stubGlobal("crypto", webcrypto);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 it("lists paged app-folder files, validates content and reuses unchanged revision metadata", async () => {
   respond({ entries: [file], has_more: true, cursor: "next" });
@@ -117,4 +121,43 @@ it("shows Dropbox's plain-text 400 reason for folder listing failures", async ()
   await expect(new DropboxProvider("testappkey123").listFiles()).rejects.toThrow(
     'Dropbox files/list_folder failed (400): Error in call to API function "files/list_folder": missing scope',
   );
+  expect(console.error).toHaveBeenCalledWith(
+    "[Gig-Dex sync] Dropbox: HTTP request failed",
+    expect.objectContaining({
+      provider: "Dropbox",
+      status: 400,
+      endpoint: "https://api.dropboxapi.com/2/files/list_folder",
+      method: "POST",
+      apiDetails: expect.stringContaining("missing scope"),
+    }),
+  );
+});
+
+it("logs a failed token refresh with API diagnostics without exposing OAuth credentials", async () => {
+  sessionStorage.setItem(
+    "dropbox_tokens",
+    JSON.stringify({
+      access_token: "secret-access",
+      refresh_token: "secret-refresh",
+      expiresAt: 0,
+      account_id: "dbid:user",
+      appKey: "testappkey123",
+    }),
+  );
+  respond(
+    { error: "invalid_grant", error_description: "Refresh token revoked" },
+    { "x-dropbox-request-id": "oauth-id" },
+    400,
+  );
+  await expect(new DropboxProvider("testappkey123").authenticate()).rejects.toThrow("Refresh token revoked");
+  expect(console.error).toHaveBeenCalledWith(
+    "[Gig-Dex sync] Dropbox: HTTP request failed",
+    expect.objectContaining({
+      endpoint: "https://api.dropboxapi.com/oauth2/token",
+      status: 400,
+      requestId: "oauth-id",
+    }),
+  );
+  expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(/secret-access|secret-refresh/);
+  expect(sessionStorage.getItem("dropbox_tokens")).toBeNull();
 });

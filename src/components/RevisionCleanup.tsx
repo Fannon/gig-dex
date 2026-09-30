@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { logSyncError } from "../sync/diagnostics";
 import { applyRevisionCleanup, type CleanupPlan, previewRevisionCleanup } from "../sync/revisionCleanup";
 import type { SyncProvider } from "../sync/types";
 
@@ -15,6 +16,7 @@ export const RevisionCleanup = ({ provider, disabled }: { provider: SyncProvider
     try {
       setPlan(await previewRevisionCleanup(provider));
     } catch (error) {
+      logSyncError(provider.name, "Review history cleanup", error);
       setError(error instanceof Error ? error.message : "Could not review history.");
     } finally {
       setBusy(false);
@@ -34,6 +36,7 @@ export const RevisionCleanup = ({ provider, disabled }: { provider: SyncProvider
       const count = await applyRevisionCleanup(provider, plan);
       setMessage(`${count} old revisions moved to trash.`);
     } catch (error) {
+      logSyncError(provider.name, "Apply history cleanup", error);
       setError(error instanceof Error ? error.message : "Cleanup failed.");
     } finally {
       setBusy(false);

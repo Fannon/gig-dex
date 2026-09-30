@@ -10,6 +10,7 @@ const respond = (value: unknown, status = 200) =>
 const revision = "a0000000-0000-0000-0000-000000000001";
 const config = { clientId: "public-client-id", tenant: "common" };
 beforeEach(async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
   await (await initDB()).clear("revisionCache");
   sessionStorage.clear();
   sessionStorage.setItem(
@@ -20,7 +21,27 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", mocked);
   vi.stubGlobal("crypto", webcrypto);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+it("logs failed preauthenticated downloads without exposing the signed URL or session token", async () => {
+  respond({
+    id: "item",
+    "@microsoft.graph.downloadUrl": "https://download.example.test/private?signature=secret-signature",
+  });
+  respond({ error: { code: "ServiceUnavailable", message: "Try again" } }, 503);
+  await expect(new OneDriveProvider(config).downloadFile("item")).rejects.toThrow(
+    "Could not download the OneDrive revision (503): Try again",
+  );
+  expect(mocked.mock.calls[1][1]).toBeUndefined();
+  expect(console.error).toHaveBeenCalledWith(
+    "[Gig-Dex sync] OneDrive: HTTP request failed",
+    expect.objectContaining({ status: 503, endpoint: "https://download.example.test/[revision download]" }),
+  );
+  expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(/secret-signature|test-token/);
+});
 it("uses the RFC 7636 S256 challenge", async () => {
   expect(await pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")).toBe(
     "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",

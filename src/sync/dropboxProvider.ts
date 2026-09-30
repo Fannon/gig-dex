@@ -1,5 +1,6 @@
 import { initDB } from "../db";
 import { effectiveClientConfig } from "./clientConfig";
+import { fetchSyncResponse, syncHttpError } from "./diagnostics";
 import { base64url, pkceChallenge } from "./oneDriveProvider";
 import { syncHeads } from "./revisionHistory";
 import {
@@ -50,11 +51,25 @@ export class DropboxProvider implements SyncProvider {
     return `dropbox:${this.appKey}:${this.tokens.account_id}`;
   }
   private async token(parameters: Record<string, string>) {
-    const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
+    const context = {
+      provider: this.name,
+      url: "https://api.dropboxapi.com/oauth2/token",
+      method: "POST",
+      secrets: [
+        this.tokens?.access_token,
+        this.tokens?.refresh_token,
+        parameters.code,
+        parameters.code_verifier,
+        parameters.refresh_token,
+      ],
+    };
+    const response = await fetchSyncResponse(context, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: this.appKey, ...parameters }),
     });
+    if (!response.ok)
+      throw await syncHttpError(context, response, "Dropbox sign-in expired or failed. Connect Dropbox again");
     const result = await response.json();
     if (!response.ok || typeof result.access_token !== "string" || !Number.isFinite(Number(result.expires_in)))
       throw new Error("Dropbox sign-in expired or failed. Connect Dropbox again.");
@@ -146,29 +161,23 @@ export class DropboxProvider implements SyncProvider {
     if (this.tokens.expiresAt <= Date.now() + 60000 && !retried) await this.refresh();
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${this.tokens.access_token}`);
-    const response = await fetch(url, { ...init, headers });
+    const context = {
+      provider: this.name,
+      url,
+      method: init.method ?? "GET",
+      secrets: [this.tokens.access_token, this.tokens.refresh_token],
+    };
+    const response = await fetchSyncResponse(context, { ...init, headers });
     if (response.status === 401 && !retried && this.tokens.refresh_token) {
       await this.refresh();
       return this.request(url, init, true);
     }
     if (response.status === 401) {
       await this.logout();
-      throw new Error("Dropbox sign-in expired. Connect again.");
+      throw await syncHttpError(context, response, "Dropbox sign-in expired. Connect again");
     }
     if (!response.ok) {
-      const raw = await response.text().catch(() => "");
-      let summary = "";
-      try {
-        const result = JSON.parse(raw);
-        if (typeof result.error_summary === "string") summary = result.error_summary;
-        else if (typeof result.error?.message === "string") summary = result.error.message;
-      } catch {
-        summary = raw;
-      }
-      const reason = summary.trim().replace(/\s+/g, " ").slice(0, 350);
-      throw new Error(
-        `Dropbox ${parsed.pathname.replace(/^\/2\//, "")} failed (${response.status})${reason ? `: ${reason}` : "."}`,
-      );
+      throw await syncHttpError(context, response);
     }
     return response;
   }

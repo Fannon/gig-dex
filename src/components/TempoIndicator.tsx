@@ -5,12 +5,14 @@ import "./TempoIndicator.scss";
 /** Silent beat cue, derived from a monotonic clock rather than accumulating timer drift. */
 export const TempoIndicator = ({
   compact = false,
+  badge = false,
   bpm,
   time,
   runningValue,
   onRunningChange,
 }: {
   compact?: boolean;
+  badge?: boolean;
   bpm?: number;
   time?: string;
   runningValue?: boolean;
@@ -40,7 +42,7 @@ export const TempoIndicator = ({
   return (
     <button
       type="button"
-      className="tempo-indicator"
+      className={`tempo-indicator ${badge ? "tempo-indicator--badge" : ""}`}
       aria-label={`${running ? "Stop" : "Start"} visual tempo at ${bpm} BPM`}
       aria-pressed={running}
       title={`${bpm} BPM · ${label}: ${beats} beats per bar; quarter-note BPM`}
@@ -50,7 +52,12 @@ export const TempoIndicator = ({
         else setRunning(!running);
       }}
     >
-      {!compact && <span className="tempo-indicator__label">{bpm} BPM</span>}
+      {!compact && (
+        <span className="tempo-indicator__label">
+          {bpm}
+          {badge ? "bpm" : " BPM"}
+        </span>
+      )}
       <span className="tempo-indicator__dots" aria-hidden="true">
         {Array.from({ length: beats }, (_, index) => (
           <span

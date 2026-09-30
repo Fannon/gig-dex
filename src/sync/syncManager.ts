@@ -3,6 +3,7 @@ import { blockPwaUpdate } from "../pwa/lifecycle";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import { recordFingerprint, stableStringify } from "../utils/recordFingerprint";
 import { addSyncActivity, type SyncActivityStats, type SyncChangeCounts } from "./activity";
+import { logSyncError } from "./diagnostics";
 import {
   isDeletion,
   type LibraryRecord,
@@ -83,9 +84,11 @@ export class SyncManager {
       sent: { added: 0, updated: 0, removed: 0 },
       received: { added: 0, updated: 0, removed: 0 },
     };
+    let operation = "Connect";
     try {
       if (!(await this.provider.authenticate()))
         throw new Error(`Could not connect to ${this.provider.name}. Try again.`);
+      operation = "List remote revisions";
       const files = await this.provider.listFiles();
       const future = files.find((file) => (file.formatVersion ?? 0) > SYNC_FORMAT_VERSION);
       if (future)
@@ -106,10 +109,12 @@ export class SyncManager {
       );
       for (const file of files) identities.set(recordKey(file.type, file.id), { id: file.id, type: file.type });
       const failures: string[] = [];
+      operation = "Sync records";
       for (const [key, item] of identities) {
         try {
           await this.syncRecord(item.type, item.id, remote.get(key) ?? [], stats);
         } catch (error) {
+          logSyncError(this.provider.name, "Sync record failed", error, item);
           const reason = error instanceof Error ? error.message : "Unknown error";
           if (reason.startsWith("Unsupported sync format version")) throw error;
           failures.push(`${item.type} ${item.id}: ${reason}`);
@@ -136,6 +141,7 @@ export class SyncManager {
           : "Sync completed.",
       });
     } catch (error) {
+      logSyncError(this.provider.name, operation, error);
       this.status.error = error instanceof Error ? error.message : "Sync failed";
       addSyncActivity({
         provider: this.provider.name,

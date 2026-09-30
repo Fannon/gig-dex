@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { useSongReading } from "../hooks/useSongReading";
 import { parseChordPro, transposeChordPro } from "../utils/chordEngine";
@@ -6,6 +7,7 @@ import { savedMinimumFontSize } from "../utils/readingFont";
 import { readingHtml } from "../utils/readingLayout";
 import { savedReadingTheme } from "../utils/readingTheme";
 import { createSongFitChecker, findSongLayout } from "../utils/songLayout";
+import { ActionIcon } from "./ActionIcon";
 import "./SongView.scss";
 
 interface SongViewProps {
@@ -20,6 +22,7 @@ interface SongViewProps {
   readingKey?: string;
   paginated?: boolean;
   hideControls?: boolean;
+  headerControls?: HTMLElement | null;
 }
 
 export const SongView = ({
@@ -34,6 +37,7 @@ export const SongView = ({
   readingKey,
   paginated = false,
   hideControls = false,
+  headerControls,
 }: SongViewProps) => {
   const [readingTheme, setReadingTheme] = useState(savedReadingTheme);
   useEffect(() => {
@@ -61,6 +65,27 @@ export const SongView = ({
   }, []);
   const [{ chordMode, maxColumns: columnLimit, wrapLines }] = useReadingPreferences();
   const [showChords, setShowChords] = useState(true);
+  const [displayOpen, setDisplayOpen] = useState(false);
+  const displayId = useId();
+  const displayButton = useRef<HTMLButtonElement>(null);
+  const displayPanel = useRef<HTMLElement>(null);
+  const compactControls = headerControls !== undefined;
+  const closeDisplay = () => {
+    setDisplayOpen(false);
+    displayButton.current?.focus();
+  };
+  useEffect(() => {
+    if (!compactControls || !displayOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !(event.target instanceof Node)) return;
+      if (!displayPanel.current?.contains(event.target) && event.target !== displayButton.current) return;
+      event.stopPropagation();
+      setDisplayOpen(false);
+      displayButton.current?.focus();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [compactControls, displayOpen]);
   const wrapperRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastFit = useRef<{ key: string; html: string } | null>(null);
@@ -72,7 +97,7 @@ export const SongView = ({
     contentRef,
     readingKey,
     content,
-    `${readingTheme}:${fontSize}:${layout.fits}:${layout.columns}:${wrapLines}:${showChords}:${transpose}:${chordMode}:${hideControls}:${paginated}`,
+    `${readingTheme}:${fontSize}:${layout.fits}:${layout.columns}:${wrapLines}:${showChords}:${transpose}:${chordMode}:${hideControls}:${paginated}:${displayOpen}`,
     paginated,
   );
 
@@ -126,6 +151,7 @@ export const SongView = ({
       const key = [
         wrapper.clientWidth,
         wrapper.clientHeight,
+        displayOpen,
         autoSize ? "auto" : fontSize,
         minimumFontSize,
         columnLimit,
@@ -196,7 +222,18 @@ export const SongView = ({
       observer.disconnect();
       document.fonts.removeEventListener("loadingdone", fontsLoaded);
     };
-  }, [fitToScreen, autoSize, fontSize, minimumFontSize, columnLimit, parsed.html, parsed.error, showChords, wrapLines]);
+  }, [
+    fitToScreen,
+    autoSize,
+    fontSize,
+    minimumFontSize,
+    columnLimit,
+    parsed.html,
+    parsed.error,
+    showChords,
+    wrapLines,
+    displayOpen,
+  ]);
 
   // Update parent with transposed content if needed
   useEffect(() => {
@@ -231,32 +268,62 @@ export const SongView = ({
     },
   };
 
+  const transposeControls = (
+    <fieldset className="song-view__control-group" aria-label="Transpose">
+      {!compactControls && <span className="song-view__control-label">Transpose</span>}
+      <div className="song-view__buttons">
+        <button
+          type="button"
+          onClick={() => handleTranspose(-1)}
+          className="song-view__btn"
+          title="Transpose down one semitone"
+        >
+          -1
+        </button>
+        <span className="song-view__value">{transpose > 0 ? `+${transpose}` : transpose}</span>
+        <button
+          type="button"
+          onClick={() => handleTranspose(1)}
+          className="song-view__btn"
+          title="Transpose up one semitone"
+        >
+          +1
+        </button>
+      </div>
+    </fieldset>
+  );
+
   return (
     <div className="song-view" data-layout={measuring ? "measuring" : layout.fits ? "fit" : "scroll"}>
+      {!hideControls &&
+        headerControls &&
+        createPortal(
+          <>
+            {transposeControls}
+            <button
+              ref={displayButton}
+              type="button"
+              className={`song-page__btn song-page__btn--secondary ${displayOpen ? "song-view__btn--active" : ""}`}
+              aria-label="Display options"
+              title="Display options"
+              aria-expanded={displayOpen}
+              aria-controls={displayId}
+              onClick={() => setDisplayOpen((open) => !open)}
+            >
+              <ActionIcon name="display" />
+            </button>
+          </>,
+          headerControls,
+        )}
       {!hideControls && (
-        <div className="song-view__controls">
-          <fieldset className="song-view__control-group" aria-label="Transpose">
-            <span className="song-view__control-label">Transpose</span>
-            <div className="song-view__buttons">
-              <button
-                type="button"
-                onClick={() => handleTranspose(-1)}
-                className="song-view__btn"
-                title="Transpose down one semitone"
-              >
-                -1
-              </button>
-              <span className="song-view__value">{transpose > 0 ? `+${transpose}` : transpose}</span>
-              <button
-                type="button"
-                onClick={() => handleTranspose(1)}
-                className="song-view__btn"
-                title="Transpose up one semitone"
-              >
-                +1
-              </button>
-            </div>
-          </fieldset>
+        <section
+          className="song-view__controls"
+          id={displayId}
+          ref={displayPanel}
+          aria-label="Song display options"
+          hidden={compactControls && !displayOpen}
+        >
+          {!compactControls && transposeControls}
 
           <fieldset className="song-view__control-group" aria-label="Font size">
             <span className="song-view__control-label">Font Size</span>
@@ -299,7 +366,18 @@ export const SongView = ({
               <span className="song-view__control-label">Chords</span>
             </label>
           </div>
-        </div>
+          {compactControls && (
+            <button
+              type="button"
+              className="song-view__btn song-view__close"
+              aria-label="Close display options"
+              title="Close display options"
+              onClick={closeDisplay}
+            >
+              <ActionIcon name="cancel" />
+            </button>
+          )}
+        </section>
       )}
 
       <section

@@ -7,12 +7,38 @@ function respond(body: unknown) {
 }
 
 beforeEach(() => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
   localStorage.clear();
   localStorage.setItem("gdrive_access_token", "test-token");
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+it("logs API failures with quota details and request IDs, omitting tokens and query parameters", async () => {
+  mockFetch.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        error: { code: 403, message: "Storage quota exceeded", errors: [{ reason: "storageQuotaExceeded" }] },
+      }),
+      { status: 403, headers: { "x-guploader-uploadid": "drive-request" } },
+    ),
+  );
+  await expect(new GoogleDriveProvider().listFiles()).rejects.toThrow("Storage quota exceeded");
+  expect(console.error).toHaveBeenCalledWith(
+    "[Gig-Dex sync] Google Drive: HTTP request failed",
+    expect.objectContaining({
+      status: 403,
+      endpoint: "https://www.googleapis.com/drive/v3/files",
+      requestId: "drive-request",
+      apiDetails: expect.stringContaining("storageQuotaExceeded"),
+    }),
+  );
+  expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("test-token");
+});
 
 describe("Drive synchronization metadata", () => {
   it("uses song edit timestamps and lists all pages without importing unrelated files", async () => {

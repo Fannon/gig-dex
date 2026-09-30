@@ -29,7 +29,9 @@ test("song default and alternative title persist, while new entries copy the def
   await page.getByLabel("Standard transposition", { exact: true }).fill("-4");
   await expect(page.locator("#song-capo")).toHaveCount(0);
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.locator(".song-page__title-row")).toContainText("G# | T-4 | 120bpm | 6/8");
+  await expect(page.locator(".song-page__key")).toHaveText("G#");
+  await expect(page.getByRole("group", { name: "Transpose", exact: true })).toContainText("-4");
+  await expect(page.locator(".tempo-indicator__label")).toHaveText("120bpm");
   await page.getByRole("button", { name: "Add to Set", exact: true }).click();
   const rows = page.locator("#sidebar-setlist .library-sidebar__song-row");
   await expect(rows).toHaveCount(1);

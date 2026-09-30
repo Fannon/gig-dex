@@ -1,5 +1,6 @@
 import { initDB } from "../db";
 import { effectiveClientConfig } from "./clientConfig";
+import { fetchSyncResponse, syncHttpError } from "./diagnostics";
 import { syncHeads } from "./revisionHistory";
 import {
   parseRevisionFilename,
@@ -73,11 +74,25 @@ export class OneDriveProvider implements SyncProvider {
     return `https://login.microsoftonline.com/${encodeURIComponent(this.config.tenant)}/oauth2/v2.0/${path}`;
   }
   private async token(parameters: Record<string, string>) {
-    const response = await fetch(this.endpoint("token"), {
+    const context = {
+      provider: this.name,
+      url: this.endpoint("token"),
+      method: "POST",
+      secrets: [
+        this.tokens?.access_token,
+        this.tokens?.refresh_token,
+        parameters.code,
+        parameters.code_verifier,
+        parameters.refresh_token,
+      ],
+    };
+    const response = await fetchSyncResponse(context, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: this.config.clientId, scope: SCOPES, ...parameters }),
     });
+    if (!response.ok)
+      throw await syncHttpError(context, response, "Microsoft sign-in expired or failed. Connect OneDrive again");
     const result = await response.json();
     if (!response.ok || typeof result.access_token !== "string" || !Number.isFinite(Number(result.expires_in)))
       throw new Error("Microsoft sign-in expired or failed. Connect OneDrive again.");
@@ -174,18 +189,23 @@ export class OneDriveProvider implements SyncProvider {
     if (!this.tokens) throw new Error("Connect OneDrive first.");
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${this.tokens.access_token}`);
-    const response = await fetch(url, { ...init, headers });
+    const context = {
+      provider: this.name,
+      url,
+      method: init.method ?? "GET",
+      secrets: [this.tokens.access_token, this.tokens.refresh_token],
+    };
+    const response = await fetchSyncResponse(context, { ...init, headers });
     if (response.status === 401 && !retried && this.tokens.refresh_token) {
       await this.refresh();
       return this.request(url, init, true);
     }
     if (response.status === 401) {
       await this.logout();
-      throw new Error("OneDrive sign-in expired. Connect again.");
+      throw await syncHttpError(context, response, "OneDrive sign-in expired. Connect again");
     }
     if (!response.ok) {
-      const result = await response.json().catch(() => ({}));
-      throw new Error(result.error?.message ?? `OneDrive request failed (${response.status}).`);
+      throw await syncHttpError(context, response);
     }
     return response;
   }
@@ -275,8 +295,14 @@ export class OneDriveProvider implements SyncProvider {
     const item: Item = await response.json();
     const url = item["@microsoft.graph.downloadUrl"];
     if (!url || new URL(url).protocol !== "https:") throw new Error("Invalid OneDrive download URL.");
-    const data = await fetch(url); // Preauthenticated URL, deliberately no Authorization header.
-    if (!data.ok) throw new Error("Could not download the OneDrive revision.");
+    const context = {
+      provider: this.name,
+      url,
+      endpoint: `${new URL(url).origin}/[revision download]`,
+      secrets: [url, this.tokens?.access_token, this.tokens?.refresh_token],
+    };
+    const data = await fetchSyncResponse(context); // Preauthenticated URL, deliberately no Authorization header.
+    if (!data.ok) throw await syncHttpError(context, data, "Could not download the OneDrive revision");
     return readSyncResponse(data);
   }
   async uploadFile(metadata: SyncMetadata, content: string) {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addSetlist,
   addSong,
@@ -64,9 +64,11 @@ async function switchDevice(data: Awaited<ReturnType<typeof snapshot>>) {
   await tx.done;
 }
 beforeEach(async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
   localStorage.clear();
   await clear();
 });
+afterEach(() => vi.restoreAllMocks());
 async function seed() {
   return addSong({ title: "Test", artist: "Artist", content: "[C]Original", tags: [] });
 }
@@ -396,6 +398,10 @@ describe("durable sync with real IndexedDB", () => {
     await manager.sync();
     expect((await getAllSongs()).map((song) => song.id).sort()).toEqual([ids[0], ids[2]].sort());
     expect(manager.getStatus().error).toContain("Network interrupted");
+    expect(console.error).toHaveBeenCalledWith(
+      "[Gig-Dex sync] Test cloud: Sync record failed",
+      expect.objectContaining({ recordType: "song", recordId: ids[1], message: "Network interrupted" }),
+    );
     expect(manager.getStatus().lastSyncTime).toBeNull();
     expect(readSyncActivity()[0]).toMatchObject({
       kind: "error",

@@ -23,3 +23,9 @@ After connecting, Gig-Dex checks for remote changes when it opens and syncs comp
 Dropbox access and refresh tokens live in this browser's session storage. You may need to reconnect after the browser session ends. Gig-Dex does not include tokens or the app key in library backups. Use **History cleanup** only after reviewing the preview; it removes old revisions with Dropbox's conditional revision check and retains current history. For an option without Dropbox app registration on desktop Chrome or Edge, use [local folder sync](local-folder-sync.md) with a folder inside your Dropbox desktop folder.
 
 The [Dropbox OAuth guide](https://developers.dropbox.com/oauth-guide) describes the PKCE authorization flow; the [HTTP API reference](https://www.dropbox.com/developers/documentation/http/documentation) covers the file operations and scopes.
+
+## Troubleshooting failures
+
+Open **Settings → Sync → Active syncs → Dropbox → Recent activity** for the server's error reason. In browser developer tools, open Console and filter for `[Gig-Dex sync]` to see the failing endpoint, HTTP status, Dropbox error details and request ID when available. These logs omit request bodies and authorization headers and redact session tokens.
+
+For `missing_scope`, enable the named permission in your Dropbox app console, then reconnect Gig-Dex so Dropbox grants the updated permissions. A network error instead of an HTTP status can indicate offline access or a blocked request.

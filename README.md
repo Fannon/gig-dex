@@ -93,7 +93,9 @@ For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-
 
 Direct Google Drive still needs **Sync now** because its sign-in flow can open a popup; connected OneDrive sessions check automatically on open.
 
-Under each provider's **Recent activity**, you can see how many songs and setlists were added, updated or removed, with separate **Sent** and **Received** counts. Failed syncs show any changes that completed; unchanged records are not counted.
+Active connections appear first under **Active syncs**, with **Recent activity** before configuration and **History cleanup**. Setup guides are beside the relevant provider settings.
+
+Under each provider's **Recent activity**, you can see how many songs and setlists were added, updated or removed, with separate **Sent** and **Received** counts. Failed syncs show any changes that completed; unchanged records are not counted. For troubleshooting, open the browser console and filter for `[Gig-Dex sync]`: errors include the provider, operation, HTTP status, API reason and request ID when the provider supplies one. Request bodies and authorization headers are not logged; tokens and signed download URLs are redacted.
 
 ### Install it like an app (Android / desktop)
 

@@ -22,17 +22,24 @@ export function transposeKey(key: string | undefined, transpose: number): string
       : ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   return names[(((pitch + transpose) % 12) + 12) % 12] + match[3];
 }
-export function settingLabel(song: Song | undefined, setting?: SetlistSongSettings) {
+export function songSettingDetails(
+  song: Song | undefined,
+  setting?: SetlistSongSettings,
+  chordMode = savedReadingPreferences().chordMode,
+) {
   const transpose = setting?.transpose ?? 0;
   const key = song?.key ?? /\{key:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
   const transposedKey = transposeKey(key, transpose);
-  const displayedKey =
-    savedReadingPreferences().chordMode === "german" ? standardToGermanChord(transposedKey) : transposedKey;
+  const displayedKey = chordMode === "german" ? standardToGermanChord(transposedKey) : transposedKey;
   const capo = setting?.capo ?? song?.capo;
   const bpm = song?.tempo ?? Number(/\{tempo:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]);
   const time = song?.time || /\{time:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
+  return { key: displayedKey, transpose, capo, bpm, time };
+}
+export function settingLabel(song: Song | undefined, setting?: SetlistSongSettings) {
+  const { key, transpose, capo, bpm, time } = songSettingDetails(song, setting);
   return [
-    displayedKey,
+    key,
     transpose ? `T${transpose > 0 ? "+" : ""}${transpose}` : "",
     bpm > 0 ? `${bpm}bpm` : "",
     tempoMeter(time).label,

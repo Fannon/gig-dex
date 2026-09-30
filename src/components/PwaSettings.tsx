@@ -110,6 +110,17 @@ export function PwaSettings() {
       </div>
       {state.error && <p role="alert">{state.error}</p>}
       {message && <output>{message}</output>}
+      <details>
+        <summary>Install on an Android tablet</summary>
+        <p>
+          Open the production HTTPS app in Chrome, then choose ⋮ → Add to home screen → Install. The wording may vary.
+          Open the installed app and import or sync your library, then test reopening it in airplane mode before a gig.
+        </p>
+        <p>
+          In performance mode, enable Keep screen awake to prevent the display from sleeping. The app reports whether
+          the browser granted it.
+        </p>
+      </details>
       <details className="pwa-settings__diagnostics">
         <summary>Technical details</summary>
         <dl>
@@ -156,17 +167,6 @@ export function PwaSettings() {
         <p>
           Keep an exported backup outside the app. Clearing site/app data removes local songs even when persistent
           storage is granted.
-        </p>
-      </details>
-      <details>
-        <summary>Install on an Android tablet</summary>
-        <p>
-          Open the production HTTPS app in Chrome, then choose ⋮ → Add to home screen → Install. The wording may vary.
-          Open the installed app and import or sync your library, then test reopening it in airplane mode before a gig.
-        </p>
-        <p>
-          In performance mode, enable Keep screen awake to prevent the display from sleeping. The app reports whether
-          the browser granted it.
         </p>
       </details>
       <details>
