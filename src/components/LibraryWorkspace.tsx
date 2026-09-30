@@ -346,8 +346,19 @@ export function LibraryWorkspace() {
           )}
         </Link>
         {performance && <div className="workspace-performance" ref={setPerformanceHost} />}
-        <button className="workspace-search-button" type="button" onClick={() => setSearchOpen(true)}>
-          Search songs & setlists <kbd>Ctrl+K</kbd>
+        <button
+          className="workspace-search-button"
+          type="button"
+          aria-label="Search songs & setlists"
+          aria-haspopup="dialog"
+          aria-controls="library-search"
+          aria-expanded={searchOpen}
+          title="Search songs & setlists (Ctrl+K / ⌘K)"
+          onClick={() => setSearchOpen(true)}
+        >
+          <ActionIcon name="search" />
+          <span className="workspace-search-button__label">Search</span>
+          <kbd>Ctrl+K</kbd>
         </button>
       </header>
       <div
@@ -632,6 +643,7 @@ export function LibraryWorkspace() {
       </div>
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Native dialog Escape and the close button provide keyboard dismissal. */}
       <dialog
+        id="library-search"
         ref={dialog}
         className="workspace-search"
         aria-label="Search library"

@@ -1,6 +1,41 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
+test("navbar search is a compact dialog button on desktop and phone", async ({ page }) => {
+  await page.goto("./");
+  const trigger = page.getByRole("button", { name: "Search songs & setlists", exact: true });
+  const dialog = page.getByRole("dialog", { name: "Search library" });
+  const input = dialog.getByLabel("Search songs and setlists");
+  await expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(trigger.locator("svg")).toBeVisible();
+  await expect(trigger.locator("span")).toHaveText("Search");
+  expect((await trigger.boundingBox())?.width).toBeLessThan(200);
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(input).toBeFocused();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await input.fill("remember this query");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await mkdir("reports/search", { recursive: true });
+  await page.screenshot({ path: "reports/search/navbar-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(trigger.locator("span")).not.toBeVisible();
+  await expect(trigger.locator("svg")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+  await page.screenshot({ path: "reports/search/navbar-phone.png" });
+  await trigger.click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("remember this query");
+  await dialog.getByRole("button", { name: "Close search" }).click();
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("Control+k");
+  await expect(input).toBeFocused();
+});
+
 test("search highlights literal matches and counts distinct sets, with exact hashtag filters", async ({ page }) => {
   await page.goto("./");
   await page.evaluate(async (base) => {

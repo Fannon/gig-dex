@@ -1,6 +1,6 @@
 # Search and reading preferences
 
-Open the centered search dialog with **Ctrl+K** (Windows/Linux) or **Cmd+K** (Mac).
+Open the centered search dialog with the navbar's **Search** button (magnifying glass on narrow screens), **Ctrl+K** (Windows/Linux), or **Cmd+K** (Mac).
 Search includes song titles, alternative titles, artists and tags, as well as set
 names, dates, descriptions and tags. Matching text is highlighted safely as React
 text nodes, including literal punctuation such as `[North]`. Song results show

@@ -1,7 +1,11 @@
 .workspace-topbar { display: flex; gap: 12px; align-items: center; padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); min-height: 54px; flex-shrink: 0;
  button { min-height: 38px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
  .workspace-brand { color: white; font-weight: 700; text-decoration: none; }
- .workspace-search-button { margin-left: auto; color: var(--text-secondary); text-align: left; width: min(420px, 60%); display: flex; justify-content: space-between; gap: 8px; }
+ .workspace-search-button { margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  svg { width: 18px; height: 18px; flex-shrink: 0; }
+  &:hover { border-color: var(--color-accent); }
+  &:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+ }
  kbd { color: var(--color-accent); }
 }
 .workspace-body { display: flex; flex: 1; min-height: 0; position: relative; .app-route { min-width: 0; } }
@@ -28,14 +32,14 @@
 @media (max-width: 800px) {
  .library-sidebar { position: absolute; z-index: 30; inset: 0 auto 0 0; width: min(var(--sidebar-width, 240px), 85vw); box-shadow: 8px 0 30px #0008; }
  .workspace-backdrop { display: block; position: absolute; inset: 0; z-index: 29; background: #0008; border: 0; }
- .workspace-topbar { padding: 8px; gap: 8px; .workspace-search-button { width: auto; } kbd { display: none; } }
+ .workspace-topbar { padding: 8px; gap: 8px; kbd { display: none; } }
 }
 .workspace-topbar { height: 54px;
  nav { display: flex; gap: 4px; a { padding: 9px 12px; color: var(--text-secondary); text-decoration: none; border-radius: 6px; &.active { color: white; background: rgba(124,58,237,.22); } } }
  .home-page__title { margin: 0; font-size: 16px; }
 }
 @media (max-width: 650px) {
- .workspace-topbar { .workspace-brand { display: none; } nav a { padding: 9px 6px; font-size: 13px; } .workspace-search-button { font-size: 0; padding: 8px; &::before { content: 'Search'; font-size: 13px; } } }
+ .workspace-topbar { .workspace-brand { display: none; } nav a { padding: 9px 6px; font-size: 13px; } .workspace-search-button { width: 38px; padding: 8px; gap: 0; &__label { display: none; } } }
 }
 .library-sidebar__song-row { display: flex; align-items: center; gap: 4px; a { flex: 1; min-width: 0; overflow-wrap: anywhere; } > button { min-width: 36px; min-height: 36px; } }
 .library-sidebar__current-name { margin: 0; padding: 6px 8px; font-size: 14px; color: var(--color-accent); }
@@ -67,7 +71,7 @@
   .performance-page__bar { min-height: 0; padding: 0; border: 0; gap: 8px; h1 { font-size: 1rem; margin-top: 2px; } }
   .performance-page__caption { font-size: .7rem; }
   .tempo-indicator { min-height: 38px; padding: 4px 8px; }
-  .workspace-search-button { width: auto; font-size: 0; margin-left: 0; padding: 8px; gap: 0; &::before { content: 'Search'; font-size: 13px; } kbd { display: none; } }
+  .workspace-search-button { width: 38px; margin-left: 0; padding: 8px; gap: 0; &__label, kbd { display: none; } }
  }
 }
 
