@@ -163,6 +163,8 @@ $font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica N
     .reading-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: .25em; }
     .chord-word { display: inline-flex; align-items: flex-end; }
     .chord-fragment { display: inline-flex; flex-direction: column; justify-content: flex-end; }
+    // Chords without lyric text still need a lyric row beneath them.
+    .lyrics:empty { min-height: 1lh; }
     .chord:empty { padding-right: 0; }
     .chord:empty::before { content: '\00a0'; }
     td, .label, .comment { white-space: normal; overflow-wrap: anywhere; }
@@ -343,3 +345,6 @@ $font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica N
   .song-view__control-group { gap: .25rem; }
   .song-view__btn--auto { margin-left: .125rem; }
 }
+
+.song-view__controls[hidden] { display: none; }
+.song-view__close { margin-left: auto; }
