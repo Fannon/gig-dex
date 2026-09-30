@@ -5,13 +5,13 @@ The song editor's **Standard transposition** is the starting number of semitones
 song performance views start from it; temporary reading adjustments do not change
 that default. Existing imported capo metadata remains supported.
 
-Adding a song through **Add to Set**, a sidebar drop, or the Sets song picker
+Adding a song through **+ Set**, a sidebar drop, or the Sets song picker
 copies its current standard transposition into the new occurrence. Each occurrence
 can then be transposed independently, including repeats within the same set.
 Changing the song's default later does not update those occurrences. Older set
 entries with no saved settings continue to use zero transposition.
 
-**Remove from Set** removes one occurrence, preferring the occurrence currently
+**− Set** removes one occurrence, preferring the occurrence currently
 being read when it belongs to the selected set. It leaves the song in the library.
 The sidebar has drop targets for adding/removing, drag reordering, and **Alt+Up/Down**
 when an occurrence link is focused. **Alt+Delete** removes that entry. Drop after the last entry to append.

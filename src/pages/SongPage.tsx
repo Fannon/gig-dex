@@ -17,6 +17,7 @@ import {
   simpleToChordPro,
   stripMetadata,
 } from "../utils/chordEngine";
+import { tagSearchQuery } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import "./SongPage.scss";
 
@@ -418,9 +419,14 @@ export const SongPage = () => {
             {song.tags && song.tags.length > 0 && (
               <div className="song-page__tags-inline">
                 {song.tags.map((tag) => (
-                  <span key={tag} className="song-page__tag-inline">
+                  <Link
+                    key={tag}
+                    className="song-page__tag-inline"
+                    to={`/?q=${encodeURIComponent(tagSearchQuery(tag))}`}
+                    title={`Find songs tagged ${tag}`}
+                  >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
@@ -444,10 +450,11 @@ export const SongPage = () => {
                 className="song-page__btn song-page__btn--secondary"
                 disabled={addingToSet}
                 onClick={() => void addToSet()}
+                aria-label="Add to Set"
                 title="Add this song to the current set, or create a dated set"
               >
                 <ActionIcon name="add" />
-                {"Add to Set"}
+                Set
               </button>
               {currentSetlist?.songIds.includes(id ?? "") && (
                 <button
@@ -455,10 +462,11 @@ export const SongPage = () => {
                   className="song-page__btn song-page__btn--secondary"
                   disabled={addingToSet}
                   onClick={() => void removeFromSet()}
+                  aria-label="Remove from Set"
                   title="Remove one occurrence from the current set"
                 >
                   <ActionIcon name="remove" />
-                  {"Remove from Set"}
+                  Set
                 </button>
               )}
               <Link

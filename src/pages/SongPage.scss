@@ -85,6 +85,7 @@
     font-size: 0.7rem;
     color: rgba(255, 255, 255, 0.7);
     white-space: nowrap;
+    &:hover { color: var(--text-primary); background: var(--border-focus); }
   }
 
   &__actions {

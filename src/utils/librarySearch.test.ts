@@ -1,5 +1,19 @@
 import { expect, it } from "vitest";
-import { matchesLibrarySearch } from "./librarySearch";
+import { matchesLibrarySearch, tagSearchQuery } from "./librarySearch";
+
+it("builds exact clickable tag filters including spaces, quotes and backslashes", () => {
+  for (const tag of ["#Test", "Sunday morning", 'A "quote"', "folder\\name"]) {
+    const query = tagSearchQuery(tag);
+    expect(matchesLibrarySearch("Unrelated title", [tag.toLocaleLowerCase()], query)).toBe(true);
+    expect(matchesLibrarySearch(tag, [], query)).toBe(false);
+    expect(matchesLibrarySearch("Unrelated title", [`${tag} extra`], query)).toBe(false);
+  }
+  expect(tagSearchQuery("#Test")).toBe("#Test");
+  expect(tagSearchQuery("Sunday morning")).toBe('#"Sunday morning"');
+  expect(matchesLibrarySearch("Harbor", ["Sunday morning"], '#"Sunday morning" harbor')).toBe(true);
+  expect(matchesLibrarySearch("Harbor", ["Sunday morning"], '#"Sunday morning" acoustic')).toBe(false);
+  expect(matchesLibrarySearch("Harbor", ["Sunday morning"], '#"Sunday\\zmorning"')).toBe(false);
+});
 
 it("matches exact tags regardless of case or stored hash prefix", () => {
   expect(matchesLibrarySearch("Harbor", ["Test", "#folk"], "#test #FOLK")).toBe(true);

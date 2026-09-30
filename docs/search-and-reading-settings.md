@@ -12,6 +12,13 @@ the `test` tag, not the `testing` tag or songs with “test” only in their tit
 Combine tags and words, for example `#test acoustic`. Multiple terms must all
 match. This also works in the sidebar, Sets search, and the Add songs picker.
 
+Song overview cards show a row of tag buttons when there is room beneath the
+title and artist. Click a tag to replace the overview search with its exact tag
+filter. Cards keep the same height; tags that do not fit stay out of the way.
+Tags containing spaces use quoted filters, for example `#"Sunday morning"`.
+Clicking a tag in a song's header opens the overview with that tag filter. The
+overview search is stored in its URL, so the filtered view survives reloading.
+
 **Settings → Appearance → Minimum font** controls the smallest automatic song
 fitting size on this device. It retains the existing saved preference, defaults
 to 12px, and supports 12/14/16/18/20px. Songs scroll if they cannot fit at that

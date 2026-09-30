@@ -529,7 +529,7 @@ export function LibraryWorkspace() {
                             </Link>
                           </div>
                         ))}
-                        {!current.songIds.length && <p>Drag songs here or use Add to Set.</p>}
+                        {!current.songIds.length && <p>Drag songs here or use + Set.</p>}
                         <div className="library-sidebar__drop-end" data-active={dropSlot === current.songIds.length}>
                           Drop here to append
                         </div>

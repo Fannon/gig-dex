@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { addSetlist, addSong, getAllSongs, LIBRARY_CHANGED_EVENT, type Song } from "../db";
 import { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "../utils/demoSong";
-import { matchesLibrarySearch } from "../utils/librarySearch";
+import { matchesLibrarySearch, tagSearchQuery } from "../utils/librarySearch";
 import "./HomePage.scss";
 
 export const HomePage = () => {
@@ -10,7 +10,19 @@ export const HomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
-  const [query, setQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get("q") ?? "";
+  const setQuery = (value: string) => {
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        if (value) next.set("q", value);
+        else next.delete("q");
+        return next;
+      },
+      { replace: true },
+    );
+  };
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
@@ -104,8 +116,28 @@ export const HomePage = () => {
                   <li key={song.id}>
                     <Link to={`/song/${song.id}`}>
                       <strong>{song.title}</strong>
-                      {song.artist && <span>{song.artist}</span>}
+                      {song.artist && <span className="home-page__song-artist">{song.artist}</span>}
                     </Link>
+                    {song.tags.length > 0 && (
+                      <div className="home-page__song-tags">
+                        <div className="home-page__tags-list">
+                          {song.tags.map((tag) => {
+                            const name = tag.trim().replace(/^#+/, "");
+                            return (
+                              <button
+                                type="button"
+                                key={tag}
+                                aria-label={`Filter by tag: ${name}`}
+                                title={`Filter by #${name}`}
+                                onClick={() => setQuery(tagSearchQuery(tag))}
+                              >
+                                #{name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

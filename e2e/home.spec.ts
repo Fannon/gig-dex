@@ -1,4 +1,73 @@
+import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+
+test("overview tags fit equal cards and filter by exact tag from cards and song headers", async ({ page }) => {
+  await page.goto("./");
+  const id = await page.evaluate(async (base) => {
+    const { addSong } = await import(`${base}src/db.ts`);
+    const id = await addSong({
+      title: "Tagged song",
+      artist: "Band",
+      tags: ["Test", "Sunday morning", "Test extra", "A very long tag that would otherwise overflow the card"],
+      content: "[C]Synthetic",
+    });
+    await addSong({ title: "Testing only", artist: "Band", tags: ["testing"], content: "[G]Synthetic" });
+    await addSong({ title: "Test in title only", artist: "Band", tags: [], content: "[G]Synthetic" });
+    await addSong({
+      title: "A deliberately long song title that wraps onto two lines and leaves no room for tags beneath its artist",
+      artist: "Band",
+      tags: ["hidden-tag"],
+      content: "[G]Synthetic",
+    });
+    await addSong({ title: "Instrumental", artist: "", tags: ["solo"], content: "[G]Synthetic" });
+    return id;
+  }, new URL(page.url()).pathname);
+  await expect(page.locator(".home-page__songs > li")).toHaveCount(5);
+  await mkdir("reports/song-overview", { recursive: true });
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const sidebarToggle = page.getByRole("button", { name: "Toggle sidebar", exact: true });
+    if (width < 800 && (await sidebarToggle.getAttribute("aria-expanded")) === "true") await sidebarToggle.click();
+    const cards = page.locator(".home-page__songs > li");
+    await expect(page.getByRole("button", { name: "Filter by tag: Test", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Filter by tag: solo", exact: true })).toBeVisible();
+    await expect(page.locator(".home-page__songs button").filter({ hasText: "#hidden-tag" })).toBeHidden();
+    const boxes = await cards.evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return {
+          height: box.height,
+          x: box.x,
+          right: box.right,
+          scrollWidth: element.scrollWidth,
+          width: element.clientWidth,
+        };
+      }),
+    );
+    expect(new Set(boxes.map((box) => box.height)).size).toBe(1);
+    expect(boxes.every((box) => box.x >= 0 && box.right <= width && box.scrollWidth <= box.width)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `reports/song-overview/tags-${width}.png`, fullPage: true });
+  }
+  const input = page.getByRole("searchbox", { name: "Search your songs" });
+  await page.getByRole("button", { name: "Filter by tag: Test", exact: true }).click();
+  await expect(input).toHaveValue("#Test");
+  await expect(page.locator(".home-page__songs a")).toHaveText("Tagged songBand");
+  await page.reload();
+  await expect(input).toHaveValue("#Test");
+  await page.getByRole("button", { name: "Filter by tag: Sunday morning", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(input).toHaveValue('#"Sunday morning"');
+  await expect(page.locator(".home-page__songs a")).toHaveCount(1);
+  await page.locator(".home-page__songs > li").click({ position: { x: 8, y: 8 } });
+  await expect(page).toHaveURL(new RegExp(`/song/${id}$`));
+  await page.locator(".song-page__tags-inline").getByRole("link", { name: "Test", exact: true }).click();
+  await expect(input).toHaveValue("#Test");
+  await expect(page.locator(".home-page__songs a")).toHaveText("Tagged songBand");
+  await input.fill("");
+  await expect(page.locator(".home-page__songs > li")).toHaveCount(5);
+  expect(new URL(page.url()).searchParams.has("q")).toBe(false);
+});
 
 test.describe("Home Page", () => {
   test("should display the Gig-Dex header and empty state", async ({ page }) => {
