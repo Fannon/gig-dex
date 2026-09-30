@@ -2,8 +2,16 @@ import { getAllSetlists, getAllSongs, initDB, notifyLibraryChanged } from "../db
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import { recordFingerprint, stableStringify } from "../utils/recordFingerprint";
-import { addSyncActivity } from "./activity";
-import { type LibraryRecord, type RecordType, type RemoteVersion, recordKey, recordTitle, syncKey } from "./records";
+import { addSyncActivity, type SyncActivityStats, type SyncChangeCounts } from "./activity";
+import {
+  isDeletion,
+  type LibraryRecord,
+  type RecordType,
+  type RemoteVersion,
+  recordKey,
+  recordTitle,
+  syncKey,
+} from "./records";
 import { createSyncFile, parseSyncFile, SYNC_FORMAT_VERSION, syncEnvelope, verifySyncFile } from "./syncFormat";
 import {
   acknowledge,
@@ -14,6 +22,14 @@ import {
   saveConflict,
 } from "./syncStore";
 import type { SyncMetadata, SyncProvider, SyncStatus } from "./types";
+
+function countChange(counts: SyncChangeCounts, before: LibraryRecord[], after: LibraryRecord): void {
+  const activeBefore = before.filter((record) => !isDeletion(record));
+  if (isDeletion(after)) {
+    if (activeBefore.length) counts.removed++;
+  } else if (!activeBefore.length) counts.added++;
+  else if (before.some((record) => recordFingerprint(record) !== recordFingerprint(after))) counts.updated++;
+}
 
 export class SyncManager {
   private static busy = false;
@@ -63,6 +79,10 @@ export class SyncManager {
     this.status.isSyncing = true;
     this.status.error = null;
     window.dispatchEvent(new Event("gigdex-sync-status"));
+    const stats: SyncActivityStats = {
+      sent: { added: 0, updated: 0, removed: 0 },
+      received: { added: 0, updated: 0, removed: 0 },
+    };
     try {
       if (!(await this.provider.authenticate()))
         throw new Error(`Could not connect to ${this.provider.name}. Try again.`);
@@ -88,7 +108,7 @@ export class SyncManager {
       const failures: string[] = [];
       for (const [key, item] of identities) {
         try {
-          await this.syncRecord(item.type, item.id, remote.get(key) ?? []);
+          await this.syncRecord(item.type, item.id, remote.get(key) ?? [], stats);
         } catch (error) {
           const reason = error instanceof Error ? error.message : "Unknown error";
           if (reason.startsWith("Unsupported sync format version")) throw error;
@@ -110,6 +130,7 @@ export class SyncManager {
         provider: this.provider.name,
         time: this.status.lastSyncTime,
         kind: this.status.conflictCount ? "conflict" : "success",
+        stats,
         message: this.status.conflictCount
           ? `Sync finished with ${this.status.conflictCount} conflict${this.status.conflictCount === 1 ? "" : "s"} to review.`
           : "Sync completed.",
@@ -121,6 +142,7 @@ export class SyncManager {
         time: new Date().toISOString(),
         kind: "error",
         message: this.status.error,
+        stats,
       });
     } finally {
       this.status.isSyncing = false;
@@ -206,11 +228,18 @@ export class SyncManager {
     }
     return revision;
   }
-  private async syncRecord(type: RecordType, id: string, files: SyncMetadata[]) {
+  private async syncRecord(type: RecordType, id: string, files: SyncMetadata[], stats: SyncActivityStats) {
     const local = await getLocalRecord(type, id);
     const base = await getSyncBase(type, id, this.scope);
     const pushAndAcknowledge = async (record: LibraryRecord, parents: string[]) => {
       const revision = await this.push(type, record, parents);
+      // Count confirmed record changes, even if a concurrent edit prevents acknowledgement.
+      // Joining identical heads and writing bridge revisions does not change the library.
+      countChange(
+        stats.sent,
+        versions.map((version) => version.record),
+        record,
+      );
       try {
         await acknowledge(type, record, local, [revision], false, this.scope);
       } catch (error) {
@@ -258,6 +287,7 @@ export class SyncManager {
       const heads = joined ? [await this.push(type, remote, revisions)] : revisions;
       try {
         await acknowledge(type, remote, local, heads, true, this.scope);
+        countChange(stats.received, local ? [local] : [], remote);
       } catch (error) {
         if (joined && error instanceof Error && error.message === "Library changed during sync. Please sync again.")
           await noteUploadedRevision(type, remote, heads, base, this.scope);

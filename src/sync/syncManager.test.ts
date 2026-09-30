@@ -14,6 +14,7 @@ import {
   updateSetlist,
   updateSong,
 } from "../db";
+import { readSyncActivity } from "./activity";
 import { recordKey } from "./records";
 import { createSyncFile } from "./syncFormat";
 import { SyncManager } from "./syncManager";
@@ -71,6 +72,61 @@ async function seed() {
 }
 
 describe("durable sync with real IndexedDB", () => {
+  it("records additions, updates and removals in each direction, without recounting unchanged records or old deletions", async () => {
+    const cloud = new Cloud();
+    const manager = new SyncManager(cloud);
+    const edited = await seed();
+    const removed = await seed();
+    const list = await addSetlist({ name: "Gig", songIds: [] });
+    const none = { added: 0, updated: 0, removed: 0 };
+    await manager.sync();
+    expect(readSyncActivity()[0].stats).toEqual({ sent: { ...none, added: 3 }, received: none });
+    const otherDevice = await snapshot();
+
+    await updateSong(edited, { title: "Edited" });
+    await deleteSong(removed);
+    await seed();
+    await updateSetlist(list, { name: "Renamed gig" });
+    await manager.sync();
+    const changes = { added: 1, updated: 2, removed: 1 };
+    expect(readSyncActivity()[0]).toMatchObject({ kind: "success", stats: { sent: changes, received: none } });
+
+    await switchDevice(otherDevice);
+    await manager.sync();
+    expect(readSyncActivity()[0].stats).toEqual({ sent: none, received: changes });
+    await manager.sync();
+    expect(readSyncActivity()[0].stats).toEqual({ sent: none, received: none });
+
+    await clear();
+    await manager.sync();
+    expect(readSyncActivity()[0].stats).toEqual({ sent: none, received: { ...none, added: 3 } });
+    expect(await getAllSongs()).toHaveLength(2);
+    expect(await getAllSetlists()).toHaveLength(1);
+  });
+
+  it("does not count joins of identical remote branches as updated records", async () => {
+    const cloud = new Cloud();
+    const manager = new SyncManager(cloud);
+    const id = await seed();
+    await manager.sync();
+    const song = await getSong(id);
+    if (!song) throw new Error("Missing song");
+    const branch = { ...song, lastModified: "2000-01-01T00:00:00Z" };
+    const { revision, content } = await createSyncFile(branch, []);
+    await cloud.uploadFile(
+      { id, type: "song", title: song.title, lastModified: branch.lastModified, revision, parents: [] },
+      content,
+    );
+    expect(await cloud.listFiles()).toHaveLength(2);
+    await manager.sync();
+    expect(manager.getStatus().error).toBeNull();
+    expect(await cloud.listFiles()).toHaveLength(1);
+    expect(readSyncActivity()[0].stats).toEqual({
+      sent: { added: 0, updated: 0, removed: 0 },
+      received: { added: 0, updated: 0, removed: 0 },
+    });
+  });
+
   it("pushes local records, acknowledges revisions, pulls onto another device, and propagates edits despite older clocks", async () => {
     const cloud = new Cloud();
     const manager = new SyncManager(cloud);
@@ -141,6 +197,10 @@ describe("durable sync with real IndexedDB", () => {
     expect(conflict.remote[0].record).toMatchObject({ content: "[G]Remote words" });
     expect((await getSong(id))?.content).toBe("[D]Local words");
     expect(manager.getStatus().conflictCount).toBe(1);
+    expect(readSyncActivity()[0]).toMatchObject({
+      kind: "conflict",
+      stats: { sent: { added: 0, updated: 0, removed: 0 }, received: { added: 0, updated: 0, removed: 0 } },
+    });
     await resolveConflict(conflict.id, "both");
     await manager.sync();
     expect(await getSyncConflicts()).toHaveLength(0);
@@ -162,6 +222,7 @@ describe("durable sync with real IndexedDB", () => {
     expect(conflict.remote[0].record).toMatchObject({ deleted: true });
     await resolveConflict(conflict.id, "local");
     await new SyncManager(cloud).sync();
+    expect(readSyncActivity()[0].stats?.sent).toEqual({ added: 1, updated: 0, removed: 0 });
     await clear();
     await new SyncManager(cloud).sync();
     expect((await getSong(id))?.title).toBe("Edited");
@@ -210,6 +271,10 @@ describe("durable sync with real IndexedDB", () => {
     const manager = new SyncManager(cloud);
     await manager.sync();
     expect(manager.getStatus().error).toContain("changed during sync");
+    expect(readSyncActivity()[0]).toMatchObject({
+      kind: "error",
+      stats: { sent: { added: 1, updated: 0, removed: 0 } },
+    });
     expect((await getSong(id))?.title).toBe("During upload");
     expect(cloud.files).toHaveLength(1);
     cloud.uploadFile = upload;
@@ -229,6 +294,7 @@ describe("durable sync with real IndexedDB", () => {
     const manager = new SyncManager(cloud);
     await manager.sync();
     expect(manager.getStatus().error).toContain("Connection lost");
+    expect(readSyncActivity()[0].stats?.sent).toEqual({ added: 0, updated: 0, removed: 0 });
     expect(localStorage.getItem("last_sync:Test cloud")).toBeNull();
     cloud.uploadFile = upload;
     await manager.sync();
@@ -250,6 +316,7 @@ describe("durable sync with real IndexedDB", () => {
     expect(manager.getStatus().error).toBeNull();
     expect(cloud.files).toHaveLength(1);
     const firstRevision = cloud.files[0].metadata.revision;
+    expect(readSyncActivity()[0].stats?.sent).toEqual({ added: 1, updated: 0, removed: 0 });
     cloud.uploadFile = upload;
     await manager.sync();
     expect(cloud.files).toHaveLength(1);
@@ -330,10 +397,15 @@ describe("durable sync with real IndexedDB", () => {
     expect((await getAllSongs()).map((song) => song.id).sort()).toEqual([ids[0], ids[2]].sort());
     expect(manager.getStatus().error).toContain("Network interrupted");
     expect(manager.getStatus().lastSyncTime).toBeNull();
+    expect(readSyncActivity()[0]).toMatchObject({
+      kind: "error",
+      stats: { received: { added: 2, updated: 0, removed: 0 } },
+    });
     cloud.downloadFile = download;
     await manager.sync();
     expect(await getAllSongs()).toHaveLength(3);
     expect(manager.getStatus().error).toBeNull();
+    expect(readSyncActivity()[0].stats?.received).toEqual({ added: 1, updated: 0, removed: 0 });
   });
   it("detects an edit made while downloading before it uploads an older snapshot", async () => {
     const cloud = new Cloud();

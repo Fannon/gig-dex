@@ -33,6 +33,10 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
   await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
   await expect(host.getByText(/Last synced/)).toBeVisible();
+  await host.getByText("Recent activity", { exact: true }).click();
+  const activity = page.getByRole("region", { name: "Local Folder sync activity" });
+  await expect(activity).toContainText("Sent: 3 added · 0 updated · 0 removed");
+  await host.getByText("Recent activity", { exact: true }).click();
   expect(
     await page.evaluate(() => (window as unknown as { folderFixture: FolderFixture }).folderFixture.pickerActivation),
   ).toEqual([true]);
@@ -54,6 +58,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await expect(page.locator(".workspace-sync-alert")).toBeVisible();
   await host.getByText("Recent activity", { exact: true }).click();
   await expect(page.getByRole("region", { name: "Local Folder sync activity" })).toContainText("permission denied");
+  await expect(activity).toContainText("No changes sent or received.");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.evaluate(() => {
     const state = (window as unknown as { folderFixture: FolderFixture }).folderFixture;

@@ -93,6 +93,8 @@ For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-
 
 Direct Google Drive still needs **Sync now** because its sign-in flow can open a popup; connected OneDrive sessions check automatically on open.
 
+Under each provider's **Recent activity**, you can see how many songs and setlists were added, updated or removed, with separate **Sent** and **Received** counts. Failed syncs show any changes that completed; unchanged records are not counted.
+
 ### Install it like an app (Android / desktop)
 
 Open the live URL in Chrome or Edge and use the browser's **Install app** or **Add to home screen** action. It then opens as an app, stays available offline after its files are downloaded, and can keep the screen awake during a gig (see *Performance options*).

@@ -335,6 +335,7 @@
   li[data-kind="error"] { color: #fca5a5; }
   li[data-kind="conflict"] { color: #fcd34d; }
   time { color: var(--text-secondary); }
+  .settings-page__activity-stats { flex-basis: 100%; color: var(--text-secondary); }
 }
 .settings-page__advanced { margin: .5rem 0 1rem; summary { min-height: 44px; cursor: pointer; padding: .6rem; } }
 .pwa-settings__summary { color: var(--text-secondary); line-height: 1.5; }

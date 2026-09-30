@@ -28,6 +28,13 @@ Ordinary Gig-Dex backup files in the folder are ignored. To import one, select
 it in Settings → Library → Restore backup, choose Merge, and press **Import**.
 The connected folder then syncs the imported records automatically.
 
+Each provider's **Recent activity** shows how many songs and setlists were **added,
+updated or removed**, separately for changes **sent** to and **received** from that
+provider. Unchanged records, historical revisions and joins of identical versions
+do not increase these counts. A failed sync still shows changes that completed;
+unsynced records and unresolved conflicts are not counted as completed changes.
+Older activity entries retain their original messages without retrospective counts.
+
 The directory handle and a random folder identity live in IndexedDB's
 `syncHandles` store. That identity survives app restarts and selecting the same
 connected folder again. Changing folders or reconnecting after disconnect creates
