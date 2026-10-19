@@ -81,7 +81,7 @@ test("replace restore requires confirmation and restores an empty library", asyn
   await expect(page.getByRole("status")).toContainText("Library replaced on this device.");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(0);
   await page.goto("./");
-  await expect(page.getByText("No songs yet")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No songs yet", exact: true })).toBeVisible();
 });
 
 test("standard B chords can be displayed with German notation", async ({ page }) => {
