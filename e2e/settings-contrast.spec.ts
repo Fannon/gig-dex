@@ -63,7 +63,7 @@ for (const theme of ["black", "violet", "light"])
           expect(result.ratio, JSON.stringify(result)).toBeGreaterThanOrEqual(4.5);
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await page.locator(".settings-page__content").evaluate((element) => {
+        await page.locator(".app-route").evaluate((element) => {
           element.scrollTop = 0;
         });
         await page.screenshot({
