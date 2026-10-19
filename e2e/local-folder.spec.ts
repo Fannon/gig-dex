@@ -198,6 +198,7 @@ test("runtime Client IDs enable cloud hosts without rebuilding, persist, and rej
   await page.getByRole("button", { name: "Clear Google Drive override" }).click();
   await expect(page.getByLabel("Google Client ID", { exact: true })).toHaveValue("");
   await page.getByRole("button", { name: "Clear OneDrive override" }).click();
+  await expect(page.getByLabel("Microsoft Client ID", { exact: true })).toHaveValue("");
   expect(await page.evaluate(() => localStorage.getItem("byoid:microsoft_client_id"))).toBeNull();
 });
 

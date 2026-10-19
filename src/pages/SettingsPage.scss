@@ -3,12 +3,18 @@
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
-  --text-secondary: #c2c3d0;
-  --text-muted: #b1b2c0;
-  --border-color: #474553;
-  --color-accent: #c5bcff;
-  --settings-control-border: #817b90;
-  --settings-primary: #6452c2;
+  --bg-primary: #17161b;
+  --bg-secondary: #201f26;
+  --bg-elevated: #2a2832;
+  --text-primary: #d8d6df;
+  --text-secondary: #aaa6b5;
+  --text-muted: #a49eaf;
+  --border-color: #3b3744;
+  --color-accent: #b8a8e3;
+  --settings-control-border: #716a7e;
+  --settings-primary: #65539d;
+  --settings-tab-bg: #3c3156;
+  --settings-tab-text: #e0d6f2;
   --settings-danger: #ffb4b4;
   --settings-danger-bg: #321b25;
   background: var(--bg-primary);
@@ -358,13 +364,28 @@
 .settings-page__sync-box .settings-page__option--disabled .settings-page__option-text h3 { color: var(--text-primary); }
 .settings-page__sync-error { overflow-wrap: anywhere; }
 
+:root[data-reading-theme=violet] .settings-page {
+  --bg-primary: #1b1926;
+  --bg-secondary: #242131;
+  --bg-elevated: #302c40;
+  --text-primary: #dad6e5;
+  --text-secondary: #b0aabc;
+  --border-color: #433c53;
+}
+
 :root[data-reading-theme=light] .settings-page {
+  --bg-primary: #f3f1f6;
+  --bg-secondary: #faf9fc;
+  --bg-elevated: #e9e5ef;
+  --text-primary: #403b49;
   --text-secondary: #54515f;
   --text-muted: #625e6c;
   --border-color: #c5bfce;
   --color-accent: #5745aa;
   --settings-control-border: #8a8197;
   --settings-primary: #6752a9;
+  --settings-tab-bg: #e2daee;
+  --settings-tab-text: #584274;
   --settings-danger: #963236;
   --settings-danger-bg: #f5e4e1;
 }
@@ -380,7 +401,11 @@
     outline-offset: 3px;
   }
   .settings-page__option-actions { flex-wrap: wrap; }
-  .settings-page__tabs button[aria-current=page], .revision-cleanup button {
+  .settings-page__tabs button[aria-current=page] {
+    background: var(--settings-tab-bg);
+    color: var(--settings-tab-text);
+  }
+  .revision-cleanup button {
     background: var(--settings-primary);
     color: #fff;
   }
@@ -406,7 +431,22 @@
   .settings-page__activity li[data-kind=error] > span { color: inherit; }
   .settings-page__logout-btn { color: var(--settings-danger); background: var(--settings-danger-bg); }
   .settings-page__sync-box { padding: .75rem 1rem; }
+  .settings-page__sync-progress { color: var(--color-accent); margin-top: .4rem; }
 }
+
+.settings-page__activity-current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem 1rem;
+  margin-bottom: .75rem;
+  padding: .75rem 1rem;
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 6px;
+  strong { flex-basis: 100%; font-weight: 500; color: var(--color-accent); }
+  span { color: var(--text-secondary); font-size: .85rem; }
+}
+.settings-page__activity-duration { color: var(--text-secondary); font-size: .85rem; }
 
 .settings-page__setup-step {
   max-width: 680px;

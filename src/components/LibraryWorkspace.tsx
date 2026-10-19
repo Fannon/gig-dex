@@ -76,6 +76,7 @@ export function LibraryWorkspace() {
   const [error, setError] = useState("");
   const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
   const [syncRunning, setSyncRunning] = useState(() => syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
+  const [syncProgress, setSyncProgress] = useState("");
   const [syncConfigured, setSyncConfigured] = useState(false);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(
@@ -120,7 +121,13 @@ export function LibraryWorkspace() {
   }, [refresh]);
   useEffect(() => {
     let disposed = false;
+    const refreshSyncProgress = () => {
+      setSyncProgress(
+        syncHosts.map(({ manager }) => manager.getStatus()).find((status) => status.isSyncing)?.progress ?? "",
+      );
+    };
     const refreshSyncAttention = () => {
+      refreshSyncProgress();
       setSyncRunning(syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
       setSyncConfigured(syncHosts.some(({ provider }) => provider.isAuthenticated?.() || provider.getFolderName?.()));
       const statusIssue = syncHosts.some(({ manager }) => {
@@ -140,12 +147,16 @@ export function LibraryWorkspace() {
       if (!disposed) refreshSyncAttention();
     });
     window.addEventListener("gigdex-sync-status", refreshSyncAttention);
+    window.addEventListener("gigdex-sync-progress", refreshSyncProgress);
+    window.addEventListener("storage", refreshSyncAttention);
     window.addEventListener(CLIENT_CONFIG_EVENT, refreshSyncAttention);
     window.addEventListener(LIBRARY_CHANGED_EVENT, refreshSyncAttention);
     window.addEventListener("focus", refreshSyncAttention);
     return () => {
       disposed = true;
       window.removeEventListener("gigdex-sync-status", refreshSyncAttention);
+      window.removeEventListener("gigdex-sync-progress", refreshSyncProgress);
+      window.removeEventListener("storage", refreshSyncAttention);
       window.removeEventListener(CLIENT_CONFIG_EVENT, refreshSyncAttention);
       window.removeEventListener(LIBRARY_CHANGED_EVENT, refreshSyncAttention);
       window.removeEventListener("focus", refreshSyncAttention);
@@ -392,7 +403,7 @@ export function LibraryWorkspace() {
           }
           title={
             syncRunning
-              ? "Syncing library"
+              ? syncProgress || "Syncing library"
               : syncNeedsAttention
                 ? "Sync needs attention"
                 : syncConfigured

@@ -129,13 +129,10 @@ export const SettingsPage = () => {
         <div hidden={active !== "sync"}>
           <div className="settings-page__sync-intro">
             <p>
-              Manage connected providers under Active syncs. Recent activity shows changes and errors; setup guides are
-              beside the settings they explain. Connect another provider under Add sync provider.
+              Dropbox, OneDrive, and folder sync check for changes when Gig-Dex opens and after saved edits. Use Sync
+              now to check immediately.
             </p>
-            <p>
-              Connected Dropbox, OneDrive, and folder sync check for changes when Gig-Dex opens and after library edits.
-              Use Sync now for an immediate check.
-            </p>
+            <p>Recent activity shows live progress, completed changes, and errors.</p>
           </div>
           <CloudSync />
         </div>

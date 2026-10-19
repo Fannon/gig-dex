@@ -15,6 +15,7 @@ export interface SyncActivity {
   kind: "success" | "error" | "conflict";
   message: string;
   stats?: SyncActivityStats;
+  durationMs?: number;
 }
 
 const key = "gigdex-sync-activity";
@@ -51,7 +52,14 @@ export function readSyncActivity(): SyncActivity[] {
               typeof item.message === "string" &&
               ["success", "error", "conflict"].includes(item.kind),
           )
-          .map((item) => ({ ...item, stats: validStats(item.stats) ? item.stats : undefined }))
+          .map((item) => ({
+            ...item,
+            stats: validStats(item.stats) ? item.stats : undefined,
+            durationMs:
+              typeof item.durationMs === "number" && Number.isFinite(item.durationMs) && item.durationMs >= 0
+                ? item.durationMs
+                : undefined,
+          }))
       : [];
   } catch {
     return [];

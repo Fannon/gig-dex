@@ -7,11 +7,18 @@ import { savedReadingTheme } from "./utils/readingTheme";
 document.documentElement.dataset.readingTheme = savedReadingTheme();
 
 import { initDB } from "./db";
+import { startLibraryEvents } from "./libraryEvents";
 import { startPwa } from "./pwa/lifecycle";
 import { startAutomaticSync } from "./sync/automaticSync";
 
 startPwa();
-startAutomaticSync();
+const stopLibraryEvents = startLibraryEvents();
+const stopAutomaticSync = startAutomaticSync();
+if (import.meta.hot)
+  import.meta.hot.dispose(() => {
+    stopLibraryEvents();
+    stopAutomaticSync();
+  });
 
 // Initialize the database on app start
 initDB()

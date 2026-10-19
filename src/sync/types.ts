@@ -32,7 +32,7 @@ export interface SyncProvider {
   logout(): Promise<void>;
 
   // List all files in the sync folder
-  listFiles(): Promise<SyncMetadata[]>;
+  listFiles(onProgress?: (completed: number, total: number) => void): Promise<SyncMetadata[]>;
 
   // Download a specific file
   downloadFile(id: string): Promise<string>;
@@ -52,6 +52,9 @@ export interface SyncProvider {
 export interface SyncStatus {
   lastSyncTime: string | null;
   isSyncing: boolean;
+  waitingForTab?: boolean;
+  startedAt?: string;
+  progress?: string;
   error: string | null;
   conflictCount?: number;
 }

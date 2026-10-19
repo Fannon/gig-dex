@@ -60,9 +60,9 @@ Use this before gigs, before updates, before cleaning up. It just works.
 
 Dropbox works directly in the browser on desktop and mobile. Open **Settings → Sync → Add sync provider → Set up Dropbox** for the three setup steps: create a Dropbox app, save its public app key, and connect your account. The setup includes your site's redirect URL with a copy button. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
 
-Once connected, Gig-Dex checks for remote changes when it opens and syncs after you save a song or setlist or finish an import. Use **Sync now** for an immediate check if another device changed the library while this app stayed open. Dropbox needs internet access, and you may need to reconnect after closing the browser session.
+Once connected, Gig-Dex checks for remote changes when it opens and syncs after you save a song or setlist or finish an import. Use **Sync now** for an immediate check if another device changed the library while this app stayed open. Dropbox needs internet access. The connection stays saved in this browser across tabs and reopening; **Stop syncing** disconnects it. Existing session connections migrate automatically when opened in the updated app.
 
-The navbar sync icon rotates slowly on a colored background during sync, turns red when sync needs attention, and stays grey when no provider is connected. Select it to open sync settings.
+The navbar sync icon rotates slowly on a colored background during sync, turns red when sync needs attention, and stays grey when no provider is connected. Select it to open sync settings. The provider card and **Recent activity** show the current sync stage, start time and elapsed time; finished runs include their duration.
 
 **3. Local folder sync: use your existing cloud folder**
 
@@ -94,6 +94,8 @@ That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, a
 For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
 
 Direct Google Drive still needs **Sync now** because its sign-in flow can open a popup; connected OneDrive sessions check automatically on open.
+
+Open tabs refresh their library lists when another tab saves or syncs changes, while unsaved song drafts and active performance views remain in place. Sync runs wait their turn across tabs; cleanup and connection changes ask you to retry if another tab is busy.
 
 Active connections appear first under **Active syncs**, with **Recent activity** before configuration and **History cleanup**. Setup guides are beside the relevant provider settings.
 
