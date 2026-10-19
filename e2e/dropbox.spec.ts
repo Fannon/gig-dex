@@ -3,6 +3,7 @@ import { type BrowserContext, expect, test } from "@playwright/test";
 
 for (const theme of ["black", "light"]) {
   test(`navbar shows syncing, failure, recovery and disconnect in ${theme}`, async ({ page, context }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await context.addInitScript((theme) => {
       localStorage.setItem("reading-theme", theme);
       localStorage.setItem("byoid:dropbox_app_key", "testappkey123");
@@ -34,12 +35,37 @@ for (const theme of ["black", "light"]) {
     await expect(link).toHaveAttribute("data-syncing", "true");
     await expect(link).toHaveCSS("background-color", theme === "light" ? "rgb(103, 82, 169)" : "rgb(100, 82, 194)");
     await expect(link.locator("svg")).toHaveCSS("animation-duration", "6s");
+    const initialRotation = await link.locator("svg").evaluate((element) => getComputedStyle(element).transform);
+    await expect
+      .poll(() => link.locator("svg").evaluate((element) => getComputedStyle(element).transform))
+      .not.toBe(initialRotation);
+    const host = page.getByRole("region", { name: "Dropbox sync", exact: true });
+    await host.getByText("Recent activity", { exact: true }).click();
+    const live = host.getByRole("region", { name: "Current sync", exact: true });
+    await expect(host.getByRole("status")).toHaveText("Checking Dropbox for changes…");
+    await expect(live).toContainText("Started");
+    await expect(live).toContainText("Checking Dropbox for changes…");
+    await expect
+      .poll(async () => Number.parseInt(await live.locator("span").innerText(), 10))
+      .toBeGreaterThanOrEqual(1);
+    await page.screenshot({ path: `reports/settings/sync-running-${theme}-1280.png` });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const sidebar = page.getByRole("button", { name: "Toggle sidebar", exact: true });
+    if ((await sidebar.getAttribute("aria-expanded")) === "true") await sidebar.click();
+    await host.getByRole("heading").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `reports/settings/sync-running-${theme}-390.png` });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 720 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(link.locator("svg")).toHaveCSS("animation-name", "none");
     release();
     await expect(link).toHaveAttribute("data-syncing", "false");
     await expect(link).toHaveAttribute("data-configured", "true");
-    const host = page.getByRole("region", { name: "Dropbox sync", exact: true });
+    await expect(live).toHaveCount(0);
+    await expect(host.getByRole("region", { name: "Dropbox sync activity", exact: true })).toContainText(
+      "Sync completed.",
+    );
+    await expect(host.locator(".settings-page__activity-duration")).toBeVisible();
     fail = true;
     await host.getByRole("button", { name: "Sync now", exact: true }).click();
     await expect(link).toHaveAttribute("data-needs-attention", "true");
@@ -130,6 +156,13 @@ test("Dropbox popup uses PKCE, connects through settings, and rejects mismatched
     "Configure Dropbox",
     "History cleanup",
   ]);
+  const reopened = await context.newPage();
+  await reopened.goto("./settings?section=sync");
+  const restored = reopened.getByRole("region", { name: "Dropbox sync", exact: true });
+  await expect(restored.getByRole("heading", { name: "Dropbox Connected", exact: true })).toBeVisible();
+  await expect(restored.getByRole("button", { name: "Sync now", exact: true })).toBeEnabled();
+  expect(await reopened.evaluate(() => sessionStorage.getItem("dropbox_tokens"))).toBeNull();
+  expect(exchanges).toBe(1);
   await host.getByText("Configure Dropbox", { exact: true }).click();
   await expect(
     host.locator(".settings-page__client-settings").getByRole("link", { name: "Dropbox setup guide" }),
@@ -143,6 +176,9 @@ test("Dropbox popup uses PKCE, connects through settings, and rejects mismatched
   expect(JSON.stringify(logs)).toContain("files.metadata.read");
   expect(JSON.stringify(logs)).not.toMatch(/fake-access|fake-refresh/);
   await host.getByRole("button", { name: "Stop syncing" }).click();
+  await expect(restored.getByRole("button", { name: "Connect Dropbox", exact: true })).toBeVisible();
+  await expect(reopened.locator(".workspace-sync-link")).toHaveAttribute("data-configured", "false");
+  await reopened.close();
   wrongState = true;
   await host.getByRole("button", { name: /Connect Dropbox/ }).click();
   await expect(host.getByRole("alert")).toContainText("Dropbox sign-in state did not match");

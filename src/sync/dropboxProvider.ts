@@ -33,12 +33,40 @@ export class DropboxProvider implements SyncProvider {
   private refreshing: Promise<void> | null = null;
   constructor(appKey = effectiveClientConfig().dropbox) {
     this.appKey = appKey;
+    this.restoreTokens();
+  }
+  private restoreTokens() {
+    let saved: string | null = null;
     try {
-      const value = JSON.parse(sessionStorage.getItem(TOKEN_KEY) ?? "null");
-      if (value?.appKey === appKey && typeof value.access_token === "string" && Number.isFinite(value.expiresAt))
-        this.tokens = value;
+      saved = localStorage.getItem(TOKEN_KEY);
     } catch {
-      // Ignore invalid credentials.
+      // A session connection can still work if persistent storage is unavailable.
+    }
+    try {
+      const value = JSON.parse(saved ?? sessionStorage.getItem(TOKEN_KEY) ?? "null");
+      this.tokens =
+        value?.appKey === this.appKey && typeof value.access_token === "string" && Number.isFinite(value.expiresAt)
+          ? value
+          : null;
+      // Migrate an existing connected tab without requiring another sign-in.
+      if (this.tokens) this.saveTokens();
+    } catch {
+      this.tokens = null;
+    }
+  }
+  private saveTokens() {
+    if (!this.tokens) return;
+    const value = JSON.stringify(this.tokens);
+    try {
+      if (localStorage.getItem(TOKEN_KEY) !== value) localStorage.setItem(TOKEN_KEY, value);
+    } catch {
+      sessionStorage.setItem(TOKEN_KEY, value);
+      return;
+    }
+    try {
+      sessionStorage.removeItem(TOKEN_KEY);
+    } catch {
+      // The persistent connection is already saved.
     }
   }
   setAppKey(appKey: string) {
@@ -51,6 +79,7 @@ export class DropboxProvider implements SyncProvider {
     return !!this.appKey;
   }
   isAuthenticated() {
+    this.restoreTokens();
     return !!this.tokens;
   }
   getScope() {
@@ -98,7 +127,7 @@ export class DropboxProvider implements SyncProvider {
       account_id: result.account_id ?? this.tokens?.account_id,
       appKey: this.appKey,
     };
-    sessionStorage.setItem(TOKEN_KEY, JSON.stringify(this.tokens));
+    this.saveTokens();
   }
   private async refresh() {
     if (this.refreshing) return this.refreshing;
@@ -173,7 +202,14 @@ export class DropboxProvider implements SyncProvider {
     this.listedContents.clear();
     this.listedContentBytes = 0;
     this.cachedContentIds.clear();
-    sessionStorage.removeItem(TOKEN_KEY);
+    for (const storage of [localStorage, sessionStorage]) {
+      try {
+        // A config change in another tab may already have connected a different app.
+        if (JSON.parse(storage.getItem(TOKEN_KEY) ?? "null")?.appKey === this.appKey) storage.removeItem(TOKEN_KEY);
+      } catch {
+        // Ignore unavailable or invalid browser storage while disconnecting in memory.
+      }
+    }
   }
   private async request(url: string, init: RequestInit = {}, retried = false): Promise<Response> {
     const parsed = new URL(url);
@@ -217,10 +253,10 @@ export class DropboxProvider implements SyncProvider {
     if (typeof result.account_id !== "string" || !result.account_id) throw new Error("Dropbox account is unavailable.");
     if (this.tokens) {
       this.tokens.account_id = result.account_id;
-      sessionStorage.setItem(TOKEN_KEY, JSON.stringify(this.tokens));
+      this.saveTokens();
     }
   }
-  async listRevisions(): Promise<SyncMetadata[]> {
+  async listRevisions(onProgress?: (completed: number, total: number) => void): Promise<SyncMetadata[]> {
     let result = await this.rpc("files/list_folder", { path: "", recursive: false });
     const entries: Item[] = [];
     const visited = new Set<string>();
@@ -288,6 +324,8 @@ export class DropboxProvider implements SyncProvider {
       return metadata;
     };
     const records: (SyncMetadata | undefined)[] = new Array(entries.length);
+    let completed = 0;
+    onProgress?.(completed, entries.length);
     let index = 0;
     let failed = false;
     let failure: unknown;
@@ -296,6 +334,7 @@ export class DropboxProvider implements SyncProvider {
         const current = index++;
         try {
           records[current] = await read(entries[current]);
+          onProgress?.(++completed, entries.length);
         } catch (error) {
           if (!failed) failure = error;
           failed = true;
@@ -311,8 +350,8 @@ export class DropboxProvider implements SyncProvider {
       if (!present.has(key)) await db.delete("revisionCache", key);
     return records.filter((record) => record !== undefined);
   }
-  async listFiles() {
-    const revisions = await this.listRevisions();
+  async listFiles(onProgress?: (completed: number, total: number) => void) {
+    const revisions = await this.listRevisions(onProgress);
     const heads = syncHeads(revisions);
     const current = new Set(heads.map((file) => file.remoteId));
     const db = await initDB();

@@ -32,6 +32,16 @@ function countChange(counts: SyncChangeCounts, before: LibraryRecord[], after: L
   else if (before.some((record) => recordFingerprint(record) !== recordFingerprint(after))) counts.updated++;
 }
 
+// All tabs share GigDexDB, even when opened through different deployment paths.
+async function withSyncLock<T>(operation: () => Promise<T>, wait = false): Promise<T> {
+  if (!navigator.locks) return operation();
+  return navigator.locks.request("gigdex-sync:GigDexDB", { ifAvailable: !wait }, (lock) => {
+    if (!lock)
+      throw new Error("Another Gig-Dex tab is syncing or cleaning history. Wait for it to finish, then try again.");
+    return operation();
+  });
+}
+
 export class SyncManager {
   private static busy = false;
   private scope = "";
@@ -43,7 +53,7 @@ export class SyncManager {
     SyncManager.busy = true;
     const releaseUpdate = blockPwaUpdate("operation");
     try {
-      return await operation();
+      return await withSyncLock(operation);
     } finally {
       SyncManager.busy = false;
       releaseUpdate();
@@ -78,6 +88,10 @@ export class SyncManager {
     SyncManager.busy = true;
     const releaseUpdate = blockPwaUpdate("sync");
     this.status.isSyncing = true;
+    this.status.waitingForTab = !!navigator.locks;
+    const started = Date.now();
+    this.status.startedAt = new Date(started).toISOString();
+    this.status.progress = navigator.locks ? "Waiting for another tab…" : `Connecting to ${this.provider.name}…`;
     this.status.error = null;
     window.dispatchEvent(new Event("gigdex-sync-status"));
     const stats: SyncActivityStats = {
@@ -85,62 +99,82 @@ export class SyncManager {
       received: { added: 0, updated: 0, removed: 0 },
     };
     let operation = "Connect";
+    let lastProgress = 0;
+    const progress = (message: string, force = false) => {
+      // Large libraries should not redraw on every cached file or completed request.
+      if (!force && Date.now() - lastProgress < 150) return;
+      lastProgress = Date.now();
+      this.status.progress = message;
+      window.dispatchEvent(new Event("gigdex-sync-progress"));
+    };
     try {
-      if (!(await this.provider.authenticate()))
-        throw new Error(`Could not connect to ${this.provider.name}. Try again.`);
-      operation = "List remote revisions";
-      const files = await this.provider.listFiles();
-      const future = files.find((file) => (file.formatVersion ?? 0) > SYNC_FORMAT_VERSION);
-      if (future)
-        throw new Error(`Unsupported sync format version ${future.formatVersion}. Update Gig-Dex before syncing.`);
-      this.scope = this.provider.getScope?.() ?? "";
-      const remote = new Map<string, SyncMetadata[]>();
-      for (const file of files) {
-        const key = recordKey(file.type, file.id);
-        remote.set(key, [...(remote.get(key) ?? []), file]);
-      }
-      const local = [
-        ...(await getAllSongs()).map((song) => ({ id: song.id, type: "song" as const })),
-        ...(await getAllSetlists()).map((list) => ({ id: list.id, type: "setlist" as const })),
-        ...(await (await initDB()).getAll("tombstones")),
-      ];
-      const identities = new Map(
-        local.map((item) => [recordKey(item.type, item.id), { id: item.id, type: item.type }]),
-      );
-      for (const file of files) identities.set(recordKey(file.type, file.id), { id: file.id, type: file.type });
-      const failures: string[] = [];
-      operation = "Sync records";
-      for (const [key, item] of identities) {
-        try {
-          await this.syncRecord(item.type, item.id, remote.get(key) ?? [], stats);
-        } catch (error) {
-          logSyncError(this.provider.name, "Sync record failed", error, item);
-          if (isSyncConnectionError(error)) throw error;
-          const reason = error instanceof Error ? error.message : "Unknown error";
-          if (reason.startsWith("Unsupported sync format version")) throw error;
-          failures.push(`${item.type} ${item.id}: ${reason}`);
-        }
-      }
-      this.status.conflictCount = (await getSyncConflicts()).filter(
-        (conflict) => (conflict.scope ?? "") === this.scope,
-      ).length;
-      if (failures.length) {
-        const details = failures.slice(0, 3).join("; ");
-        throw new Error(
-          `Sync incomplete: ${failures.length} item${failures.length === 1 ? "" : "s"} failed. ${details}`,
+      await withSyncLock(async () => {
+        this.status.waitingForTab = false;
+        progress(`Connecting to ${this.provider.name}…`, true);
+        window.dispatchEvent(new Event("gigdex-sync-status"));
+        if (!(await this.provider.authenticate()))
+          throw new Error(`Could not connect to ${this.provider.name}. Try again.`);
+        operation = "List remote revisions";
+        progress(`Checking ${this.provider.name} for changes…`, true);
+        const files = await this.provider.listFiles((completed, total) =>
+          progress(`Checking ${this.provider.name} files: ${completed} of ${total}…`, completed === total),
         );
-      }
-      this.status.lastSyncTime = new Date().toISOString();
-      localStorage.setItem(`last_sync:${this.provider.name}`, this.status.lastSyncTime);
-      addSyncActivity({
-        provider: this.provider.name,
-        time: this.status.lastSyncTime,
-        kind: this.status.conflictCount ? "conflict" : "success",
-        stats,
-        message: this.status.conflictCount
-          ? `Sync finished with ${this.status.conflictCount} conflict${this.status.conflictCount === 1 ? "" : "s"} to review.`
-          : "Sync completed.",
-      });
+        const future = files.find((file) => (file.formatVersion ?? 0) > SYNC_FORMAT_VERSION);
+        if (future)
+          throw new Error(`Unsupported sync format version ${future.formatVersion}. Update Gig-Dex before syncing.`);
+        this.scope = this.provider.getScope?.() ?? "";
+        const remote = new Map<string, SyncMetadata[]>();
+        for (const file of files) {
+          const key = recordKey(file.type, file.id);
+          remote.set(key, [...(remote.get(key) ?? []), file]);
+        }
+        const local = [
+          ...(await getAllSongs()).map((song) => ({ id: song.id, type: "song" as const })),
+          ...(await getAllSetlists()).map((list) => ({ id: list.id, type: "setlist" as const })),
+          ...(await (await initDB()).getAll("tombstones")),
+        ];
+        const identities = new Map(
+          local.map((item) => [recordKey(item.type, item.id), { id: item.id, type: item.type }]),
+        );
+        for (const file of files) identities.set(recordKey(file.type, file.id), { id: file.id, type: file.type });
+        const failures: string[] = [];
+        operation = "Sync records";
+        let completed = 0;
+        progress(`Syncing songs and setlists: 0 of ${identities.size}…`, true);
+        for (const [key, item] of identities) {
+          try {
+            await this.syncRecord(item.type, item.id, remote.get(key) ?? [], stats);
+          } catch (error) {
+            logSyncError(this.provider.name, "Sync record failed", error, item);
+            if (isSyncConnectionError(error)) throw error;
+            const reason = error instanceof Error ? error.message : "Unknown error";
+            if (reason.startsWith("Unsupported sync format version")) throw error;
+            failures.push(`${item.type} ${item.id}: ${reason}`);
+          }
+          progress(`Syncing songs and setlists: ${++completed} of ${identities.size}…`);
+        }
+        this.status.conflictCount = (await getSyncConflicts()).filter(
+          (conflict) => (conflict.scope ?? "") === this.scope,
+        ).length;
+        if (failures.length) {
+          const details = failures.slice(0, 3).join("; ");
+          throw new Error(
+            `Sync incomplete: ${failures.length} item${failures.length === 1 ? "" : "s"} failed. ${details}`,
+          );
+        }
+        this.status.lastSyncTime = new Date().toISOString();
+        localStorage.setItem(`last_sync:${this.provider.name}`, this.status.lastSyncTime);
+        addSyncActivity({
+          provider: this.provider.name,
+          time: this.status.lastSyncTime,
+          kind: this.status.conflictCount ? "conflict" : "success",
+          stats,
+          durationMs: Date.now() - started,
+          message: this.status.conflictCount
+            ? `Sync finished with ${this.status.conflictCount} conflict${this.status.conflictCount === 1 ? "" : "s"} to review.`
+            : "Sync completed.",
+        });
+      }, true);
     } catch (error) {
       logSyncError(this.provider.name, operation, error);
       this.status.error = error instanceof Error ? error.message : "Sync failed";
@@ -150,9 +184,13 @@ export class SyncManager {
         kind: "error",
         message: this.status.error,
         stats,
+        durationMs: Date.now() - started,
       });
     } finally {
       this.status.isSyncing = false;
+      this.status.waitingForTab = false;
+      this.status.progress = undefined;
+      this.status.startedAt = undefined;
       SyncManager.busy = false;
       releaseUpdate();
       notifyLibraryChanged();

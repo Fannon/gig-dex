@@ -51,17 +51,26 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
         }
       }
     };
+    const progress = () => {
+      const value = manager.getStatus();
+      // Progress only redraws the active card; conflict reads wait for status changes.
+      if (value.isSyncing) setStatus(value);
+    };
     void refresh();
     window.addEventListener("focus", refresh);
     window.addEventListener(CLIENT_CONFIG_EVENT, update);
     window.addEventListener("gigdex-sync-status", update);
+    window.addEventListener("gigdex-sync-progress", progress);
+    window.addEventListener("storage", update);
     return () => {
       mounted = false;
       window.removeEventListener("focus", refresh);
       window.removeEventListener(CLIENT_CONFIG_EVENT, update);
       window.removeEventListener("gigdex-sync-status", update);
+      window.removeEventListener("gigdex-sync-progress", progress);
+      window.removeEventListener("storage", update);
     };
-  }, [provider, update]);
+  }, [provider, manager, update]);
   const sync = async () => {
     setBusy(true);
     setError("");
@@ -176,6 +185,12 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
             <p>
               {status.lastSyncTime ? `Last synced ${new Date(status.lastSyncTime).toLocaleString()}` : "Not synced yet"}
             </p>
+            {provider.name === "Dropbox" && <p>Stays connected in this browser until you select Stop syncing.</p>}
+            {status.isSyncing && (
+              <p className="settings-page__sync-progress" role="status">
+                {status.progress || "Syncing…"}
+              </p>
+            )}
             {provider.pickFolder && (
               <p>
                 {description}{" "}
@@ -198,7 +213,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
               disabled={busy || status.isSyncing || !ready}
               onClick={() => void sync()}
             >
-              {busy || status.isSyncing ? "Syncing…" : "Sync now"}
+              {status.waitingForTab ? "Waiting for another tab…" : busy || status.isSyncing ? "Syncing…" : "Sync now"}
             </button>
             {provider.pickFolder && (
               <button
@@ -230,7 +245,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
       {(connected || !!folder) && (
         <details className="settings-page__advanced">
           <summary>Recent activity</summary>
-          <SyncActivityLog provider={provider.name} />
+          <SyncActivityLog provider={provider.name} status={status} />
         </details>
       )}
       {provider.name !== "Local Folder" && (

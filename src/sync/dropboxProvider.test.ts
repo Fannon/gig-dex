@@ -20,8 +20,9 @@ const respond = (value: unknown, headers?: HeadersInit, status = 200) =>
 beforeEach(async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   await (await initDB()).clear("revisionCache");
+  localStorage.clear();
   sessionStorage.clear();
-  sessionStorage.setItem(
+  localStorage.setItem(
     "dropbox_tokens",
     JSON.stringify({
       access_token: "test-token",
@@ -39,12 +40,48 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it("migrates the existing tab connection and restores it in a new session without signing in", async () => {
+  const saved = localStorage.getItem("dropbox_tokens");
+  localStorage.removeItem("dropbox_tokens");
+  sessionStorage.setItem("dropbox_tokens", saved ?? "");
+  const original = new DropboxProvider("testappkey123");
+  expect(original.isAuthenticated()).toBe(true);
+  expect(localStorage.getItem("dropbox_tokens")).toBe(saved);
+  expect(sessionStorage.getItem("dropbox_tokens")).toBeNull();
+  sessionStorage.clear();
+  const reopened = new DropboxProvider("testappkey123");
+  expect(await reopened.authenticate()).toBe(true);
+  expect(reopened.getScope()).toBe(original.getScope());
+  expect(mocked).not.toHaveBeenCalled();
+  await reopened.logout();
+  expect(localStorage.getItem("dropbox_tokens")).toBeNull();
+  expect(original.isAuthenticated()).toBe(false);
+});
+
+it("does not disconnect a new app when another tab updates its old app configuration", () => {
+  const old = new DropboxProvider("testappkey123");
+  const saved = JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}");
+  localStorage.setItem(
+    "dropbox_tokens",
+    JSON.stringify({ ...saved, appKey: "anotherapp123", account_id: "dbid:other" }),
+  );
+  expect(old.setAppKey("anotherapp123")).toBe(true);
+  expect(old.isAuthenticated()).toBe(true);
+  expect(old.getScope()).toBe("dropbox:anotherapp123:dbid:other");
+});
+
 it("lists paged app-folder files, validates content and reuses unchanged revision metadata", async () => {
   respond({ entries: [file], has_more: true, cursor: "next" });
   respond({ entries: [{ ".tag": "file", id: "unrelated", name: "notes.json" }], has_more: false });
   respond(record, { "Dropbox-API-Result": JSON.stringify({ rev: "rev-one" }) });
   const provider = new DropboxProvider("testappkey123");
-  expect(await provider.listFiles()).toMatchObject([{ id: "song", remoteId: "id:file", etag: "rev-one" }]);
+  const progress = vi.fn();
+  expect(await provider.listFiles(progress)).toMatchObject([{ id: "song", remoteId: "id:file", etag: "rev-one" }]);
+  expect(progress.mock.calls).toEqual([
+    [0, 2],
+    [1, 2],
+    [2, 2],
+  ]);
   expect(provider.getScope()).toBe("dropbox:testappkey123:dbid:user");
   expect(JSON.parse(String(mocked.mock.calls[0][1]?.body))).toMatchObject({ path: "", recursive: false });
   expect(JSON.parse(String(mocked.mock.calls[1][1]?.body))).toEqual({ cursor: "next" });
@@ -95,7 +132,7 @@ it("appends uniquely named revisions and conditionally deletes reviewed history"
 });
 
 it("refreshes an expired session and keeps account scope", async () => {
-  sessionStorage.setItem(
+  localStorage.setItem(
     "dropbox_tokens",
     JSON.stringify({
       access_token: "expired",
@@ -111,13 +148,13 @@ it("refreshes an expired session and keeps account scope", async () => {
   expect(String(mocked.mock.calls[0][1]?.body)).toContain("grant_type=refresh_token");
   expect(provider.getScope()).toBe("dropbox:testappkey123:dbid:user");
   await provider.logout();
-  expect(sessionStorage.getItem("dropbox_tokens")).toBeNull();
+  expect(localStorage.getItem("dropbox_tokens")).toBeNull();
 });
 
 it("looks up the current account using Dropbox's parameterless RPC contract", async () => {
-  const saved = JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "{}");
+  const saved = JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}");
   delete saved.account_id;
-  sessionStorage.setItem("dropbox_tokens", JSON.stringify(saved));
+  localStorage.setItem("dropbox_tokens", JSON.stringify(saved));
   mocked.mockImplementationOnce(async (_url, init) =>
     String(init?.body) === "null"
       ? new Response(JSON.stringify({ account_id: "dbid:user" }))
@@ -136,13 +173,13 @@ it.each(["network", 429, 503])("retains the connection after a temporary refresh
     account_id: "dbid:user",
     appKey: "testappkey123",
   };
-  sessionStorage.setItem("dropbox_tokens", JSON.stringify(saved));
+  localStorage.setItem("dropbox_tokens", JSON.stringify(saved));
   if (typeof failure === "number") respond({ error: "temporarily_unavailable" }, undefined, failure);
   else mocked.mockRejectedValueOnce(new TypeError("Failed to fetch"));
   const provider = new DropboxProvider("testappkey123");
   await expect(provider.authenticate()).rejects.toThrow();
   expect(provider.isAuthenticated()).toBe(true);
-  expect(JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "null")).toEqual(saved);
+  expect(JSON.parse(localStorage.getItem("dropbox_tokens") ?? "null")).toEqual(saved);
   respond({ access_token: "recovered", expires_in: 3600 });
   await expect(provider.authenticate()).resolves.toBe(true);
   expect(provider.getScope()).toBe("dropbox:testappkey123:dbid:user");
@@ -150,8 +187,8 @@ it.each(["network", 429, 503])("retains the connection after a temporary refresh
 });
 
 it("refreshes once after an API 401 and retries the request with the new access token", async () => {
-  const saved = JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "{}");
-  sessionStorage.setItem("dropbox_tokens", JSON.stringify({ ...saved, refresh_token: "refresh" }));
+  const saved = JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}");
+  localStorage.setItem("dropbox_tokens", JSON.stringify({ ...saved, refresh_token: "refresh" }));
   respond({ error_summary: "expired_access_token" }, undefined, 401);
   respond({ access_token: "new-access", expires_in: 3600 });
   respond({ entries: [], has_more: false });
@@ -180,8 +217,8 @@ it("shows Dropbox's plain-text 400 reason for folder listing failures", async ()
 });
 
 it.each(["expired", "401"])("shares one token refresh across concurrent downloads (%s)", async (reason) => {
-  const saved = JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "{}");
-  sessionStorage.setItem(
+  const saved = JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}");
+  localStorage.setItem(
     "dropbox_tokens",
     JSON.stringify({ ...saved, refresh_token: "refresh", expiresAt: reason === "expired" ? 0 : saved.expiresAt }),
   );
@@ -204,7 +241,7 @@ it.each(["expired", "401"])("shares one token refresh across concurrent download
 });
 
 it("logs a failed token refresh with API diagnostics without exposing OAuth credentials", async () => {
-  sessionStorage.setItem(
+  localStorage.setItem(
     "dropbox_tokens",
     JSON.stringify({
       access_token: "secret-access",
@@ -229,5 +266,5 @@ it("logs a failed token refresh with API diagnostics without exposing OAuth cred
     }),
   );
   expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(/secret-access|secret-refresh/);
-  expect(sessionStorage.getItem("dropbox_tokens")).toBeNull();
+  expect(localStorage.getItem("dropbox_tokens")).toBeNull();
 });

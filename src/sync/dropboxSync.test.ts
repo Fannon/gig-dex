@@ -27,7 +27,7 @@ beforeEach(async () => {
     await db.clear(store);
   localStorage.clear();
   sessionStorage.clear();
-  sessionStorage.setItem(
+  localStorage.setItem(
     "dropbox_tokens",
     JSON.stringify({
       access_token: "test-access",
@@ -233,7 +233,7 @@ it("does not reuse cached bytes across Dropbox accounts or app keys", async () =
     { appKey: "testappkey123", account_id: "dbid:other" },
     { appKey: "differentappkey", account_id: "dbid:other" },
   ]) {
-    sessionStorage.setItem(
+    localStorage.setItem(
       "dropbox_tokens",
       JSON.stringify({ ...identity, access_token: "other-access", expiresAt: Date.now() + 3600000 }),
     );
