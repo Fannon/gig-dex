@@ -64,7 +64,12 @@ export const RevisionCleanup = ({ provider, disabled }: { provider: SyncProvider
                   </li>
                 ))}
               </ul>
-              <button type="button" disabled={disabled || busy} onClick={() => void apply()}>
+              <button
+                type="button"
+                className="settings-page__button--danger"
+                disabled={disabled || busy}
+                onClick={() => void apply()}
+              >
                 Move reviewed revisions to trash
               </button>
             </>

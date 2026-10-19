@@ -30,7 +30,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
-  await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
+  await host.getByRole("button", { name: "Choose folder", exact: true }).click();
   await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
   await expect(host.getByText(/Last synced/)).toBeVisible();
   expect(await host.locator(":scope > details > summary").allTextContents()).toEqual([
@@ -90,7 +90,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
   }
   await host.getByRole("button", { name: "Stop syncing", exact: true }).click();
-  await expect(host.getByRole("button", { name: /Sync from a folder on this computer/ })).toBeVisible();
+  await expect(host.getByRole("button", { name: "Choose folder", exact: true })).toBeVisible();
   const retained = await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory();
     const counts = [];
@@ -114,7 +114,7 @@ test("connected folder automatically syncs saved songs, setlists, and ChordPro i
   });
   await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
-  await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
+  await host.getByRole("button", { name: "Choose folder", exact: true }).click();
   await expect(host.getByText(/Last synced/)).toBeVisible();
   await page.goto("./");
   await page.getByRole("button", { name: "Add Demo Song" }).click();
@@ -144,7 +144,7 @@ test("connected folder pulls a new song automatically when the app opens", async
   });
   await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
-  await host.getByRole("button", { name: /Sync from a folder on this computer/ }).click();
+  await host.getByRole("button", { name: "Choose folder", exact: true }).click();
   await expect(host.getByText(/Last synced/)).toBeVisible();
   await page.evaluate(async () => {
     const base = location.pathname.replace(/settings$/, "");
@@ -193,11 +193,11 @@ test("runtime Client IDs enable cloud hosts without rebuilding, persist, and rej
   await page.getByText("Configure Google Drive", { exact: true }).click();
   await page.getByText("Configure OneDrive", { exact: true }).click();
   await expect(page.getByLabel("Google Client ID", { exact: true })).toHaveValue("123-test.apps.googleusercontent.com");
-  await expect(page.getByText("Google: Settings value", { exact: true })).toBeVisible();
-  await expect(page.getByText("Microsoft: Settings value", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Clear Google Drive override" }).click();
+  await expect(page.getByText("Google: Saved in this browser", { exact: true })).toBeVisible();
+  await expect(page.getByText("Microsoft: Saved in this browser", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Reset Google Drive settings" }).click();
   await expect(page.getByLabel("Google Client ID", { exact: true })).toHaveValue("");
-  await page.getByRole("button", { name: "Clear OneDrive override" }).click();
+  await page.getByRole("button", { name: "Reset OneDrive settings" }).click();
   await expect(page.getByLabel("Microsoft Client ID", { exact: true })).toHaveValue("");
   expect(await page.evaluate(() => localStorage.getItem("byoid:microsoft_client_id"))).toBeNull();
 });

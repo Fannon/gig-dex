@@ -148,8 +148,10 @@ export async function checkPwaUpdate() {
   try {
     await registration?.update();
     patch({ error: "" });
+    return true;
   } catch {
     patch({ error: "Could not check for updates. Your downloaded app remains available." });
+    return false;
   }
 }
 export async function installPwa() {

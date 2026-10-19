@@ -164,17 +164,20 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
           </div>
         </div>
       ) : !connected && !folder ? (
-        <button
-          type="button"
-          className="settings-page__option"
-          onClick={() => void sync()}
-          disabled={busy || status.isSyncing || !ready}
-        >
+        <div className="settings-page__option">
           <div className="settings-page__option-text">
             <h3>{provider.pickFolder ? "Sync from a folder on this computer" : `Connect ${provider.name}`}</h3>
             <p>{description}</p>
           </div>
-        </button>
+          <button
+            type="button"
+            className="settings-page__sync-btn"
+            onClick={() => void sync()}
+            disabled={busy || status.isSyncing || !ready}
+          >
+            {provider.pickFolder ? "Choose folder" : `Connect ${provider.name}`}
+          </button>
+        </div>
       ) : (
         <div className="settings-page__option">
           <div className="settings-page__option-text">
@@ -218,7 +221,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
             {provider.pickFolder && (
               <button
                 type="button"
-                className="settings-page__sync-btn"
+                className="settings-page__button"
                 disabled={busy || status.isSyncing || !ready}
                 onClick={() => void changeFolder()}
               >
@@ -270,7 +273,8 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
       {connected && (
         <details className="settings-page__advanced">
           <summary>History cleanup</summary>
-          <RevisionCleanup provider={provider} disabled={busy} />
+          {status.isSyncing && <p className="settings-page__hint">Wait for sync to finish before reviewing history.</p>}
+          <RevisionCleanup provider={provider} disabled={busy || status.isSyncing || !ready} />
         </details>
       )}
     </section>

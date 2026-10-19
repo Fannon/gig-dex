@@ -61,7 +61,7 @@ export function SyncClientSettings({
       setSaved(value);
       setMessage(
         clear
-          ? `${provider} override cleared.`
+          ? `${provider} settings reset.`
           : provider === "Dropbox"
             ? "App key saved. Connect your Dropbox account below to start syncing."
             : `${provider} settings saved. Reconnect if prompted.`,
@@ -74,7 +74,7 @@ export function SyncClientSettings({
   };
   const effective = effectiveClientConfig();
   const source = (key: "google" | "microsoft" | "dropbox") =>
-    saved[key] ? "Settings value" : effective[key] ? "Build-time configuration" : "Not configured";
+    saved[key] ? "Saved in this browser" : effective[key] ? "Site default" : "Not configured";
   return (
     <details
       id={`sync-${provider.toLowerCase().replaceAll(" ", "-")}-settings`}
@@ -146,7 +146,7 @@ export function SyncClientSettings({
               value={settings.dropbox}
               placeholder="App key"
               autoComplete="off"
-              disabled={busy}
+              disabled={busy || connecting}
               onChange={(event) => setSettings({ ...settings, dropbox: event.target.value })}
             />
             <small>Dropbox: {source("dropbox")}</small>
@@ -160,7 +160,7 @@ export function SyncClientSettings({
               value={settings.google}
               placeholder="…apps.googleusercontent.com"
               autoComplete="off"
-              disabled={busy}
+              disabled={busy || connecting}
               onChange={(event) => setSettings({ ...settings, google: event.target.value })}
             />
             <small>Google: {source("google")}</small>
@@ -174,7 +174,7 @@ export function SyncClientSettings({
               value={settings.microsoft}
               placeholder="Application (client) ID"
               autoComplete="off"
-              disabled={busy}
+              disabled={busy || connecting}
               onChange={(event) => setSettings({ ...settings, microsoft: event.target.value })}
             />
             <small>Microsoft: {source("microsoft")}</small>
@@ -184,21 +184,27 @@ export function SyncClientSettings({
               value={settings.tenant}
               placeholder="common"
               autoComplete="off"
-              disabled={busy}
+              disabled={busy || connecting}
               onChange={(event) => setSettings({ ...settings, tenant: event.target.value })}
             />
             <small>Use common for personal and work accounts unless your registration needs a specific tenant.</small>
           </>
         )}
         <div className="settings-page__option-actions">
-          <button type="submit" disabled={busy}>
+          <button type="submit" disabled={busy || connecting}>
             {provider === "Dropbox" ? "Save app key" : `Save ${provider} settings`}
           </button>
-          <button type="button" disabled={busy} onClick={() => void save(true)}>
-            Clear {provider} override
+          <button type="button" disabled={busy || connecting} onClick={() => void save(true)}>
+            Reset {provider} settings
           </button>
         </div>
       </form>
+      <p className="settings-page__hint">
+        Save applies these settings to this browser. Reset uses this site’s defaults.
+      </p>
+      {connecting && (
+        <p className="settings-page__hint">Wait for the connection or sync to finish before changing settings.</p>
+      )}
       {message && <output>{message}</output>}
       {error && <p role="alert">{error}</p>}
       {provider === "Dropbox" && onConnect && (

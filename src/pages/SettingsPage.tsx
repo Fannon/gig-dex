@@ -39,7 +39,8 @@ export const SettingsPage = () => {
           ))}
         </nav>
         <div hidden={active !== "appearance"}>
-          <section className="settings-page__section settings-page__appearance">
+          <p className="settings-page__intro">Changes are saved automatically on this device.</p>
+          <section className="settings-page__section settings-page__appearance settings-page__card">
             <h2>Appearance</h2>
             <label>
               Theme{" "}
@@ -58,7 +59,7 @@ export const SettingsPage = () => {
               </select>
             </label>
           </section>
-          <section className="settings-page__section settings-page__appearance">
+          <section className="settings-page__section settings-page__appearance settings-page__card">
             <h2>Song reading</h2>
             <label>
               Notation
@@ -155,6 +156,9 @@ export const SettingsPage = () => {
                 offline.
               </p>
               <div className="settings-page__about-links">
+                <a href="https://github.com/Fannon/gig-dex" target="_blank" rel="noopener noreferrer">
+                  Project &amp; help
+                </a>
                 <a href="https://www.chordpro.org/" target="_blank" rel="noopener noreferrer">
                   Learn ChordPro Format
                 </a>
