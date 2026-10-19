@@ -8,7 +8,7 @@ export function useUnsavedEdits(dirty: boolean) {
   const release = useRef<(() => void) | undefined>(undefined);
   useEffect(() => {
     if (!dirty) return;
-    release.current = blockPwaUpdate();
+    release.current = blockPwaUpdate("editing");
     return () => {
       release.current?.();
       release.current = undefined;

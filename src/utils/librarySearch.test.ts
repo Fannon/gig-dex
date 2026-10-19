@@ -1,5 +1,18 @@
 import { expect, it } from "vitest";
-import { matchesLibrarySearch, tagSearchQuery } from "./librarySearch";
+import { createLibrarySearch, matchesLibrarySearch, tagSearchQuery } from "./librarySearch";
+
+it("reuses a query across independent records without carrying over normalized tags or membership", () => {
+  const matches = createLibrarySearch('#"Sunday morning" harbor');
+  expect(matches("Harbor", ["Sunday morning"])).toBe(true);
+  expect(matches("Harbor", ["Monday"])).toBe(false);
+  expect(matches("Acoustic", ["Sunday morning"])).toBe(false);
+  expect(matches("HARBOR", ["#SUNDAY MORNING"])).toBe(true);
+  const id = "e8dd53cd-ff2f-44fe-a9c0-122f45544f88";
+  const membership = createLibrarySearch(id);
+  expect(membership("Gig", [], [id])).toBe(true);
+  expect(membership("Gig", [], [])).toBe(false);
+  expect(membership(id.toUpperCase(), [])).toBe(true);
+});
 
 it("builds exact clickable tag filters including spaces, quotes and backslashes", () => {
   for (const tag of ["#Test", "Sunday morning", 'A "quote"', "folder\\name"]) {

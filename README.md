@@ -103,6 +103,8 @@ Under each provider's **Recent activity**, you can see how many songs and setlis
 
 Open the live URL in Chrome or Edge and use the browser's **Install app** or **Add to home screen** action. It then opens as an app, stays available offline after its files are downloaded, and can keep the screen awake during a gig (see *Performance options*).
 
+When a new version is downloaded, a small **App update ready** indicator appears in the navbar. Open it and select **Update and restart** to load the new version. If editing, syncing or another operation is active, the menu explains what must finish and offers **Restart when ready**; you can cancel that scheduled restart. Saved songs and setlists remain on the device. Updates stay out of the way during performance.
+
 Before an important gig, open your setlist once while online, then try airplane mode and close/reopen the app. You'll see exactly what the stage will see.
 
 ---

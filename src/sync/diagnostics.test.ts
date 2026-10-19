@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { fetchSyncResponse, logSyncError, syncHttpError } from "./diagnostics";
+import { fetchSyncResponse, logSyncError, SYNC_REQUEST_TIMEOUT_MS, syncHttpError } from "./diagnostics";
 
 beforeEach(() => vi.spyOn(console, "error").mockImplementation(() => {}));
 afterEach(() => {
@@ -104,4 +104,54 @@ it("keeps plain-text and malformed JSON errors useful and bounded", async () => 
       apiDetails: expect.stringContaining("accessDenied"),
     }),
   );
+});
+
+it("bounds stalled requests and keeps the deadline active while reading the response body", async () => {
+  vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => {
+    expect(milliseconds).toBe(SYNC_REQUEST_TIMEOUT_MS);
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException("Request timed out", "TimeoutError")), 0);
+    return controller.signal;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+        }),
+    ),
+  );
+  const context = { provider: "Dropbox", url: "https://api.dropboxapi.com/2/files/list_folder" };
+  await expect(fetchSyncResponse(context)).rejects.toThrow("timed out after 60 seconds");
+  vi.mocked(fetch).mockImplementationOnce(
+    async (_url, init) =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            init?.signal?.addEventListener("abort", () => controller.error(init.signal?.reason), { once: true });
+          },
+        }),
+      ),
+  );
+  await expect((await fetchSyncResponse(context)).text()).rejects.toThrow("Request timed out");
+});
+
+it("preserves caller cancellation alongside the sync deadline", async () => {
+  const controller = new AbortController();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+        }),
+    ),
+  );
+  const request = fetchSyncResponse(
+    { provider: "Dropbox", url: "https://api.dropboxapi.com/2/files/list_folder" },
+    { signal: controller.signal },
+  );
+  controller.abort(new Error("Cancelled by caller"));
+  await expect(request).rejects.toThrow("Cancelled by caller");
 });

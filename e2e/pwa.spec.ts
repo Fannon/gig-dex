@@ -47,7 +47,9 @@ test("offline settings distinguish local songs, storage protection, installation
   await expect(settings).not.toContainText("No backup exported");
   await context.setOffline(true);
   await expect(settings).toContainText("Offline · cloud sync needs a connection");
-  await expect(page.getByRole("complementary", { name: "App status" })).toContainText("Offline");
+  await page.getByLabel("Offline app status", { exact: true }).click();
+  await expect(page.getByRole("region", { name: "App status", exact: true })).toContainText("Offline");
+  await page.keyboard.press("Escape");
   await settings.getByText("Install on an Android tablet", { exact: true }).click();
   await page.evaluate(() => {
     const route = document.querySelector(".app-route");

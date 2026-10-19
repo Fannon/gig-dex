@@ -2,7 +2,7 @@ import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 import type { RevisionCacheEntry } from "./sync/types";
-import { matchesLibrarySearch } from "./utils/librarySearch";
+import { createLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
 // Contains ALL ChordPro metadata fields for full compatibility
@@ -257,6 +257,17 @@ export const getSong = async (id: string): Promise<Song | undefined> => {
   return db.get("songs", id);
 };
 
+/** Read only requested songs, preserving missing and repeated setlist occurrences. */
+export const getSongs = async (ids: readonly string[]): Promise<(Song | undefined)[]> => {
+  if (!ids.length) return [];
+  const db = await initDB();
+  const tx = db.transaction("songs", "readonly");
+  const unique = [...new Set(ids)];
+  const [records] = await Promise.all([Promise.all(unique.map((id) => tx.store.get(id))), tx.done]);
+  const byId = new Map(unique.map((id, index) => [id, records[index]]));
+  return ids.map((id) => byId.get(id));
+};
+
 export const getAllSongs = async (): Promise<Song[]> => {
   const db = await initDB();
   return db.getAllFromIndex("songs", "by-updated");
@@ -264,8 +275,9 @@ export const getAllSongs = async (): Promise<Song[]> => {
 
 export const searchSongs = async (query: string): Promise<Song[]> => {
   const songs = await getAllSongs();
+  const matches = createLibrarySearch(query);
   return songs.filter((song) =>
-    matchesLibrarySearch([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags, query),
+    matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags),
   );
 };
 
@@ -347,12 +359,7 @@ export const getSetlistWithSongs = async (id: string): Promise<{ setlist: Setlis
   const setlist = await getSetlist(id);
   if (!setlist) return undefined;
 
-  const db = await initDB();
-  const songs: Song[] = [];
-  for (const songId of setlist.songIds) {
-    const song = await db.get("songs", songId);
-    if (song) songs.push(song);
-  }
+  const songs = (await getSongs(setlist.songIds)).filter((song) => song !== undefined);
 
   return { setlist, songs };
 };

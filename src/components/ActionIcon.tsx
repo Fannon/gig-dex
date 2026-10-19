@@ -9,6 +9,8 @@ const paths = {
   search: "M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
   display: "M4 7h7M15 7h5M4 17h3M11 17h9M11 4v6M7 14v6",
   sync: "M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5",
+  update: "M12 16V4M7 9l5-5 5 5M4 16v4h16v-4",
+  info: "M12 11v6M12 7h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0",
 };
 export function ActionIcon({ name }: { name: keyof typeof paths }) {
   return (

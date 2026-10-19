@@ -1,5 +1,7 @@
-import { useLocation } from "react-router-dom";
-import { applyPwaUpdate, usePwaState } from "../pwa/lifecycle";
+import { Link, useLocation } from "react-router-dom";
+import { usePwaState } from "../pwa/lifecycle";
+import { ActionIcon } from "./ActionIcon";
+import { PwaUpdateControls } from "./PwaUpdateControls";
 import "./PwaStatus.scss";
 
 export function PwaStatus() {
@@ -9,20 +11,41 @@ export function PwaStatus() {
   if (location.pathname.startsWith("/perform/")) return null;
   if (!state.update && state.online && !state.error) return null;
   return (
-    <aside className="pwa-status" aria-label="App status">
-      {!state.online && <span>Offline · using your local library</span>}
-      {state.update && (
-        <>
-          <span>
-            Update available
-            {state.blocked ? " · save edits or finish the current operation to restart" : ""}
-          </span>
-          <button type="button" disabled={state.blocked || state.updating} onClick={() => void applyPwaUpdate()}>
-            {state.updating ? "Updating…" : "Update and restart"}
-          </button>
-        </>
-      )}
-      {state.error && <span role="alert">{state.error}</span>}
-    </aside>
+    <details
+      className="pwa-status"
+      data-error={!!state.error}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.currentTarget.open = false;
+          event.currentTarget.querySelector("summary")?.focus();
+        }
+      }}
+    >
+      <summary
+        aria-label={
+          state.update ? "App update ready" : state.error ? "App status needs attention" : "Offline app status"
+        }
+        title={
+          state.update
+            ? "App update ready — restart to apply"
+            : state.error
+              ? "App status needs attention"
+              : "Offline · using your local library"
+        }
+      >
+        <ActionIcon name={state.update ? "update" : "info"} />
+        <span className="pwa-status__dot" aria-hidden="true" />
+      </summary>
+      <section className="pwa-status__panel" aria-label="App status">
+        <h2>{state.update ? "Update ready" : !state.online ? "You’re offline" : "App needs attention"}</h2>
+        {!state.online && <p>Offline · using your local library</p>}
+        {state.update && <PwaUpdateControls state={state} />}
+        {state.error && <p role="alert">{state.error}</p>}
+        <Link to="/settings?section=offline">Offline app settings</Link>
+      </section>
+    </details>
   );
 }

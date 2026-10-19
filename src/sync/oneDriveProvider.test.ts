@@ -35,7 +35,8 @@ it("logs failed preauthenticated downloads without exposing the signed URL or se
   await expect(new OneDriveProvider(config).downloadFile("item")).rejects.toThrow(
     "Could not download the OneDrive revision (503): Try again",
   );
-  expect(mocked.mock.calls[1][1]).toBeUndefined();
+  expect(new Headers(mocked.mock.calls[1][1]?.headers).has("Authorization")).toBe(false);
+  expect(mocked.mock.calls[1][1]?.body).toBeUndefined();
   expect(console.error).toHaveBeenCalledWith(
     "[Gig-Dex sync] OneDrive: HTTP request failed",
     expect.objectContaining({ status: 503, endpoint: "https://download.example.test/[revision download]" }),
@@ -74,7 +75,8 @@ it("lists paged app-folder revisions and downloads without leaking credentials",
   expect(files).toHaveLength(1);
   expect(files[0]).toMatchObject({ remoteId: "item", revision, etag: "etag" });
   expect(provider.getScope()).toBe("onedrive:folder");
-  expect(mocked.mock.calls[4][1]).toBeUndefined();
+  expect(new Headers(mocked.mock.calls[4][1]?.headers).has("Authorization")).toBe(false);
+  expect(mocked.mock.calls[4][1]?.body).toBeUndefined();
   expect(new Headers(mocked.mock.calls[3][1]?.headers).get("Authorization")).toBe("Bearer test-token");
 });
 it("refuses token-bearing pagination outside Graph", async () => {

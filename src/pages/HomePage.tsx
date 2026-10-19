@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { addSetlist, addSong, getAllSongs, LIBRARY_CHANGED_EVENT, type Song } from "../db";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
+import { addSetlist, addSong } from "../db";
 import { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "../utils/demoSong";
-import { matchesLibrarySearch, tagSearchQuery } from "../utils/librarySearch";
+import { createLibrarySearch, tagSearchQuery } from "../utils/librarySearch";
 import "./HomePage.scss";
 
 export const HomePage = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { songs, libraryLoading: loading, libraryError, refreshLibrary } = useOutletContext<LibraryWorkspaceContext>();
   const [error, setError] = useState("");
-  const [songs, setSongs] = useState<Song[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const setQuery = (value: string) => {
@@ -23,39 +23,12 @@ export const HomePage = () => {
       { replace: true },
     );
   };
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = () => {
-      void getAllSongs()
-        .then((library) => {
-          if (cancelled) return;
-          setSongs(library.sort((a, b) => a.title.localeCompare(b.title)));
-          setError("");
-          setLoading(false);
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setLoading(false);
-            setError("Could not load your songs. Reload to try again.");
-          }
-        });
-    };
-    refresh();
-    window.addEventListener(LIBRARY_CHANGED_EVENT, refresh);
-    window.addEventListener("focus", refresh);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(LIBRARY_CHANGED_EVENT, refresh);
-      window.removeEventListener("focus", refresh);
-    };
-  }, []);
-  const visibleSongs = useMemo(
-    () =>
-      songs.filter((song) =>
-        matchesLibrarySearch([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags, query),
-      ),
-    [songs, query],
-  );
+  const visibleSongs = useMemo(() => {
+    const matches = createLibrarySearch(query);
+    return songs.filter((song) =>
+      matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags),
+    );
+  }, [songs, query]);
   const addDemo = async () => {
     try {
       const tutorialId = await addSong({
@@ -89,6 +62,14 @@ export const HomePage = () => {
     <div className="home-page">
       <main className="home-page__content">
         {error && <p role="alert">{error}</p>}
+        {libraryError && (
+          <p role="alert">
+            {libraryError}{" "}
+            <button type="button" onClick={refreshLibrary}>
+              Retry
+            </button>
+          </p>
+        )}
         {loading ? (
           <output>Loading songs…</output>
         ) : songs.length ? (
@@ -145,7 +126,7 @@ export const HomePage = () => {
               <p className="home-page__no-results">No songs match your search.</p>
             )}
           </>
-        ) : (
+        ) : !libraryError ? (
           <div className="home-page__empty">
             <h1>No songs yet</h1>
             <p>Add your first song to get started</p>
@@ -153,7 +134,7 @@ export const HomePage = () => {
               Add Demo Songs
             </button>
           </div>
-        )}
+        ) : null}
       </main>
       <Link to="/song/new" className="home-page__fab" aria-label="Add song">
         +

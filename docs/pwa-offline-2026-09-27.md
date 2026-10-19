@@ -2,7 +2,7 @@
 
 Gig-Dex now provides explicit update activation, performance screen wake lock,
 offline/library readiness, persistent-storage controls, installation guidance,
-and app-file recovery. Settings → Offline & installation contains the controls;
+and app-file recovery. Settings → Offline contains the controls;
 performance mode contains Keep screen awake.
 
 Updates wait for user activation and are blocked during performance, dirty
@@ -10,6 +10,11 @@ editing, sync/cleanup, and library imports/restores/exports. Web Locks coordinat
 busy tabs where supported. Other browsers ask users to close other tabs. A changed
 controller never automatically reloads a reader. Older app versions may retain
 previous automatic-update behavior until reopened.
+
+The navbar's **App update ready** indicator means the new version has downloaded
+but still needs a restart. Open it for **Update and restart**, or choose
+**Restart when ready** while busy. The menu identifies the work to finish and
+lets you cancel a scheduled restart. Saved library records remain on the device.
 
 Wake lock is opt-in and remembered. The app reports denial/release, supports retry,
 reacquires when visible, releases late acquisitions safely and releases on exit.
@@ -21,7 +26,7 @@ Library counts refresh after data operations and sync. Cloud status remains in
 Cloud Sync; Wi-Fi connectivity does not imply a reachable cloud host. Backup
 export timestamps record a download request, not proof that a file was saved.
 
-Status notices occupy their own space rather than covering controls. Performance
+Status controls use a compact navbar menu without adding a header row. Performance
 mode suppresses them. Route download errors provide recovery controls. App-file
 repair checks the host before mutation and removes only this scope's service
 worker/Workbox precache; IndexedDB, preferences and unrelated caches survive.
