@@ -118,6 +118,31 @@ it("refreshes an expired session token and rotates the refresh token", async () 
   await provider.logout();
   expect(sessionStorage.getItem("onedrive_tokens")).toBeNull();
 });
+it.each(["network", 429, 503])("preserves the connection after a temporary refresh failure (%s)", async (failure) => {
+  const saved = { access_token: "expired", refresh_token: "refresh", expiresAt: 0 };
+  sessionStorage.setItem("onedrive_tokens", JSON.stringify(saved));
+  if (typeof failure === "number") respond({ error: "temporarily_unavailable" }, failure);
+  else mocked.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  const provider = new OneDriveProvider(config);
+  await expect(provider.authenticate()).rejects.toThrow();
+  expect(provider.isAuthenticated()).toBe(true);
+  expect(JSON.parse(sessionStorage.getItem("onedrive_tokens") ?? "null")).toEqual(saved);
+  respond({ access_token: "recovered", expires_in: 3600 });
+  respond({ id: "folder" });
+  await expect(provider.authenticate()).resolves.toBe(true);
+  expect(provider.getScope()).toBe("onedrive:folder");
+});
+it("requires reconnecting after the refresh token is revoked", async () => {
+  sessionStorage.setItem(
+    "onedrive_tokens",
+    JSON.stringify({ access_token: "expired", refresh_token: "secret-revoked-token", expiresAt: 0 }),
+  );
+  respond({ error: "invalid_grant", error_description: "Refresh token revoked" }, 400);
+  const provider = new OneDriveProvider(config);
+  await expect(provider.authenticate()).rejects.toThrow("Refresh token revoked");
+  expect(provider.isAuthenticated()).toBe(false);
+  expect(sessionStorage.getItem("onedrive_tokens")).toBeNull();
+});
 it("does not delete a revision without a concurrency token", async () => {
   await expect(
     new OneDriveProvider(config).archiveRevision({

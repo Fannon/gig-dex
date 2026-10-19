@@ -396,7 +396,7 @@ export const SongView = ({
         ) : (
           <div
             {...contentProps}
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
+            // Sanitized HTML from chord engine
             dangerouslySetInnerHTML={{ __html: !layout.fits && wrapLines ? flowHtml : parsed.html }}
           />
         )}

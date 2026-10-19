@@ -84,6 +84,27 @@ describe("library backups and imports", () => {
     expect(lists.some((list) => list.songIds.every((songId) => songId === imported?.id))).toBe(true);
     expect(lists.some((list) => list.songIds.every((songId) => songId === id))).toBe(true);
   });
+  it("merge skips equivalent setlists after a replace or a timestamp-only change", async () => {
+    await seed();
+    const backup = await exportLibrary();
+    await restoreLibrary(backup, "replace");
+    const db = await initDB();
+    const [list] = await getAllSetlists();
+    await db.put("setlists", {
+      ...list,
+      lastModified: "2030-01-01T00:00:00.000Z",
+      songSettings: list.songIds.map(() => ({ transpose: 0 })),
+    });
+    await restoreLibrary(backup, "merge");
+    await restoreLibrary(backup, "merge");
+    expect(await getAllSongs()).toHaveLength(1);
+    expect(await getAllSetlists()).toHaveLength(1);
+    expect((await getAllSetlists())[0].lastModified).toBe("2030-01-01T00:00:00.000Z");
+    backup.setlists[0].songSettings = [{ transpose: 2 }, { transpose: 0 }];
+    await restoreLibrary(backup, "merge");
+    expect(await getAllSetlists()).toHaveLength(2);
+    expect((await getAllSetlists()).some((item) => item.songSettings?.[0].transpose === 2)).toBe(true);
+  });
   it("adds setlists from a partial backup without replacing or duplicating existing songs", async () => {
     const songId = await seed();
     const full = await exportLibrary();

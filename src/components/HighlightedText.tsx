@@ -14,7 +14,7 @@ export function HighlightedText({ text, query }: { text: string; query: string }
   return (
     <>
       {text.split(pattern).map((part, index) =>
-        // biome-ignore lint/suspicious/noArrayIndexKey: These text fragments have no local state.
+        // These text fragments have no local state.
         index % 2 ? <mark key={index}>{part}</mark> : part,
       )}
     </>

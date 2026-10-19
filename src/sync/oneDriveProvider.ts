@@ -91,8 +91,18 @@ export class OneDriveProvider implements SyncProvider {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: this.config.clientId, scope: SCOPES, ...parameters }),
     });
-    if (!response.ok)
-      throw await syncHttpError(context, response, "Microsoft sign-in expired or failed. Connect OneDrive again");
+    if (!response.ok) {
+      // A temporary network or service failure must not discard the connection.
+      const reconnect = response.status === 400 || response.status === 401;
+      if (reconnect) await this.logout();
+      throw await syncHttpError(
+        context,
+        response,
+        reconnect
+          ? "Microsoft sign-in expired or failed. Connect OneDrive again"
+          : "Microsoft sign-in unavailable. Please retry",
+      );
+    }
     const result = await response.json();
     if (!response.ok || typeof result.access_token !== "string" || !Number.isFinite(Number(result.expires_in)))
       throw new Error("Microsoft sign-in expired or failed. Connect OneDrive again.");
@@ -105,12 +115,7 @@ export class OneDriveProvider implements SyncProvider {
   }
   private async refresh() {
     if (!this.tokens?.refresh_token) throw new Error("Connect OneDrive again to continue.");
-    try {
-      await this.token({ grant_type: "refresh_token", refresh_token: this.tokens.refresh_token });
-    } catch (error) {
-      await this.logout();
-      throw error;
-    }
+    await this.token({ grant_type: "refresh_token", refresh_token: this.tokens.refresh_token });
   }
   async authenticate() {
     if (!this.isEnabled()) throw new Error("A Microsoft Client ID is required to enable OneDrive.");

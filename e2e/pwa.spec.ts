@@ -103,6 +103,7 @@ test("performance wake lock is remembered, retried and released on exit", async 
 test("a failed route download shows a recovery view with the library preserved", async ({ page, context }) => {
   await page.goto("./");
   await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
   await context.route("**/src/pages/SettingsPage.tsx*", (route) => route.abort());
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "This view couldn’t load" })).toBeVisible();

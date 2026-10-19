@@ -61,7 +61,7 @@ export const TempoIndicator = ({
       <span className="tempo-indicator__dots" aria-hidden="true">
         {Array.from({ length: beats }, (_, index) => (
           <span
-            // biome-ignore lint/suspicious/noArrayIndexKey: Dots represent fixed beat positions in a bar.
+            // Dots represent fixed beat positions in a bar.
             key={index}
             className={running && beat === index ? "active" : ""}
             data-beat={index + 1}

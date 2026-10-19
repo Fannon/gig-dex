@@ -28,6 +28,15 @@ import {
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
+const extendedMetadataFields = ["composer", "lyricist", "copyright", "album", "year", "duration"] as const;
+
+function extractEditorMetadata(song: Partial<Song>): SongMetadata {
+  const metadata = extractMetadata(song.content ?? "");
+  return {
+    ...metadata,
+    ...Object.fromEntries(extendedMetadataFields.map((key) => [key, metadata[key] ?? song[key]])),
+  };
+}
 
 export const SongPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -270,7 +279,7 @@ export const SongPage = () => {
 
     // Extract existing metadata from original content to preserve extended fields
     // (composer, lyricist, copyright, album, year, duration, subtitle)
-    const existingMetadata = extractMetadata(song.content || "");
+    const existingMetadata = extractEditorMetadata(song);
 
     // Build metadata from form fields, merged with existing extended metadata
     const metadata: SongMetadata = {
@@ -380,7 +389,7 @@ export const SongPage = () => {
         const chordPro = simpleToChordPro(simpleContent);
         // Preserve extended metadata while updating the editable fields.
         const metadata: SongMetadata = {
-          ...extractMetadata(song.content || ""),
+          ...extractEditorMetadata(song),
           subtitle: song.subtitle || undefined,
           title: song.title || undefined,
           artist: song.artist || undefined,
@@ -764,7 +773,7 @@ Whisper words of wisdom, let it be`}
                   <div className="label">Preview</div>
                   <div
                     className="song-page__preview-content"
-                    // biome-ignore lint/security/noDangerouslySetInnerHtml: Sanitized HTML from chord engine
+                    // Sanitized HTML from chord engine
                     dangerouslySetInnerHTML={{ __html: previewHtml }}
                   />
                 </div>
@@ -796,7 +805,12 @@ Whisper words of wisdom, let it be`}
                           ([key, value]) => value !== undefined && value !== oldMetadata[key as keyof SongMetadata],
                         ),
                       );
-                      return { ...previous, ...changedMetadata, content };
+                      const removedMetadata = Object.fromEntries(
+                        extendedMetadataFields
+                          .filter((key) => oldMetadata[key] !== undefined && newMetadata[key] === undefined)
+                          .map((key) => [key, undefined]),
+                      );
+                      return { ...previous, ...removedMetadata, ...changedMetadata, content };
                     });
                   }}
                   placeholder={`{start_of_verse: Verse 1}

@@ -1,7 +1,7 @@
 import { initDB, notifyLibraryMutated, type Setlist, type Song } from "../db";
 import { type DeletionRecord, isDeletion, type LibraryRecord, type SyncConflict, syncKey } from "../sync/records";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
-import { recordFingerprint, stableStringify } from "./recordFingerprint";
+import { recordFingerprint } from "./recordFingerprint";
 
 export interface LibraryBackup {
   format: "gig-dex";
@@ -16,8 +16,7 @@ export interface LibraryBackup {
 export function parseBackup(content: string): LibraryBackup {
   const value = JSON.parse(content);
   if (
-    !value ||
-    value.format !== "gig-dex" ||
+    value?.format !== "gig-dex" ||
     value.version !== 1 ||
     typeof value.exportedAt !== "string" ||
     !Number.isFinite(Date.parse(value.exportedAt)) ||
@@ -164,7 +163,7 @@ export async function restoreLibrary(backup: LibraryBackup, mode: "merge" | "rep
       const existing = mode === "merge" ? listMap.get(list.id) : undefined;
       const changed =
         mode === "merge" &&
-        (deleted.has(list.id) || (!!existing && stableStringify(updated) !== stableStringify(existing)));
+        (deleted.has(list.id) || (!!existing && recordFingerprint(updated) !== recordFingerprint(existing)));
       const id = changed ? crypto.randomUUID() : list.id;
       remap.set(list.id, id);
       await tx.objectStore("tombstones").delete(id);

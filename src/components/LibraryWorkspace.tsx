@@ -474,7 +474,7 @@ export function LibraryWorkspace() {
                         {current.songIds.map((id, index) => (
                           // biome-ignore lint/a11y/noStaticElementInteractions: Alt+arrows reorder entries with the keyboard.
                           <div
-                            // biome-ignore lint/suspicious/noArrayIndexKey: Rows represent ordered occurrences.
+                            // Rows represent ordered occurrences.
                             key={`${id}:${index}`}
                             data-drop-before={dropSlot === index}
                             data-drop-after={index === current.songIds.length - 1 && dropSlot === index + 1}
@@ -676,9 +676,10 @@ export function LibraryWorkspace() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
               event.preventDefault();
-              dialog.current?.querySelector<HTMLAnchorElement>(".workspace-search__results a")?.focus();
+              const links = dialog.current?.querySelectorAll<HTMLAnchorElement>(".workspace-search__results a");
+              links?.[event.key === "ArrowDown" ? 0 : links.length - 1]?.focus();
             }
             if (event.key === "Enter" && results[0]) {
               setSearchOpen(false);
@@ -690,10 +691,20 @@ export function LibraryWorkspace() {
           {query.trim() ? `${results.length} results` : "Search songs and setlists by title, artist, date or tags"}
         </output>
         <div className="workspace-search__results">
-          {results.map((result) => (
+          {results.map((result, index) => (
             <Link
               key={`${result.type}:${result.id}`}
               to={result.url}
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                event.preventDefault();
+                const next = index + (event.key === "ArrowDown" ? 1 : -1);
+                if (next < 0) search.current?.focus();
+                else
+                  dialog.current
+                    ?.querySelectorAll<HTMLAnchorElement>(".workspace-search__results a")
+                    [Math.min(next, results.length - 1)]?.focus();
+              }}
               onClick={() => {
                 setSearchOpen(false);
                 if (window.matchMedia("(max-width: 800px)").matches) setOpen(false);
