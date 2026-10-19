@@ -12,6 +12,7 @@ import {
 } from "../db";
 import { usePwaState } from "../pwa/lifecycle";
 import { syncHosts } from "../sync";
+import { CLIENT_CONFIG_EVENT } from "../sync/clientConfig";
 import { getSyncConflicts } from "../sync/syncStore";
 import { matchesLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
@@ -67,6 +68,7 @@ export function LibraryWorkspace() {
   const [error, setError] = useState("");
   const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
   const [syncRunning, setSyncRunning] = useState(() => syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
+  const [syncConfigured, setSyncConfigured] = useState(false);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(
     () => readPreference("sidebar-open", window.matchMedia("(max-width: 800px)").matches ? "false" : "true") === "true",
@@ -104,6 +106,7 @@ export function LibraryWorkspace() {
     let disposed = false;
     const refreshSyncAttention = () => {
       setSyncRunning(syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
+      setSyncConfigured(syncHosts.some(({ provider }) => provider.isAuthenticated?.() || provider.getFolderName?.()));
       const statusIssue = syncHosts.some(({ manager }) => {
         const status = manager.getStatus();
         return !!status.error || !!status.conflictCount;
@@ -117,11 +120,18 @@ export function LibraryWorkspace() {
         });
     };
     refreshSyncAttention();
+    void Promise.allSettled(syncHosts.map(({ provider }) => provider.ready)).then(() => {
+      if (!disposed) refreshSyncAttention();
+    });
     window.addEventListener("gigdex-sync-status", refreshSyncAttention);
+    window.addEventListener(CLIENT_CONFIG_EVENT, refreshSyncAttention);
+    window.addEventListener(LIBRARY_CHANGED_EVENT, refreshSyncAttention);
     window.addEventListener("focus", refreshSyncAttention);
     return () => {
       disposed = true;
       window.removeEventListener("gigdex-sync-status", refreshSyncAttention);
+      window.removeEventListener(CLIENT_CONFIG_EVENT, refreshSyncAttention);
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, refreshSyncAttention);
       window.removeEventListener("focus", refreshSyncAttention);
     };
   }, []);
@@ -329,14 +339,25 @@ export function LibraryWorkspace() {
           className="workspace-sync-link"
           data-syncing={syncRunning}
           data-needs-attention={syncNeedsAttention}
+          data-configured={syncConfigured}
           aria-label={
-            syncNeedsAttention
-              ? "Sync needs attention — open sync settings"
-              : syncRunning
-                ? "Syncing library — open sync settings"
-                : "Sync settings"
+            syncRunning
+              ? "Syncing library — open sync settings"
+              : syncNeedsAttention
+                ? "Sync needs attention — open sync settings"
+                : syncConfigured
+                  ? "Sync settings"
+                  : "Sync settings — no sync connected"
           }
-          title={syncNeedsAttention ? "Sync needs attention" : syncRunning ? "Syncing library" : "Sync settings"}
+          title={
+            syncRunning
+              ? "Syncing library"
+              : syncNeedsAttention
+                ? "Sync needs attention"
+                : syncConfigured
+                  ? "Sync settings"
+                  : "No sync connected"
+          }
         >
           <ActionIcon name="sync" />
           {syncNeedsAttention && (

@@ -1,7 +1,7 @@
 import type { DBSchema, IDBPDatabase } from "idb";
 import { openDB } from "idb";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
-import type { SyncMetadata } from "./sync/types";
+import type { RevisionCacheEntry } from "./sync/types";
 import { matchesLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
@@ -50,7 +50,7 @@ interface Setlist {
 
 interface GigDexDB extends DBSchema {
   syncHandles: { key: string; value: { id: string; handle: FileSystemDirectoryHandle } };
-  revisionCache: { key: string; value: SyncMetadata };
+  revisionCache: { key: string; value: RevisionCacheEntry };
   tombstones: { key: string; value: DeletionRecord };
   syncBases: { key: string; value: SyncBase };
   syncConflicts: { key: string; value: SyncConflict };

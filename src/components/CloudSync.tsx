@@ -26,6 +26,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
   const [ready, setReady] = useState(!provider.ready);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [setupOpen, setSetupOpen] = useState(false);
   const update = useCallback(() => {
     const value = manager.getStatus();
     setStatus(value);
@@ -114,7 +115,35 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
     : "Keep songs and sets in sync across devices. Setup required.";
   return (
     <section className="settings-page__sync-box" aria-label={`${provider.name} sync`}>
-      {!provider.isEnabled() ? (
+      {!provider.pickFolder && !connected ? (
+        <div className="settings-page__option">
+          <div className="settings-page__option-text">
+            <h3>{provider.name} Sync</h3>
+            <p>
+              {provider.isEnabled()
+                ? "App settings saved. Connect your account to start syncing songs and setlists."
+                : "Sync songs and setlists across devices. Start with a one-time app setup."}
+            </p>
+          </div>
+          {(!setupOpen || provider.name !== "Dropbox") && (
+            <button
+              type="button"
+              className="settings-page__sync-btn"
+              disabled={busy || status.isSyncing || !ready}
+              aria-expanded={provider.isEnabled() ? undefined : setupOpen}
+              aria-controls={
+                provider.isEnabled() ? undefined : `sync-${provider.name.toLowerCase().replaceAll(" ", "-")}-settings`
+              }
+              onClick={() => {
+                if (provider.isEnabled()) void sync();
+                else setSetupOpen(true);
+              }}
+            >
+              {provider.isEnabled() ? `Connect ${provider.name}` : `Set up ${provider.name}`}
+            </button>
+          )}
+        </div>
+      ) : !provider.isEnabled() ? (
         <div className="settings-page__option settings-page__option--disabled">
           <div className="settings-page__option-text">
             <h3>{provider.name} Sync</h3>
@@ -205,7 +234,14 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
         </details>
       )}
       {provider.name !== "Local Folder" && (
-        <SyncClientSettings provider={provider.name as "Dropbox" | "Google Drive" | "OneDrive"} guide={providerGuide} />
+        <SyncClientSettings
+          provider={provider.name as "Dropbox" | "Google Drive" | "OneDrive"}
+          guide={providerGuide}
+          open={setupOpen}
+          onOpenChange={setSetupOpen}
+          onConnect={provider.name === "Dropbox" && !connected ? () => void sync() : undefined}
+          connecting={busy || status.isSyncing || !ready}
+        />
       )}
       {provider.pickFolder && !connected && !folder && (
         <p className="settings-page__provider-help">

@@ -8,15 +8,25 @@ type CloudProvider = "Dropbox" | "Google Drive" | "OneDrive";
 export function SyncClientSettings({
   provider,
   guide,
+  open,
+  onOpenChange,
+  onConnect,
+  connecting = false,
 }: {
   provider: CloudProvider;
   guide: { href: string; label: string };
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConnect?: () => void;
+  connecting?: boolean;
 }) {
   const [settings, setSettings] = useState(readClientSettings);
   const [saved, setSaved] = useState(readClientSettings);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
+  const redirectUrl = new URL(`${import.meta.env.BASE_URL}dropbox-callback.html`, window.location.origin).href;
   useEffect(() => {
     refreshSyncClientConfig();
     const changed = (event: StorageEvent) => {
@@ -49,7 +59,13 @@ export function SyncClientSettings({
       const value = readClientSettings();
       setSettings(value);
       setSaved(value);
-      setMessage(clear ? `${provider} override cleared.` : `${provider} settings saved. Reconnect if prompted.`);
+      setMessage(
+        clear
+          ? `${provider} override cleared.`
+          : provider === "Dropbox"
+            ? "App key saved. Connect your Dropbox account below to start syncing."
+            : `${provider} settings saved. Reconnect if prompted.`,
+      );
     } catch (error) {
       setError(error instanceof Error ? error.message : `Could not save ${provider} settings.`);
     } finally {
@@ -60,18 +76,60 @@ export function SyncClientSettings({
   const source = (key: "google" | "microsoft" | "dropbox") =>
     saved[key] ? "Settings value" : effective[key] ? "Build-time configuration" : "Not configured";
   return (
-    <details className="settings-page__client-settings">
+    <details
+      id={`sync-${provider.toLowerCase().replaceAll(" ", "-")}-settings`}
+      className="settings-page__client-settings"
+      open={open}
+      onToggle={(event) => onOpenChange(event.currentTarget.open)}
+    >
       <summary>Configure {provider}</summary>
-      <p>
-        {provider === "Dropbox"
-          ? "Add the public app key from your Dropbox app registration. Register this site’s redirect URL first."
-          : "Add the public Client ID from your cloud app registration. Register this site’s redirect URL first."}{" "}
-        This setting stays in this browser. See the{" "}
-        <a className="settings-page__sync-guide" href={guide.href} target="_blank" rel="noopener noreferrer">
-          {guide.label}
-        </a>
-        .
-      </p>
+      {provider === "Dropbox" ? (
+        <div className="settings-page__setup-step">
+          <h4>1. Create your Dropbox app</h4>
+          <p>
+            This is a one-time setup. Open the{" "}
+            <a
+              className="settings-page__sync-guide"
+              href="https://www.dropbox.com/developers/apps"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Dropbox App Console
+            </a>{" "}
+            and create an app with <strong>Scoped access</strong> and <strong>App folder</strong> access. Follow the{" "}
+            <a className="settings-page__sync-guide" href={guide.href} target="_blank" rel="noopener noreferrer">
+              {guide.label}
+            </a>{" "}
+            to enable the required permissions.
+          </p>
+          <label htmlFor="sync-dropbox-redirect">Add this redirect URL in your Dropbox app’s Settings</label>
+          <div className="settings-page__copy-field">
+            <input id="sync-dropbox-redirect" aria-label="Dropbox redirect URL" readOnly value={redirectUrl} />
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard
+                  ?.writeText(redirectUrl)
+                  .then(() => setCopyMessage("Redirect URL copied."))
+                  .catch(() => setCopyMessage("Select and copy the redirect URL above."));
+                if (!navigator.clipboard) setCopyMessage("Select and copy the redirect URL above.");
+              }}
+            >
+              Copy URL
+            </button>
+          </div>
+          {copyMessage && <output>{copyMessage}</output>}
+        </div>
+      ) : (
+        <p>
+          Add the public Client ID from your cloud app registration. Register this site’s redirect URL first. This
+          setting stays in this browser. See the{" "}
+          <a className="settings-page__sync-guide" href={guide.href} target="_blank" rel="noopener noreferrer">
+            {guide.label}
+          </a>
+          .
+        </p>
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -80,6 +138,8 @@ export function SyncClientSettings({
       >
         {provider === "Dropbox" && (
           <>
+            <h4>2. Save your app key</h4>
+            <p>Copy the App key from your Dropbox app’s Settings. Use the public key, not the app secret.</p>
             <label htmlFor="sync-dropbox-app-key">Dropbox app key</label>
             <input
               id="sync-dropbox-app-key"
@@ -132,7 +192,7 @@ export function SyncClientSettings({
         )}
         <div className="settings-page__option-actions">
           <button type="submit" disabled={busy}>
-            Save {provider} settings
+            {provider === "Dropbox" ? "Save app key" : `Save ${provider} settings`}
           </button>
           <button type="button" disabled={busy} onClick={() => void save(true)}>
             Clear {provider} override
@@ -141,6 +201,20 @@ export function SyncClientSettings({
       </form>
       {message && <output>{message}</output>}
       {error && <p role="alert">{error}</p>}
+      {provider === "Dropbox" && onConnect && (
+        <div className="settings-page__setup-step">
+          <h4>3. Connect your account</h4>
+          <p>Sign in to Dropbox and approve access to your app folder. Your songs stay available on this device.</p>
+          <button
+            type="button"
+            className="settings-page__sync-btn"
+            onClick={onConnect}
+            disabled={busy || connecting || !effective.dropbox || settings.dropbox.trim() !== saved.dropbox}
+          >
+            {connecting ? "Connecting…" : "Connect Dropbox"}
+          </button>
+        </div>
+      )}
     </details>
   );
 }

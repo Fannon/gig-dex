@@ -12,8 +12,10 @@ test.describe("Settings Page", () => {
   test("sync has its own navbar link to sync settings", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto("./");
-    const syncLink = page.getByRole("link", { name: "Sync settings" });
+    const syncLink = page.getByRole("link", { name: "Sync settings — no sync connected", exact: true });
     await expect(syncLink).toBeVisible();
+    await expect(syncLink).toHaveAttribute("data-configured", "false");
+    await expect(syncLink).toHaveCSS("color", "rgb(165, 165, 178)");
     expect(await page.locator(".workspace-topbar").evaluate((header) => header.scrollWidth <= header.clientWidth)).toBe(
       true,
     );

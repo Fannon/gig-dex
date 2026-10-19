@@ -1,6 +1,61 @@
 import { createHash } from "node:crypto";
 import { type BrowserContext, expect, test } from "@playwright/test";
 
+for (const theme of ["black", "light"]) {
+  test(`navbar shows syncing, failure, recovery and disconnect in ${theme}`, async ({ page, context }) => {
+    await context.addInitScript((theme) => {
+      localStorage.setItem("reading-theme", theme);
+      localStorage.setItem("byoid:dropbox_app_key", "testappkey123");
+      sessionStorage.setItem(
+        "dropbox_tokens",
+        JSON.stringify({
+          access_token: "mock-access",
+          expiresAt: Date.now() + 3600000,
+          account_id: "dbid:navbar",
+          appKey: "testappkey123",
+        }),
+      );
+    }, theme);
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let fail = false;
+    await context.route("https://api.dropboxapi.com/2/files/list_folder", async (route) => {
+      await gate;
+      await route.fulfill(
+        fail
+          ? { status: 503, json: { error_summary: "temporarily_unavailable" } }
+          : { json: { entries: [], has_more: false } },
+      );
+    });
+    await page.goto("./settings?section=sync");
+    const link = page.locator(".workspace-sync-link");
+    await expect(link).toHaveAttribute("data-syncing", "true");
+    await expect(link).toHaveCSS("background-color", theme === "light" ? "rgb(103, 82, 169)" : "rgb(100, 82, 194)");
+    await expect(link.locator("svg")).toHaveCSS("animation-duration", "6s");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(link.locator("svg")).toHaveCSS("animation-name", "none");
+    release();
+    await expect(link).toHaveAttribute("data-syncing", "false");
+    await expect(link).toHaveAttribute("data-configured", "true");
+    const host = page.getByRole("region", { name: "Dropbox sync", exact: true });
+    fail = true;
+    await host.getByRole("button", { name: "Sync now", exact: true }).click();
+    await expect(link).toHaveAttribute("data-needs-attention", "true");
+    await expect(link).toHaveCSS("color", theme === "light" ? "rgb(150, 50, 54)" : "rgb(255, 180, 180)");
+    await expect(link).toHaveAccessibleName("Sync needs attention — open sync settings");
+    fail = false;
+    await host.getByRole("button", { name: "Sync now", exact: true }).click();
+    await expect(link).toHaveAttribute("data-syncing", "false");
+    await expect(link).toHaveAttribute("data-needs-attention", "false");
+    await host.getByRole("button", { name: "Stop syncing", exact: true }).click();
+    await expect(link).toHaveAttribute("data-configured", "false");
+    await expect(link).toHaveCSS("color", theme === "light" ? "rgb(102, 97, 111)" : "rgb(165, 165, 178)");
+    await expect(link).toHaveAccessibleName("Sync settings — no sync connected");
+  });
+}
+
 test("Dropbox popup uses PKCE, connects through settings, and rejects mismatched state", async ({ page, context }) => {
   let challenge = "";
   let verifier = "";
@@ -58,9 +113,13 @@ test("Dropbox popup uses PKCE, connects through settings, and rejects mismatched
     ),
   );
   await page.goto("./settings?section=sync");
-  await page.getByText("Configure Dropbox", { exact: true }).click();
+  await page.getByRole("button", { name: "Set up Dropbox", exact: true }).click();
+  await expect(page.getByLabel("Dropbox redirect URL")).toHaveValue(
+    new URL("dropbox-callback.html", new URL(".", page.url())).href,
+  );
+  await expect(page.getByRole("button", { name: "Connect Dropbox", exact: true })).toBeDisabled();
   await page.getByLabel("Dropbox app key").fill("testappkey123");
-  await page.getByRole("button", { name: "Save Dropbox settings" }).click();
+  await page.getByRole("button", { name: "Save app key", exact: true }).click();
   const host = page.getByRole("region", { name: "Dropbox sync", exact: true });
   await expect(host.getByRole("button", { name: /Connect Dropbox/ })).toBeVisible();
   await host.getByRole("button", { name: /Connect Dropbox/ }).click();

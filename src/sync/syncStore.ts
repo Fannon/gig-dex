@@ -46,14 +46,14 @@ async function write(tx: Transaction, type: RecordType, record: LibraryRecord) {
     }
   }
 }
-async function transact(action: (tx: Transaction) => Promise<void>) {
+async function transact(action: (tx: Transaction) => Promise<void>, notify = true) {
   const db = await initDB();
   const tx = db.transaction(stores, "readwrite");
   void tx.done.catch(() => {});
   try {
     await action(tx);
     await tx.done;
-    notifyLibraryChanged();
+    if (notify) notifyLibraryChanged();
   } catch (error) {
     try {
       tx.abort();
@@ -101,6 +101,7 @@ export async function acknowledge(
   revisions: string[],
   apply: boolean,
   scope = "",
+  options: { notify?: boolean } = {},
 ) {
   await transact(async (tx) => {
     if (stableStringify(await current(tx, type, record.id)) !== stableStringify(expectedLocal))
@@ -112,7 +113,7 @@ export async function acknowledge(
       revisions,
     });
     await tx.objectStore("syncConflicts").delete(syncKey(type, record.id, scope));
-  });
+  }, options.notify ?? true);
 }
 /** Resolution is local and durable. Next sync joins the reviewed remote revisions. */
 export async function resolveConflict(id: string, choice: "local" | "both" | number) {
