@@ -32,6 +32,7 @@ async function textContrast(locator: Locator) {
 for (const theme of ["black", "violet", "light"])
   for (const viewport of [
     { width: 1440, height: 900 },
+    { width: 320, height: 720 },
     { width: 390, height: 844 },
   ]) {
     test(`Settings text and Dropbox setup stay readable in ${theme} at ${viewport.width}px`, async ({ page }) => {
@@ -39,6 +40,9 @@ for (const theme of ["black", "violet", "light"])
       await page.setViewportSize(viewport);
       await page.goto("./settings");
       await page.getByLabel("Theme", { exact: true }).selectOption(theme);
+      const navigation = page.getByRole("navigation", { name: "Settings sections", exact: true });
+      for (const button of await navigation.getByRole("button").all())
+        await expect(button).toBeInViewport({ ratio: 1 });
       for (const section of ["Sync", "Appearance", "Library", "Offline", "About"]) {
         const tab = page.getByRole("button", { name: section, exact: true });
         await tab.click();

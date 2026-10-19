@@ -52,7 +52,7 @@ Your library lives **on your device** (in your browser). That means it's private
 
 **1. Backup file: simple and available to everyone**
 
-*Settings → Library → Export library* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. To add one on any device, select it under *Settings → Library → Restore backup*, review the file preview, leave **Restore mode** on **Merge**, then press **Import**. Selecting the file alone does not import it. **Replace library** removes the current library first; use it only with a complete backup.
+*Settings → Library → Export library* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. To add one on any device, select it under *Settings → Library → Restore backup*, review the file preview, leave **Restore mode** on **Merge**, then press **Import backup**. Selecting the file alone does not import it. **Replace library** removes the current library first; use it only with a complete backup.
 
 Use this before gigs, before updates, before cleaning up. It just works.
 
@@ -68,7 +68,7 @@ The navbar sync icon rotates slowly on a colored background during sync, turns r
 
 If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, folder sync needs no separate app registration:
 
-In *Settings → Sync → Sync from a folder on this computer*, pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
+In *Settings → Sync → Sync from a folder on this computer*, select **Choose folder** and pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
 
 Gig-Dex checks the folder when it opens and syncs after saved edits and imports while the app is open. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** if files arrive while Gig-Dex stays open and you want to pull them immediately. No extra login in Gig-Dex, no registration, and folder sync works offline.
 

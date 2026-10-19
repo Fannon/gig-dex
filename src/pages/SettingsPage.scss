@@ -1,8 +1,7 @@
 .settings-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
   --bg-primary: #17161b;
   --bg-secondary: #201f26;
   --bg-elevated: #2a2832;
@@ -53,8 +52,11 @@
 
   &__content {
     flex: 1;
-    padding: 1.5rem;
+    width: 100%;
+    max-width: 1080px;
+    padding: clamp(1rem, 2vw, 1.5rem);
     overflow-y: auto;
+    > h1 { margin: 0 0 1rem; font-size: 1.75rem; }
   }
 
   &__section {
@@ -310,8 +312,8 @@
 
 .settings-page__tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: .5rem;
-  overflow-x: auto;
   margin: 1rem 0 1.5rem;
   padding-bottom: .4rem;
   border-bottom: 1px solid var(--border-color);
@@ -328,6 +330,22 @@
     &[aria-current="page"] { color: var(--text-primary); background: #5143b7; }
     &:focus-visible { outline: 2px solid #c2bbfc; outline-offset: 2px; }
   }
+}
+.settings-page__intro { margin: 0 0 1rem; font-size: .9rem; line-height: 1.5; }
+.settings-page__card {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  h3 { margin: 0 0 .5rem; font-size: 1rem; font-weight: 500; }
+  p { margin: 0 0 .75rem; font-size: .9rem; line-height: 1.5; }
+  label { font-size: .9rem; }
+  > :last-child { margin-bottom: 0; }
+}
+@media (max-width: 650px) {
+  .settings-page__tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; button { padding-inline: .35rem; font-size: .9rem; } }
+  .settings-page__appearance > label { grid-template-columns: minmax(90px, 110px) minmax(0, 1fr); gap: .5rem; }
 }
 .settings-page__content > div[hidden] { display: none; }
 .settings-page__sync-intro, .settings-page__activity {
@@ -466,4 +484,56 @@
   gap: .5rem;
   input { flex: 1 1 240px; font-size: .85rem; }
   button { flex-shrink: 0; }
+}
+
+// Keep Settings actions consistent across sections and reading themes.
+:root[data-reading-theme] .settings-page .settings-page__content {
+  button, input::file-selector-button {
+    min-height: 44px;
+    max-width: 100%;
+    padding: .6rem .85rem;
+    border: 1px solid var(--settings-control-border);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .9rem;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+  button {
+    &:hover:not(:disabled) { border-color: var(--color-accent); filter: brightness(1.08); transform: none; }
+    &:disabled { opacity: .55; cursor: not-allowed; }
+  }
+  :is(.settings-page__button--primary, .settings-page__sync-btn, .settings-page__client-settings button[type=submit]) {
+    background: var(--settings-primary);
+    color: #fff;
+    border-color: transparent;
+  }
+  :is(.settings-page__button--danger, .settings-page__logout-btn) {
+    background: var(--settings-danger-bg);
+    color: var(--settings-danger);
+    border-color: currentColor;
+  }
+  .settings-page__tabs button {
+    background: transparent;
+    color: var(--text-secondary);
+    border-color: transparent;
+    &[aria-current=page] { background: var(--settings-tab-bg); color: var(--settings-tab-text); }
+    &:hover:not([aria-current=page]) { background: var(--bg-elevated); }
+  }
+  .settings-page__feedback { margin-top: .75rem; }
+  output { display: block; margin-top: .75rem; font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+  .settings-page__about-links { flex-wrap: wrap; a { text-decoration: underline; text-underline-offset: .15em; } }
+  [role=alert] { color: var(--settings-danger); background: var(--settings-danger-bg); border: 1px solid currentColor; border-radius: 8px; padding: .75rem; overflow-wrap: anywhere; }
+}
+@media (max-width: 650px) {
+  :root[data-reading-theme] .settings-page .settings-page__content .settings-page__tabs button { padding-inline: .3rem; }
+}
+@media (max-width: 380px) {
+  .settings-page__appearance > label {
+    grid-template-columns: minmax(0, 1fr);
+    select { width: 100%; justify-self: stretch; }
+    &:has(input[type=checkbox]) { grid-template-columns: 1fr auto; }
+  }
 }

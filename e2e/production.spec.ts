@@ -1,5 +1,21 @@
 import { expect, test } from "@playwright/test";
 
+test("a failed update check shows an error without a success message", async ({ page }) => {
+  // biome-ignore lint/suspicious/noSkippedTests: Requires an actual production service-worker registration.
+  test.skip(!process.env.PLAYWRIGHT_URL, "Requires the production preview server.");
+  await page.goto("./settings?section=offline");
+  const card = page.getByRole("region", { name: "App updates", exact: true });
+  await expect(card.getByRole("button", { name: "Check for updates", exact: true })).toBeEnabled();
+  await page.evaluate(() => {
+    ServiceWorkerRegistration.prototype.update = async () => {
+      throw new Error("Connection unavailable");
+    };
+  });
+  await card.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await expect(card.getByRole("alert")).toContainText("Could not check for updates");
+  await expect(card.getByRole("status")).toHaveCount(0);
+});
+
 test("production chunks load on demand and cached songs work offline", async ({ page, context }) => {
   // biome-ignore lint/suspicious/noSkippedTests: Production checks run separately against a built preview server in CI.
   test.skip(!process.env.PLAYWRIGHT_URL, "Requires the production preview server.");

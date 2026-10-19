@@ -23,7 +23,12 @@ export function PwaUpdateControls({ state, disabled = false }: { state: PwaState
           Cancel restart
         </button>
       ) : (
-        <button type="button" disabled={disabled || state.updating} onClick={() => void applyPwaUpdate()}>
+        <button
+          type="button"
+          className="settings-page__button--primary"
+          disabled={disabled || state.updating}
+          onClick={() => void applyPwaUpdate()}
+        >
           {state.updating ? "Updating…" : state.blocked ? "Restart when ready" : "Update and restart"}
         </button>
       )}

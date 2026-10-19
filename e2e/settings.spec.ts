@@ -1,4 +1,32 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+
+test("phone settings expose every section and export works with the keyboard and nearby feedback", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto("./settings?section=library");
+  const navigation = page.getByRole("navigation", { name: "Settings sections", exact: true });
+  for (const section of ["Appearance", "Library", "Sync", "Offline", "About"])
+    await expect(navigation.getByRole("button", { name: section, exact: true })).toBeInViewport({ ratio: 1 });
+  const card = page.getByRole("region", { name: "Back up your library", exact: true });
+  const button = card.getByRole("button", { name: "Export library", exact: true });
+  await button.focus();
+  await expect(button).toBeFocused();
+  const pending = page.waitForEvent("download");
+  await button.press("Enter");
+  const download = await pending;
+  expect(download.suggestedFilename()).toMatch(/^gig-dex-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  const contents = JSON.parse(await readFile((await download.path()) ?? "", "utf8"));
+  expect(contents).toMatchObject({ format: "gig-dex", version: 1, songs: [], setlists: [] });
+  await expect(card.getByRole("status")).toHaveText("Backup downloaded: 0 songs and 0 setlists.");
+  await navigation.getByRole("button", { name: "About", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Project & help", exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(navigation.getByRole("button", { name: "Library", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(button).toBeVisible();
+});
 
 test.describe("Settings Page", () => {
   test("should navigate to settings page", async ({ page }) => {
@@ -32,7 +60,7 @@ test.describe("Settings Page", () => {
 
     await page.getByRole("button", { name: "Library", exact: true }).click();
     // Use more specific locators
-    await expect(page.locator(".settings-page__option-text h3").filter({ hasText: "Export library" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Export library", exact: true })).toBeVisible();
     await expect(page.getByLabel("Restore backup")).toBeVisible();
     await expect(page.getByLabel("Import ChordPro songs")).toBeVisible();
   });

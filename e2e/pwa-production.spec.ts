@@ -147,7 +147,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     await cold.evaluate(async () => {
       await (await caches.open("unrelated-app-cache")).put("/unrelated", new Response("keep me"));
     });
-    await cold.getByText("Refresh app files", { exact: true }).click();
+    await cold.locator("summary").filter({ hasText: "Repair app files" }).click();
     cold.once("dialog", (dialog) => dialog.accept());
     await cold.getByRole("button", { name: "Repair app files" }).click();
     await cold.goto(fixture.url);

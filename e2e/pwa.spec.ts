@@ -27,8 +27,13 @@ test("offline settings distinguish local songs, storage protection, installation
   await settings.getByText("Technical details", { exact: true }).click();
   await expect(settings).toContainText("2 songs · 1 setlist stored on this device");
   await expect(settings).toContainText("1.0 MB of 100.0 MB");
-  await settings.getByRole("button", { name: "Keep my library safe" }).click();
+  await settings.getByRole("button", { name: "Protect local storage" }).click();
   await expect(settings).toContainText("Persistent storage granted");
+  await expect(settings.getByText("Storage protection is on.", { exact: false })).toBeVisible();
+  await settings.getByRole("button", { name: "Refresh offline status", exact: true }).click();
+  await expect(settings.getByRole("region", { name: "App updates", exact: true }).getByRole("status")).toHaveText(
+    "Offline status refreshed.",
+  );
   await page.evaluate(() => {
     const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
       prompt: async () => {
@@ -56,9 +61,32 @@ test("offline settings distinguish local songs, storage protection, installation
     if (route) route.scrollTop = 0;
   });
   await page.screenshot({ path: "reports/pwa/settings-phone.png" });
-  await settings.getByText("Refresh app files", { exact: true }).scrollIntoViewIfNeeded();
+  await settings.locator("summary").filter({ hasText: "Repair app files" }).scrollIntoViewIfNeeded();
+  await settings.locator("summary").filter({ hasText: "Repair app files" }).click();
+  await expect(settings.getByRole("button", { name: "Repair app files", exact: true })).toBeDisabled();
+  await expect(settings.getByText("Go online before repairing app files.", { exact: true })).toBeVisible();
   await page.screenshot({ path: "reports/pwa/installation-phone.png" });
   await context.setOffline(false);
+});
+
+test("storage permission errors appear beside the action without claiming success", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "storage", {
+      configurable: true,
+      value: {
+        persisted: async () => false,
+        persist: async () => {
+          throw new Error("Storage permission unavailable");
+        },
+        estimate: async () => ({}),
+      },
+    });
+  });
+  await page.goto("./settings?section=offline");
+  const card = page.getByRole("region", { name: "Keep your library on this device", exact: true });
+  await card.getByRole("button", { name: "Protect local storage", exact: true }).click();
+  await expect(card.getByRole("alert")).toHaveText("Storage permission unavailable");
+  await expect(card.getByRole("status")).toHaveCount(0);
 });
 
 test("performance wake lock is remembered, retried and released on exit", async ({ page }) => {

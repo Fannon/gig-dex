@@ -1,6 +1,6 @@
 # Local folder sync and your own cloud Client IDs
 
-In Settings → Sync, **Sync from a folder on this computer** selects a dedicated Gig-Dex
+In Settings → Sync, **Choose folder** under **Sync from a folder on this computer** selects a dedicated Gig-Dex
 folder. Choose a folder inside your OneDrive, Google Drive, Dropbox or Nextcloud
 desktop folder to let that application's desktop client transport revisions.
 Local-folder sync itself works offline and needs no OAuth registration. Wait for

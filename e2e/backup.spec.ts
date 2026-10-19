@@ -5,7 +5,7 @@ test("import multiple songs, report duplicates and invalid content, export and r
   page,
 }) => {
   await page.goto("./settings?section=library");
-  await expect(page.getByRole("heading", { name: "Import / Restore" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
   await expect(page.locator(".data-management__file").first()).toHaveCSS("align-items", "stretch");
   const content = "{title: Harbor}\n{artist: River Band}\n{composer: Original Composer}\n[C]Original test song";
   await page.getByLabel("Import ChordPro songs").setInputFiles([
@@ -19,6 +19,8 @@ test("import multiple songs, report duplicates and invalid content, export and r
     { name: "empty.cho", mimeType: "text/plain", buffer: Buffer.from("") },
   ]);
   await expect(page.getByRole("status")).toContainText("2 imported, 1 duplicates skipped, 1 failed");
+  const imported = page.getByRole("region", { name: "Add song files", exact: true });
+  await expect(imported.getByText("empty.cho", { exact: true })).toBeVisible();
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.evaluate(async () => {
     const base = location.pathname.replace(/settings$/, "");
@@ -29,6 +31,9 @@ test("import multiple songs, report duplicates and invalid content, export and r
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: /Export library/ }).click();
   const download = await pending;
+  await expect(
+    page.getByRole("region", { name: "Back up your library", exact: true }).getByRole("status"),
+  ).toContainText("Backup downloaded: 2 songs and 1 setlist.");
   const file = await download.path();
   expect(file).not.toBeNull();
   const backup = await readFile(file ?? "", "utf8");
@@ -45,12 +50,14 @@ test("import multiple songs, report duplicates and invalid content, export and r
   await expect(page.getByLabel("Restore mode")).toHaveValue("merge");
   await expect(page.getByText(/Selecting a file does not change your library/)).toBeVisible();
   await expect(page.getByText(/Nothing has been imported yet/)).toBeVisible();
-  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.getByRole("button", { name: "Import backup", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Import complete on this device.");
   await page
     .getByLabel("Restore backup")
     .setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from("{}") });
-  await expect(page.getByRole("alert")).toContainText("Not a supported");
+  await expect(
+    page.getByRole("region", { name: "Restore from a backup", exact: true }).getByRole("alert"),
+  ).toContainText("Not a supported");
   await page.goto("./setlists");
   await expect(page.locator(".setlists-page__song")).toHaveCount(2);
   await page.goto("./");
