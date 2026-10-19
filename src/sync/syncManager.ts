@@ -161,7 +161,7 @@ export class SyncManager {
   private async read(file: SyncMetadata): Promise<RemoteVersion> {
     const remoteId = file.remoteId ?? file.gdriveId;
     if (!remoteId) throw new Error("Missing remote file identity.");
-    const value = parseSyncFile(await this.provider.downloadFile(remoteId));
+    const value = parseSyncFile(await (this.provider.downloadSnapshot?.(file) ?? this.provider.downloadFile(remoteId)));
     await verifySyncFile(value);
     const { _sync: _envelope, ...data } = value;
     const envelope = syncEnvelope(value);
@@ -247,7 +247,7 @@ export class SyncManager {
         record,
       );
       try {
-        await acknowledge(type, record, local, [revision], false, this.scope);
+        await acknowledge(type, record, local, [revision], false, this.scope, { notify: false });
       } catch (error) {
         if (error instanceof Error && error.message === "Library changed during sync. Please sync again.")
           await noteUploadedRevision(type, record, [revision], base, this.scope);
@@ -285,14 +285,14 @@ export class SyncManager {
     }
     if (remoteSame && localSame) {
       if (revisions.length > 1) await pushAndAcknowledge(local, revisions);
-      else await acknowledge(type, local, local, revisions, false, this.scope);
+      else await acknowledge(type, local, local, revisions, false, this.scope, { notify: false });
       return;
     }
     if (remoteSame && (!local || (base && !base.resolved && recordFingerprint(local) === base.fingerprint))) {
       const joined = revisions.length > 1;
       const heads = joined ? [await this.push(type, remote, revisions)] : revisions;
       try {
-        await acknowledge(type, remote, local, heads, true, this.scope);
+        await acknowledge(type, remote, local, heads, true, this.scope, { notify: false });
         countChange(stats.received, local ? [local] : [], remote);
       } catch (error) {
         if (joined && error instanceof Error && error.message === "Library changed during sync. Please sync again.")

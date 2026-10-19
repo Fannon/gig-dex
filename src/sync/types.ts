@@ -13,6 +13,11 @@ export interface SyncMetadata {
   version?: string;
 }
 
+/** Optional local bytes, tied to a provider's immutable revision/ETag. Never synced or backed up. */
+export interface RevisionCacheEntry extends SyncMetadata {
+  content?: string;
+}
+
 export interface SyncProvider {
   name: string;
   ready?: Promise<void>;
@@ -31,6 +36,9 @@ export interface SyncProvider {
 
   // Download a specific file
   downloadFile(id: string): Promise<string>;
+  // Read the version from the latest listing; providers may reuse matching verified bytes.
+  // downloadFile remains a fresh read for cleanup and ambiguous-upload verification.
+  downloadSnapshot?(metadata: SyncMetadata): Promise<string>;
 
   // Upload a file
   uploadFile(metadata: SyncMetadata, content: string): Promise<void>;

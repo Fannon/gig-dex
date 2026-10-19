@@ -58,9 +58,11 @@ Use this before gigs, before updates, before cleaning up. It just works.
 
 **2. Dropbox sync: easiest direct option across desktop and mobile**
 
-Dropbox works directly in the browser on desktop and mobile. You first register your own free Dropbox app, copy its public app key into *Settings → Sync → Add sync provider → Configure Dropbox*, and connect your account. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
+Dropbox works directly in the browser on desktop and mobile. Open **Settings → Sync → Add sync provider → Set up Dropbox** for the three setup steps: create a Dropbox app, save its public app key, and connect your account. The setup includes your site's redirect URL with a copy button. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
 
 Once connected, Gig-Dex checks for remote changes when it opens and syncs after you save a song or setlist or finish an import. Use **Sync now** for an immediate check if another device changed the library while this app stayed open. Dropbox needs internet access, and you may need to reconnect after closing the browser session.
+
+The navbar sync icon rotates slowly on a colored background during sync, turns red when sync needs attention, and stays grey when no provider is connected. Select it to open sync settings.
 
 **3. Local folder sync: use your existing cloud folder**
 

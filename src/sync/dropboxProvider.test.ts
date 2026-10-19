@@ -179,6 +179,30 @@ it("shows Dropbox's plain-text 400 reason for folder listing failures", async ()
   );
 });
 
+it.each(["expired", "401"])("shares one token refresh across concurrent downloads (%s)", async (reason) => {
+  const saved = JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "{}");
+  sessionStorage.setItem(
+    "dropbox_tokens",
+    JSON.stringify({ ...saved, refresh_token: "refresh", expiresAt: reason === "expired" ? 0 : saved.expiresAt }),
+  );
+  let refreshes = 0;
+  mocked.mockImplementation(async (url, init) => {
+    if (String(url).endsWith("/oauth2/token")) {
+      refreshes++;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return new Response(JSON.stringify({ access_token: "new-access", expires_in: 3600 }));
+    }
+    if (new Headers(init?.headers).get("Authorization") !== "Bearer new-access")
+      return new Response(JSON.stringify({ error_summary: "expired_access_token" }), { status: 401 });
+    return new Response(JSON.stringify(record));
+  });
+  const provider = new DropboxProvider("testappkey123");
+  const values = await Promise.all(Array.from({ length: 4 }, () => provider.downloadFile(file.id)));
+  expect(values).toHaveLength(4);
+  expect(refreshes).toBe(1);
+  expect(provider.getScope()).toBe("dropbox:testappkey123:dbid:user");
+});
+
 it("logs a failed token refresh with API diagnostics without exposing OAuth credentials", async () => {
   sessionStorage.setItem(
     "dropbox_tokens",

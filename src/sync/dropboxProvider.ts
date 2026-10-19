@@ -10,12 +10,15 @@ import {
   revisionFilename,
   SYNC_FORMAT_VERSION,
   syncEnvelope,
+  verifySyncFile,
 } from "./syncFormat";
 import type { SyncMetadata, SyncProvider } from "./types";
 
 const API = "https://api.dropboxapi.com/2";
 const CONTENT = "https://content.dropboxapi.com/2";
 const TOKEN_KEY = "dropbox_tokens";
+const LIST_CONCURRENCY = 4;
+const SNAPSHOT_MEMORY_LIMIT = 8 * 1024 * 1024;
 type Tokens = { access_token: string; refresh_token?: string; expiresAt: number; account_id?: string; appKey: string };
 type Item = { ".tag": string; id?: string; name: string; path_lower?: string; rev?: string; server_modified?: string };
 
@@ -24,6 +27,10 @@ export class DropboxProvider implements SyncProvider {
   private appKey: string;
   private tokens: Tokens | null = null;
   private listedRevisions = new Map<string, string>();
+  private listedContents = new Map<string, string>();
+  private listedContentBytes = 0;
+  private cachedContentIds = new Set<string>();
+  private refreshing: Promise<void> | null = null;
   constructor(appKey = effectiveClientConfig().dropbox) {
     this.appKey = appKey;
     try {
@@ -94,8 +101,14 @@ export class DropboxProvider implements SyncProvider {
     sessionStorage.setItem(TOKEN_KEY, JSON.stringify(this.tokens));
   }
   private async refresh() {
+    if (this.refreshing) return this.refreshing;
     if (!this.tokens?.refresh_token) throw new Error("Connect Dropbox again to continue.");
-    await this.token({ grant_type: "refresh_token", refresh_token: this.tokens.refresh_token });
+    this.refreshing = this.token({ grant_type: "refresh_token", refresh_token: this.tokens.refresh_token }).finally(
+      () => {
+        this.refreshing = null;
+      },
+    );
+    return this.refreshing;
   }
   async authenticate() {
     if (!this.isEnabled()) throw new Error("A Dropbox app key is required to enable sync.");
@@ -157,6 +170,9 @@ export class DropboxProvider implements SyncProvider {
   async logout() {
     this.tokens = null;
     this.listedRevisions.clear();
+    this.listedContents.clear();
+    this.listedContentBytes = 0;
+    this.cachedContentIds.clear();
     sessionStorage.removeItem(TOKEN_KEY);
   }
   private async request(url: string, init: RequestInit = {}, retried = false): Promise<Response> {
@@ -165,8 +181,9 @@ export class DropboxProvider implements SyncProvider {
       throw new Error("Invalid Dropbox API URL.");
     if (!this.tokens) throw new Error("Connect Dropbox first.");
     if (this.tokens.expiresAt <= Date.now() + 60000 && !retried) await this.refresh();
+    const accessToken = this.tokens.access_token;
     const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${this.tokens.access_token}`);
+    headers.set("Authorization", `Bearer ${accessToken}`);
     const context = {
       provider: this.name,
       url,
@@ -174,8 +191,8 @@ export class DropboxProvider implements SyncProvider {
       secrets: [this.tokens.access_token, this.tokens.refresh_token],
     };
     const response = await fetchSyncResponse(context, { ...init, headers });
-    if (response.status === 401 && !retried && this.tokens.refresh_token) {
-      await this.refresh();
+    if (response.status === 401 && !retried && this.tokens?.refresh_token) {
+      if (this.tokens.access_token === accessToken) await this.refresh();
       return this.request(url, init, true);
     }
     if (response.status === 401) {
@@ -216,13 +233,15 @@ export class DropboxProvider implements SyncProvider {
       visited.add(result.cursor);
       result = await this.rpc("files/list_folder/continue", { cursor: result.cursor });
     }
-    const records: SyncMetadata[] = [];
     this.listedRevisions.clear();
+    this.listedContents.clear();
+    this.listedContentBytes = 0;
+    this.cachedContentIds.clear();
     const db = await initDB();
     const prefix = `${this.getScope()}::`;
-    for (const item of entries) {
+    const read = async (item: Item): Promise<SyncMetadata | undefined> => {
       const match = parseRevisionFilename(item.name ?? "");
-      if (item[".tag"] !== "file" || !match || !item.id || !item.rev || !item.path_lower) continue;
+      if (item[".tag"] !== "file" || !match || !item.id || !item.rev || !item.path_lower) return;
       const cacheKey = `${prefix}${item.id}`;
       this.listedRevisions.set(item.id, item.rev);
       const cached = await db.get("revisionCache", cacheKey);
@@ -234,10 +253,12 @@ export class DropboxProvider implements SyncProvider {
         cached.revision === match.revision &&
         cached.type === match.type
       ) {
-        records.push({ ...cached, uploadedAt: item.server_modified });
-        continue;
+        if (cached.content) this.cachedContentIds.add(item.id);
+        const { content: _content, ...metadata } = cached;
+        return { ...metadata, uploadedAt: item.server_modified };
       }
-      const value = parseSyncFile(await this.downloadRevision(item.path_lower, item.rev));
+      const content = await this.downloadRevision(item.path_lower, item.rev);
+      const value = parseSyncFile(content);
       const envelope = syncEnvelope(value);
       if (
         typeof value.id !== "string" ||
@@ -258,16 +279,49 @@ export class DropboxProvider implements SyncProvider {
         etag: item.rev,
         uploadedAt: item.server_modified,
       };
-      records.push(metadata);
       await db.put("revisionCache", metadata, cacheKey).catch(() => undefined);
-    }
+      const bytes = new TextEncoder().encode(content).byteLength;
+      if (this.listedContentBytes + bytes <= SNAPSHOT_MEMORY_LIMIT) {
+        this.listedContents.set(item.id, content);
+        this.listedContentBytes += bytes;
+      }
+      return metadata;
+    };
+    const records: (SyncMetadata | undefined)[] = new Array(entries.length);
+    let index = 0;
+    let failed = false;
+    let failure: unknown;
+    const worker = async () => {
+      while (!failed && index < entries.length) {
+        const current = index++;
+        try {
+          records[current] = await read(entries[current]);
+        } catch (error) {
+          if (!failed) failure = error;
+          failed = true;
+        }
+      }
+    };
+    // Drain in-flight reads before returning an error, so no old run can write
+    // cache entries after a new sync or account switch has begun.
+    await Promise.all(Array.from({ length: Math.min(LIST_CONCURRENCY, entries.length) }, worker));
+    if (failed) throw failure;
     const present = new Set(entries.filter((item) => item.id).map((item) => `${prefix}${item.id}`));
     for (const key of await db.getAllKeys("revisionCache", IDBKeyRange.bound(prefix, `${prefix}\uffff`)))
       if (!present.has(key)) await db.delete("revisionCache", key);
-    return records;
+    return records.filter((record) => record !== undefined);
   }
   async listFiles() {
-    return syncHeads(await this.listRevisions());
+    const revisions = await this.listRevisions();
+    const heads = syncHeads(revisions);
+    const current = new Set(heads.map((file) => file.remoteId));
+    const db = await initDB();
+    const prefix = `${this.getScope()}::`;
+    // Keep complete bytes only for current heads; history needs metadata alone.
+    for (const file of revisions)
+      if (file.remoteId && this.cachedContentIds.has(file.remoteId) && !current.has(file.remoteId))
+        await db.put("revisionCache", file, `${prefix}${file.remoteId}`).catch(() => undefined);
+    return heads;
   }
   private async downloadRevision(path: string, expectedRev?: string) {
     const response = await this.request(`${CONTENT}/files/download`, {
@@ -282,6 +336,39 @@ export class DropboxProvider implements SyncProvider {
   }
   async downloadFile(id: string) {
     return this.downloadRevision(id, this.listedRevisions.get(id));
+  }
+  async downloadSnapshot(metadata: SyncMetadata) {
+    const id = metadata.remoteId;
+    if (!id) throw new Error("Missing Dropbox file identity.");
+    const expected = this.listedRevisions.get(id);
+    if (!expected || expected !== metadata.etag) return this.downloadFile(id);
+    const db = await initDB();
+    const key = `${this.getScope()}::${id}`;
+    const cached = await db.get("revisionCache", key);
+    let content = this.listedContents.get(id);
+    if (
+      !content &&
+      cached?.etag === expected &&
+      cached.id === metadata.id &&
+      cached.type === metadata.type &&
+      cached.revision === metadata.revision &&
+      cached.content
+    ) {
+      try {
+        await verifySyncFile(parseSyncFile(cached.content));
+        return cached.content;
+      } catch {
+        // A corrupt optional cache must recover from the current remote bytes.
+      }
+    }
+    content ??= await this.downloadFile(id);
+    const value = parseSyncFile(content);
+    await verifySyncFile(value);
+    // Legacy files without a checksum keep their existing fresh-read behavior.
+    if ((value._sync as { formatVersion?: number } | undefined)?.formatVersion === SYNC_FORMAT_VERSION)
+      await db.put("revisionCache", { ...metadata, content }, key).catch(() => undefined);
+    this.listedContents.delete(id);
+    return content;
   }
   async uploadFile(metadata: SyncMetadata, content: string) {
     if (!metadata.revision) throw new Error("Missing Dropbox revision identity.");

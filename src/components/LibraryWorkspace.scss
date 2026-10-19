@@ -103,21 +103,30 @@
   font-size: .75rem;
   font-weight: 700;
 }
-.workspace-sync-link {
+.workspace-topbar .workspace-sync-link {
   position: relative;
   display: grid;
   place-items: center;
   flex: none;
   width: 38px;
   height: 38px;
-  color: var(--text-secondary);
+  color: #a5a5b2;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 8px;
   text-decoration: none;
   &:hover, &:focus-visible { color: white; background: var(--bg-elevated); }
   svg { width: 20px; height: 20px; }
-  &[data-syncing=true] svg { color: var(--color-accent); animation: workspace-sync-spin .8s linear infinite; }
-  &[data-needs-attention=true] svg { color: #fca5a5; }
-  .workspace-sync-alert { position: absolute; top: 0; right: 0; width: .85rem; height: .85rem; margin: 0; font-size: .6rem; }
+  &[data-configured=true] { color: #c5bcff; }
+  &[data-needs-attention=true] { color: #ffb4b4; background: #321b25; border-color: #a95661; }
+  &[data-syncing=true] { color: #fff; background: #6452c2; border-color: #c5bcff; svg { animation: workspace-sync-spin 6s linear infinite; } }
+  .workspace-sync-alert { position: absolute; top: 0; right: 0; width: .85rem; height: .85rem; margin: 0; font-size: .6rem; color: #fff; }
+}
+:root[data-reading-theme=light] .workspace-topbar .workspace-sync-link {
+  color: #66616f;
+  &[data-configured=true] { color: #5745aa; }
+  &[data-needs-attention=true] { color: #963236; background: #f5e4e1; border-color: #b56b6d; }
+  &[data-syncing=true] { color: #fff; background: #6752a9; border-color: #5745aa; }
 }
 @keyframes workspace-sync-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .workspace-sync-link svg { animation: none !important; } }

@@ -4,19 +4,23 @@ Gig-Dex can sync directly with a Dropbox account from desktop or mobile browsers
 
 ## Set up your Dropbox app
 
-1. Open the [Dropbox App Console](https://www.dropbox.com/developers/apps) and choose **Create app**.
+1. Open **Gig-Dex → Settings → Sync → Add sync provider → Set up Dropbox**. In step 1, open the [Dropbox App Console](https://www.dropbox.com/developers/apps) and choose **Create app**.
 2. Choose **Scoped access** and **App folder** access. Give it a name. App folder access is important: full Dropbox access is unnecessary.
 3. In the app's **Permissions** tab, enable `files.metadata.read`, `files.content.read`, `files.content.write`, and `account_info.read`. Submit the permission changes.
-4. In **Settings**, add an exact **OAuth 2 Redirect URI** for each Gig-Dex URL you use:
+4. Use **Copy URL** in Gig-Dex's setup to copy your site's exact redirect URL. Add it under **OAuth 2 Redirect URIs** in the Dropbox app's **Settings**. Examples:
    - Hosted app: `https://fannon.github.io/gig-dex/dropbox-callback.html`
    - Local development: `http://localhost:5173/dropbox-callback.html` (adjust the port if Vite uses another one)
    - A custom deployment: `<origin><base-path>dropbox-callback.html`
 5. Copy the **App key** from Settings. Do not copy the app secret into Gig-Dex.
-6. Open **Gig-Dex → Settings → Sync → Add sync provider → Configure Dropbox**, paste the key into **Dropbox app key**, and save. Then select **Connect Dropbox** and approve the requested permissions. Repeat the app key entry and connection on each browser or device.
+6. In step 2 of Gig-Dex's setup, paste it into **Dropbox app key** and select **Save app key**. In step 3, select **Connect Dropbox** and approve the requested permissions. Repeat the app key entry and connection on each browser or device. To change an existing key, open **Configure Dropbox**.
 
 Dropbox may restrict an app in development mode to its registered users. Add other accounts as development users in the App Console, or follow Dropbox's production approval process before sharing it more widely.
 
 ## Using sync
+
+The first sync downloads revision metadata in batches of up to four requests. Gig-Dex locally caches verified current revisions by Dropbox account, app key, file ID and Dropbox revision. Later opens and **Sync now** list remote files and reuse unchanged revisions; changed Dropbox revisions are downloaded and checked again. The cache is optional, is excluded from backups, and does not change your Dropbox files. History cleanup and uncertain upload checks always read Dropbox directly.
+
+The navbar sync icon rotates slowly on a colored background while sync runs (or just changes color when reduced motion is enabled). Red means an error or conflict needs attention; grey means no provider is connected. Select it to open sync settings.
 
 After connecting, Gig-Dex checks for remote changes when it opens and syncs completed song and setlist edits and imports while the app is open. Several changes made together are sent in one run. Use **Sync now** to pull changes that arrived while Gig-Dex stayed open. Gig-Dex keeps local data available offline, but direct Dropbox sync needs a network connection. If sync fails, the reason appears under Dropbox in Settings. Pending changes retry after your next saved edit, when you return to the app, or when the browser comes back online; **Sync now** retries immediately. Temporary network and Dropbox service failures keep the connection available. Revoked or invalid credentials require reconnecting. If a conflict appears, review it in Settings, resolve it, and sync again. **Stop syncing** removes the browser's session credentials; it leaves songs and Dropbox files intact. The app key stays in this browser until you clear the override.
 
