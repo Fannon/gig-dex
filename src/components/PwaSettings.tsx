@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAllSetlists, getAllSongs, LIBRARY_CHANGED_EVENT } from "../db";
-import { applyPwaUpdate, checkPwaUpdate, installPwa, repairPwaCache, usePwaState } from "../pwa/lifecycle";
+import { checkPwaUpdate, installPwa, repairPwaCache, usePwaState } from "../pwa/lifecycle";
+import { PwaUpdateControls } from "./PwaUpdateControls";
 import "./PwaStatus.scss";
 
 export function PwaSettings() {
@@ -95,19 +96,11 @@ export function PwaSettings() {
             Check for updates
           </button>
         )}
-        {state.update && (
-          <button
-            type="button"
-            disabled={busy || state.blocked || state.updating}
-            onClick={() => void run(applyPwaUpdate)}
-          >
-            {state.updating ? "Updating…" : "Update and restart"}
-          </button>
-        )}
         <button type="button" disabled={busy} onClick={() => void refresh()}>
           Refresh offline status
         </button>
       </div>
+      {state.update && <PwaUpdateControls state={state} disabled={busy} />}
       {state.error && <p role="alert">{state.error}</p>}
       {message && <output>{message}</output>}
       <details>

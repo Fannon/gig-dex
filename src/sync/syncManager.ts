@@ -3,7 +3,7 @@ import { blockPwaUpdate } from "../pwa/lifecycle";
 import { parseDeletion, parseSyncedSetlist, parseSyncedSong } from "../utils/libraryValidation";
 import { recordFingerprint, stableStringify } from "../utils/recordFingerprint";
 import { addSyncActivity, type SyncActivityStats, type SyncChangeCounts } from "./activity";
-import { logSyncError } from "./diagnostics";
+import { isSyncConnectionError, logSyncError } from "./diagnostics";
 import {
   isDeletion,
   type LibraryRecord,
@@ -41,7 +41,7 @@ export class SyncManager {
   static async exclusive<T>(operation: () => Promise<T>): Promise<T> {
     if (SyncManager.busy) throw new Error("Another sync or cleanup is running. Please wait.");
     SyncManager.busy = true;
-    const releaseUpdate = blockPwaUpdate();
+    const releaseUpdate = blockPwaUpdate("operation");
     try {
       return await operation();
     } finally {
@@ -76,7 +76,7 @@ export class SyncManager {
       return;
     }
     SyncManager.busy = true;
-    const releaseUpdate = blockPwaUpdate();
+    const releaseUpdate = blockPwaUpdate("sync");
     this.status.isSyncing = true;
     this.status.error = null;
     window.dispatchEvent(new Event("gigdex-sync-status"));
@@ -115,6 +115,7 @@ export class SyncManager {
           await this.syncRecord(item.type, item.id, remote.get(key) ?? [], stats);
         } catch (error) {
           logSyncError(this.provider.name, "Sync record failed", error, item);
+          if (isSyncConnectionError(error)) throw error;
           const reason = error instanceof Error ? error.message : "Unknown error";
           if (reason.startsWith("Unsupported sync format version")) throw error;
           failures.push(`${item.type} ${item.id}: ${reason}`);

@@ -1,5 +1,60 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { createUpgradeServer } from "../scripts/pwa-upgrade-server.mjs";
+
+async function appStatus(page: Page) {
+  const summary = page.locator(".pwa-status > summary");
+  await expect(summary).toBeVisible();
+  const details = page.locator(".pwa-status");
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) await summary.click();
+  return page.getByRole("region", { name: "App status", exact: true });
+}
+
+for (const theme of ["black", "violet", "light"])
+  test(`update menu is compact and queues a safe restart in ${theme}`, async ({ page }) => {
+    // biome-ignore lint/suspicious/noSkippedTests: This exercises a real production service worker.
+    test.skip(!process.env.PLAYWRIGHT_URL, "Requires a completed production build.");
+    const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
+    try {
+      await page.addInitScript((theme) => localStorage.setItem("reading-theme", theme), theme);
+      await page.goto(fixture.url);
+      await page.getByRole("button", { name: "Add Demo Song" }).click();
+      await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+      await page.getByRole("button", { name: "Edit", exact: true }).click();
+      await page.getByLabel("Title", { exact: true }).fill("Saved before update");
+      fixture.upgrade();
+      await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
+      for (const width of [1440, 320]) {
+        await page.setViewportSize({ width, height: 900 });
+        const sidebar = page.getByRole("button", { name: "Toggle sidebar", exact: true });
+        if (width < 800 && (await sidebar.getAttribute("aria-expanded")) === "true") await sidebar.click();
+        const status = await appStatus(page);
+        await expect(status).toContainText("The update is downloaded. Restart Gig-Dex");
+        await expect(status).toContainText("Save or discard your unsaved edits.");
+        const header = await page.locator(".workspace-topbar").evaluate((element) => ({
+          height: element.getBoundingClientRect().height,
+          overflow: element.scrollWidth > element.clientWidth,
+        }));
+        expect(header).toEqual({ height: 54, overflow: false });
+        await page.screenshot({ path: `reports/pwa/update-navbar-${theme}-${width}.png` });
+        await page.keyboard.press("Escape");
+        await expect(status).not.toBeVisible();
+      }
+      const status = await appStatus(page);
+      await status.getByRole("button", { name: "Restart when ready", exact: true }).click();
+      await expect(status).toContainText("Restart scheduled");
+      await status.getByRole("button", { name: "Cancel restart", exact: true }).click();
+      await expect(status.getByRole("button", { name: "Restart when ready", exact: true })).toBeVisible();
+      await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "A");
+      await status.getByRole("button", { name: "Restart when ready", exact: true }).click();
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
+      await expect(page.locator(".song-page__title")).toHaveText("Saved before update");
+      await expect(page.locator(".pwa-status")).toHaveCount(0);
+    } finally {
+      await fixture.close();
+    }
+  });
 
 test("production upgrade waits for editors and readers across tabs; offline relaunch and repair preserve songs", async ({
   page,
@@ -43,12 +98,17 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     await other.goto(`${fixture.url}settings?section=offline`);
     await expect(other.getByRole("button", { name: "Update and restart" }).first()).toBeVisible();
     await other.getByRole("button", { name: "Update and restart" }).first().click();
-    await expect(other.getByText(/save edits in other Gig-Dex tabs/).first()).toBeVisible();
+    await expect(other.getByRole("region", { name: "Offline app", exact: true }).getByRole("alert")).toContainText(
+      "save edits in other Gig-Dex tabs",
+    );
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "A");
     await page.getByRole("link", { name: "← Exit" }).click();
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByLabel("Title", { exact: true }).fill("Offline tablet song");
-    await expect(page.getByRole("button", { name: "Update and restart" })).toBeDisabled();
+    const editingUpdate = await appStatus(page);
+    await expect(editingUpdate).toContainText("Save or discard your unsaved edits.");
+    await expect(editingUpdate.getByRole("button", { name: "Restart when ready" })).toBeEnabled();
+    await page.keyboard.press("Escape");
     await other.getByRole("button", { name: "Update and restart" }).first().click();
     await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Offline tablet song");
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -64,7 +124,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     await expect.poll(() => reader.evaluate((node) => node.scrollTop)).toBe(450);
     await page.getByRole("link", { name: "← Exit" }).click();
     await other.close();
-    await page.getByRole("button", { name: "Update and restart" }).click();
+    await (await appStatus(page)).getByRole("button", { name: "Update and restart" }).click();
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
     await expect(page.locator(".song-page__title")).toHaveText("Offline tablet song");
     await context.setOffline(true);
@@ -119,7 +179,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
     await page.evaluate(async () => {
       await (await navigator.serviceWorker.ready).update();
     });
-    await expect(page.getByRole("alert")).toContainText("App download failed");
+    await expect((await appStatus(page)).getByRole("alert")).toContainText("App download failed");
     await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.ready).waiting)).toBe(false);
     await context.setOffline(true);
     await page.reload();
@@ -130,8 +190,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
     await page.evaluate(async () => {
       await (await navigator.serviceWorker.ready).update();
     });
-    await expect(page.getByRole("button", { name: "Update and restart" })).toBeVisible();
-    await page.getByRole("button", { name: "Update and restart" }).click();
+    await (await appStatus(page)).getByRole("button", { name: "Update and restart" }).click();
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
     await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
     await expect(page.getByRole("alert")).toHaveCount(0);
@@ -164,14 +223,14 @@ test("update shows progress and an already-updated worker can restart another id
     await expect.poll(() => other.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
     fixture.upgrade();
     await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
-    await page.getByRole("button", { name: "Update and restart" }).click();
+    await (await appStatus(page)).getByRole("button", { name: "Update and restart" }).click();
     await expect(page.getByRole("button", { name: "Updating…", exact: true })).toBeDisabled();
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
     await expect(page.getByRole("button", { name: "Update and restart" })).toHaveCount(0);
     // The worker is already active; this tab still has deployment A loaded.
     await expect(other.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "A");
     expect(await other.evaluate(async () => (await navigator.serviceWorker.ready).waiting)).toBeNull();
-    await other.getByRole("button", { name: "Update and restart" }).click();
+    await (await appStatus(other)).getByRole("button", { name: "Update and restart" }).click();
     await expect(other.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
     await expect(other.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
     await expect(other.getByRole("alert")).toHaveCount(0);

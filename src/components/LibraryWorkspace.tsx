@@ -14,11 +14,12 @@ import { usePwaState } from "../pwa/lifecycle";
 import { syncHosts } from "../sync";
 import { CLIENT_CONFIG_EVENT } from "../sync/clientConfig";
 import { getSyncConflicts } from "../sync/syncStore";
-import { matchesLibrarySearch } from "../utils/librarySearch";
+import { createLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
 import { ActionIcon } from "./ActionIcon";
 import { HighlightedText } from "./HighlightedText";
+import { PwaStatus } from "./PwaStatus";
 import "./LibraryWorkspace.scss";
 
 const readPreference = (key: string, fallback = "") => {
@@ -37,6 +38,10 @@ const remember = (key: string, value: string) => {
 };
 
 export interface LibraryWorkspaceContext {
+  songs: Song[];
+  libraryLoading: boolean;
+  libraryError: string;
+  refreshLibrary: () => void;
   performanceHost: HTMLDivElement | null;
   setPerformanceExit: (url: string | null) => void;
   currentSetlistId: string | undefined;
@@ -65,6 +70,9 @@ export function LibraryWorkspace() {
   };
   const [songs, setSongs] = useState<Song[]>([]);
   const [lists, setLists] = useState<Setlist[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const [libraryError, setLibraryError] = useState("");
+  const refreshSequence = useRef(0);
   const [error, setError] = useState("");
   const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
   const [syncRunning, setSyncRunning] = useState(() => syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
@@ -85,19 +93,27 @@ export function LibraryWorkspace() {
   const search = useRef<HTMLInputElement>(null);
   const performance = location.pathname.startsWith("/perform/");
   const refresh = useCallback(() => {
+    const sequence = ++refreshSequence.current;
     void Promise.all([getAllSongs(), getAllSetlists()])
       .then(([library, setlists]) => {
+        if (sequence !== refreshSequence.current) return;
         setSongs(library.sort((a, b) => a.title.localeCompare(b.title)));
         setLists(setlists.sort((a, b) => a.name.localeCompare(b.name)));
-        setError("");
+        setLibraryError("");
+        setLibraryLoading(false);
       })
-      .catch(() => setError("Could not load the library. Try again."));
+      .catch(() => {
+        if (sequence !== refreshSequence.current) return;
+        setLibraryError("Could not load the library. Try again.");
+        setLibraryLoading(false);
+      });
   }, []);
   useEffect(() => {
     refresh();
     window.addEventListener(LIBRARY_CHANGED_EVENT, refresh);
     window.addEventListener("focus", refresh);
     return () => {
+      refreshSequence.current++;
       window.removeEventListener(LIBRARY_CHANGED_EVENT, refresh);
       window.removeEventListener("focus", refresh);
     };
@@ -143,8 +159,7 @@ export function LibraryWorkspace() {
       setChosen(routeList);
       remember("sidebar-current-setlist", routeList);
     }
-    refresh();
-  }, [location.pathname, location.search, refresh]);
+  }, [location.pathname, location.search]);
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -163,11 +178,10 @@ export function LibraryWorkspace() {
     } else dialog.current?.close();
   }, [searchOpen]);
   const current = lists.find((list) => list.id === chosen);
-  const selectCurrentSetlist = (id: string) => {
+  const selectCurrentSetlist = useCallback((id: string) => {
     setChosen(id);
     remember("sidebar-current-setlist", id);
-    refresh();
-  };
+  }, []);
   const changeSetlist = async (songId?: string, from?: number, to?: number, remove?: number) => {
     if (!current || busy) return;
     setBusy(true);
@@ -237,55 +251,82 @@ export function LibraryWorkspace() {
       if (to !== source.index) void changeSetlist(undefined, source.index, to);
     } else if (source.songId) void changeSetlist(source.songId, undefined, slot);
   };
-  const songMap = new Map(songs.map((song) => [song.id, song]));
+  const songMap = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs]);
   const songSetCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const list of lists) for (const id of new Set(list.songIds)) counts.set(id, (counts.get(id) ?? 0) + 1);
     return counts;
   }, [lists]);
-  const filteredSongs = songs.filter((song) =>
-    matchesLibrarySearch([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags, songQuery),
+  const workspaceContext = useMemo<LibraryWorkspaceContext>(
+    () => ({
+      songs,
+      libraryLoading,
+      libraryError,
+      refreshLibrary: refresh,
+      performanceHost,
+      setPerformanceExit,
+      currentSetlistId: current?.id,
+      currentSetlist: current,
+      setlists: lists,
+      songSetCounts,
+      selectCurrentSetlist,
+    }),
+    [
+      songs,
+      libraryLoading,
+      libraryError,
+      refresh,
+      performanceHost,
+      current,
+      lists,
+      songSetCounts,
+      selectCurrentSetlist,
+    ],
   );
-  const results = query.trim()
-    ? [
-        ...songs
-          .filter((song) =>
-            matchesLibrarySearch(
-              [song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "),
-              song.tags,
-              query,
-            ),
-          )
-          .map((song) => ({
-            id: song.id,
-            label: song.title,
-            detail: [song.subtitle, song.artist, ...song.tags.map((tag) => `#${tag.replace(/^#+/, "")}`)]
-              .filter(Boolean)
-              .join(" · "),
-            type: "Song" as const,
-            setCount: songSetCounts.get(song.id) ?? 0,
-            url: `/song/${song.id}`,
-          })),
-        ...lists
-          .filter((list) =>
-            matchesLibrarySearch(
-              [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])].join(" "),
-              list.tags ?? [],
-              query,
-              list.songIds,
-            ),
-          )
-          .map((list) => ({
-            id: list.id,
-            label: list.name,
-            detail: [list.date, list.description, ...(list.tags ?? []).map((tag) => `#${tag.replace(/^#+/, "")}`)]
-              .filter(Boolean)
-              .join(" · "),
-            type: "Setlist" as const,
-            url: `/setlist/${list.id}`,
-          })),
-      ]
-    : [];
+  const filteredSongs = useMemo(() => {
+    const matches = createLibrarySearch(songQuery);
+    return songs.filter((song) =>
+      matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags),
+    );
+  }, [songs, songQuery]);
+  const results = useMemo(() => {
+    const matches = createLibrarySearch(query);
+    return query.trim()
+      ? [
+          ...songs
+            .filter((song) =>
+              matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags),
+            )
+            .map((song) => ({
+              id: song.id,
+              label: song.title,
+              detail: [song.subtitle, song.artist, ...song.tags.map((tag) => `#${tag.replace(/^#+/, "")}`)]
+                .filter(Boolean)
+                .join(" · "),
+              type: "Song" as const,
+              setCount: songSetCounts.get(song.id) ?? 0,
+              url: `/song/${song.id}`,
+            })),
+          ...lists
+            .filter((list) =>
+              matches(
+                [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])].join(" "),
+                list.tags ?? [],
+                list.songIds,
+              ),
+            )
+            .map((list) => ({
+              id: list.id,
+              label: list.name,
+              detail: [list.date, list.description, ...(list.tags ?? []).map((tag) => `#${tag.replace(/^#+/, "")}`)]
+                .filter(Boolean)
+                .join(" · "),
+              type: "Setlist" as const,
+              url: `/setlist/${list.id}`,
+            })),
+        ]
+      : [];
+  }, [query, songs, lists, songSetCounts]);
   const go = (url: string) => {
     navigate(url);
     if (window.matchMedia("(max-width: 800px)").matches) setOpen(false);
@@ -366,6 +407,7 @@ export function LibraryWorkspace() {
             </span>
           )}
         </Link>
+        <PwaStatus />
         {performance && <div className="workspace-performance" ref={setPerformanceHost} />}
         <button
           className="workspace-search-button"
@@ -396,9 +438,9 @@ export function LibraryWorkspace() {
               onClick={() => setOpen(false)}
             />
             <aside id="library-sidebar" className="library-sidebar" aria-label="Library sidebar">
-              {error && (
+              {(error || libraryError) && (
                 <p role="alert">
-                  {error}{" "}
+                  {error || libraryError}{" "}
                   <button type="button" onClick={refresh}>
                     Retry
                   </button>
@@ -646,19 +688,7 @@ export function LibraryWorkspace() {
               </div>
             }
           >
-            <Outlet
-              context={
-                {
-                  performanceHost,
-                  setPerformanceExit,
-                  currentSetlistId: current?.id,
-                  currentSetlist: current,
-                  setlists: lists,
-                  songSetCounts,
-                  selectCurrentSetlist,
-                } satisfies LibraryWorkspaceContext
-              }
-            />
+            <Outlet context={workspaceContext} />
           </Suspense>
         </div>
       </div>

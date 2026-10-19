@@ -10,6 +10,7 @@ import {
   getSetlist,
   getSetlistWithSongs,
   getSong,
+  getSongs,
   initDB,
   searchSongs,
   updateSetlist,
@@ -27,6 +28,21 @@ describe("Database", () => {
     await tx.objectStore("songs").clear();
     await tx.objectStore("setlists").clear();
     await tx.done;
+  });
+
+  it("reads requested song occurrences in order, retains missing slots and ignores unrelated songs", async () => {
+    const first = await addSong({ title: "First", artist: "", content: "[C]First", tags: [] });
+    const second = await addSong({ title: "Second", artist: "", content: "[D]Second", tags: [] });
+    await addSong({ title: "Unrelated", artist: "", content: "[E]Unrelated", tags: [] });
+    expect((await getSongs([second, first, second, "missing"])).map((song) => song?.title)).toEqual([
+      "Second",
+      "First",
+      "Second",
+      undefined,
+    ]);
+    expect(await getSongs([])).toEqual([]);
+    const list = await addSetlist({ name: "Repeated", songIds: [second, "missing", first, second] });
+    expect((await getSetlistWithSongs(list))?.songs.map((song) => song.title)).toEqual(["Second", "First", "Second"]);
   });
 
   it("duplicates full setlist metadata and repeated references without changing the source", async () => {

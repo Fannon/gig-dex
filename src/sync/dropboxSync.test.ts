@@ -244,3 +244,60 @@ it("does not reuse cached bytes across Dropbox accounts or app keys", async () =
     expect(requests).toEqual(["/2/files/list_folder", "/2/files/download"]);
   }
 });
+
+it("releases sync after a stalled request times out and retains the account for retry", async () => {
+  await seedRemote(1);
+  const provider = new DropboxProvider("testappkey123");
+  const manager = new SyncManager(provider);
+  await manager.sync();
+  const fetchRemote = vi.mocked(fetch).getMockImplementation();
+  if (!fetchRemote) throw new Error("Missing Dropbox HTTP fixture");
+  vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException("Timed out", "TimeoutError")), 0);
+    return controller.signal;
+  });
+  vi.mocked(fetch).mockImplementationOnce(
+    (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+      }),
+  );
+  await manager.sync();
+  expect(manager.getStatus().error).toContain("timed out");
+  expect(manager.getStatus().isSyncing).toBe(false);
+  expect(SyncManager.isBusy()).toBe(false);
+  expect(provider.isAuthenticated()).toBe(true);
+  expect((await getSong("song-0"))?.title).toBe("Song 0");
+  await manager.sync();
+  expect(manager.getStatus().error).toBeNull();
+});
+
+it("stops after a connection failure instead of retrying the timeout for every song", async () => {
+  await seedRemote(12);
+  const manager = new SyncManager(new DropboxProvider("testappkey123"));
+  await manager.sync();
+  const db = await initDB();
+  for (const key of await db.getAllKeys("revisionCache")) {
+    const entry = await db.get("revisionCache", key);
+    if (entry) {
+      delete entry.content;
+      await db.put("revisionCache", entry, key);
+    }
+  }
+  const fetchRemote = vi.mocked(fetch).getMockImplementation();
+  if (!fetchRemote) throw new Error("Missing Dropbox HTTP fixture");
+  let downloads = 0;
+  vi.mocked(fetch).mockImplementation(async (url, init) => {
+    if (String(url).endsWith("/files/download")) {
+      downloads++;
+      throw new TypeError("Offline");
+    }
+    return fetchRemote(url, init);
+  });
+  await manager.sync();
+  expect(manager.getStatus().error).toContain("network request failed");
+  expect(downloads).toBe(1);
+  expect(SyncManager.isBusy()).toBe(false);
+  expect(await getAllSongs()).toHaveLength(12);
+});

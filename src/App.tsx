@@ -2,7 +2,6 @@ import { lazy } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { LibraryWorkspace } from "./components/LibraryWorkspace";
 import { PwaRecovery } from "./components/PwaRecovery";
-import { PwaStatus } from "./components/PwaStatus";
 import { HomePage } from "./pages/HomePage";
 import "./App.scss";
 
@@ -19,7 +18,6 @@ const router = createBrowserRouter(
       errorElement: <PwaRecovery />,
       element: (
         <div className="app-shell">
-          <PwaStatus />
           <div className="app-workspace">
             <LibraryWorkspace />
           </div>

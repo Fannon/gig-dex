@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { WorkspaceDialog } from "../components/WorkspaceDialog";
 import {
@@ -17,7 +17,7 @@ import {
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { displayCalendarDate, isCalendarDate, localCalendarDate } from "../utils/calendarDate";
-import { matchesLibrarySearch } from "../utils/librarySearch";
+import { createLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
 import "./SetlistsPage.scss";
@@ -87,23 +87,31 @@ export const SetlistsPage = () => {
     };
   }, []);
 
-  const ordered = [...setlists].sort((a, b) => {
-    if (sort === "date") return (b.date ?? "").localeCompare(a.date ?? "") || collator.compare(a.name, b.name);
-    if (sort === "name") return collator.compare(a.name, b.name) || a.id.localeCompare(b.id);
-    if (sort === "name-desc") return collator.compare(b.name, a.name) || a.id.localeCompare(b.id);
-    if (sort === "songs") return b.songIds.length - a.songIds.length || collator.compare(a.name, b.name);
-    return b.lastModified.localeCompare(a.lastModified) || collator.compare(a.name, b.name);
-  });
-  const tags = [...new Set(setlists.flatMap((list) => list.tags ?? []))].sort(collator.compare);
+  const ordered = useMemo(
+    () =>
+      [...setlists].sort((a, b) => {
+        if (sort === "date") return (b.date ?? "").localeCompare(a.date ?? "") || collator.compare(a.name, b.name);
+        if (sort === "name") return collator.compare(a.name, b.name) || a.id.localeCompare(b.id);
+        if (sort === "name-desc") return collator.compare(b.name, a.name) || a.id.localeCompare(b.id);
+        if (sort === "songs") return b.songIds.length - a.songIds.length || collator.compare(a.name, b.name);
+        return b.lastModified.localeCompare(a.lastModified) || collator.compare(a.name, b.name);
+      }),
+    [setlists, sort],
+  );
+  const tags = useMemo(
+    () => [...new Set(setlists.flatMap((list) => list.tags ?? []))].sort(collator.compare),
+    [setlists],
+  );
 
-  const filtered = ordered.filter((list) => {
-    const text = [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])]
-      .join(" ")
-      .toLocaleLowerCase();
-    return (!tag || list.tags?.includes(tag)) && matchesLibrarySearch(text, list.tags ?? [], search, list.songIds);
-  });
+  const filtered = useMemo(() => {
+    const matches = createLibrarySearch(search);
+    return ordered.filter((list) => {
+      const text = [list.name, list.date ?? "", list.description ?? "", ...(list.tags ?? [])].join(" ");
+      return (!tag || list.tags?.includes(tag)) && matches(text, list.tags ?? [], list.songIds);
+    });
+  }, [ordered, tag, search]);
   const selected = setlists.find((list) => list.id === id) ?? (!id ? filtered[0] : undefined);
-  const songMap = new Map(songs.map((song) => [song.id, song]));
+  const songMap = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs]);
   const preview = selected ? songMap.get(selected.songIds[songIndex]) : undefined;
   const originalDraft = draft?.id ? setlists.find((list) => list.id === draft.id) : undefined;
   const dirtyDraft =
@@ -123,12 +131,15 @@ export const SetlistsPage = () => {
       setDraft(null);
     }
   };
-  const availableSongs = songs
-    .filter((song) => {
-      const text = [song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" ").toLocaleLowerCase();
-      return matchesLibrarySearch(text, song.tags, songSearch);
-    })
-    .sort((a, b) => collator.compare(a.title, b.title));
+  const availableSongs = useMemo(() => {
+    const matches = createLibrarySearch(songSearch);
+    return songs
+      .filter((song) => {
+        const text = [song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" ");
+        return matches(text, song.tags);
+      })
+      .sort((a, b) => collator.compare(a.title, b.title));
+  }, [songs, songSearch]);
 
   const select = (listId: string, keepSearch = true) => {
     const params = new URLSearchParams();

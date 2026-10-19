@@ -15,6 +15,8 @@ interface RequestDetails {
   apiDetails?: string;
 }
 
+export const SYNC_REQUEST_TIMEOUT_MS = 60000;
+
 class SyncRequestError extends Error {
   readonly details: RequestDetails;
   constructor(message: string, details: RequestDetails) {
@@ -22,6 +24,15 @@ class SyncRequestError extends Error {
     this.name = "SyncRequestError";
     this.details = details;
   }
+}
+
+/** A lost connection should stop the run instead of timing out once per song. */
+export function isSyncConnectionError(error: unknown): boolean {
+  return (
+    (error instanceof SyncRequestError &&
+      (error.details.status === undefined || error.details.status === 429 || (error.details.status ?? 0) >= 500)) ||
+    (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
+  );
 }
 
 function redact(value: string, secrets: RequestContext["secrets"] = []): string {
@@ -59,13 +70,16 @@ export function logSyncError(
 }
 
 export async function fetchSyncResponse(context: RequestContext, init?: RequestInit): Promise<Response> {
+  // Keep the deadline attached to fetch's body too: receiving headers alone
+  // must not leave a stalled JSON/download stream holding sync and update locks.
+  const deadline = AbortSignal.timeout(SYNC_REQUEST_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline;
   try {
-    return await fetch(context.url, init);
+    return await fetch(context.url, { ...init, signal });
   } catch (error) {
-    const reason = redact(error instanceof Error ? error.message : "Unknown network error", context.secrets).slice(
-      0,
-      350,
-    );
+    const reason = deadline.aborted
+      ? "Request timed out after 60 seconds. Please retry."
+      : redact(error instanceof Error ? error.message : "Unknown network error", context.secrets).slice(0, 350);
     const failure = new SyncRequestError(
       `${context.provider} network request failed: ${reason}`,
       requestDetails(context),

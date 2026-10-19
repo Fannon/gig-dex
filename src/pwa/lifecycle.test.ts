@@ -27,17 +27,20 @@ it("keeps updates blocked until all editors/readers release, including late lock
   let first = () => {};
   let second = () => {};
   act(() => {
-    first = pwa.blockPwaUpdate();
-    second = pwa.blockPwaUpdate();
+    first = pwa.blockPwaUpdate("editing");
+    second = pwa.blockPwaUpdate("sync");
   });
   expect(result.current.blocked).toBe(true);
+  expect(result.current.blockReasons).toEqual(["editing", "sync"]);
   act(first);
   expect(result.current.blocked).toBe(true);
+  expect(result.current.blockReasons).toEqual(["sync"]);
   await callbacks[0](); // StrictMode/unmount before acquisition must not leak a shared lock.
   const held = callbacks[1]();
   act(second);
   await held;
   expect(result.current.blocked).toBe(false);
+  expect(result.current.blockReasons).toEqual([]);
 });
 
 it("refuses repair when the network fails, without touching caches or registrations", async () => {
@@ -205,5 +208,35 @@ it("does not activate when editing starts while refreshing the registration", as
   });
   expect(worker.postMessage).not.toHaveBeenCalled();
   expect(result.current.updating).toBe(false);
+  await act(async () => {
+    release();
+    pwa.cancelPwaUpdate();
+  });
+});
+
+it("queues a requested restart until all work finishes and allows cancelling it", async () => {
+  const { pwa, result, worker, container, reload } = await updateFixture();
+  let release = () => {};
+  act(() => {
+    release = pwa.blockPwaUpdate("sync");
+  });
+  await act(pwa.applyPwaUpdate);
+  expect(result.current.updateQueued).toBe(true);
+  expect(worker.postMessage).not.toHaveBeenCalled();
+  act(pwa.cancelPwaUpdate);
   act(release);
+  expect(result.current.updateQueued).toBe(false);
+  expect(worker.postMessage).not.toHaveBeenCalled();
+  act(() => {
+    release = pwa.blockPwaUpdate("editing");
+  });
+  await act(pwa.applyPwaUpdate);
+  act(release);
+  await waitFor(() => expect(worker.postMessage).toHaveBeenCalledTimes(1));
+  await act(async () => {
+    container.controller = worker;
+    container.dispatchEvent(new Event("controllerchange"));
+  });
+  expect(reload).toHaveBeenCalledTimes(1);
+  expect(result.current.blocked).toBe(false);
 });

@@ -10,6 +10,8 @@ export interface PwaState {
   update: boolean;
   updating: boolean;
   blocked: boolean;
+  blockReasons: UpdateBlockReason[];
+  updateQueued: boolean;
   installable: boolean;
   error: string;
 }
@@ -19,11 +21,14 @@ let state: PwaState = {
   update: false,
   updating: false,
   blocked: false,
+  blockReasons: [],
+  updateQueued: false,
   installable: false,
   error: "",
 };
 const listeners = new Set<() => void>();
-const blockers = new Set<symbol>();
+type UpdateBlockReason = "editing" | "performance" | "sync" | "operation";
+const blockers = new Map<symbol, UpdateBlockReason>();
 let registration: ServiceWorkerRegistration | undefined;
 let installEvent: InstallEvent | undefined;
 let started = false;
@@ -32,6 +37,12 @@ const lockName = `gigdex-update:${import.meta.env.BASE_URL}`;
 const patch = (value: Partial<PwaState>) => {
   state = { ...state, ...value };
   for (const listener of listeners) listener();
+};
+const resumeQueuedUpdate = () => {
+  if (!state.updateQueued) return;
+  queueMicrotask(() => {
+    if (state.updateQueued && !state.blocked && !state.updating) void applyPwaUpdate();
+  });
 };
 export const usePwaState = () =>
   useSyncExternalStore(
@@ -45,9 +56,9 @@ export const usePwaState = () =>
   );
 
 // Shared locks prevent one tab activating an update while another is performing/editing.
-export function blockPwaUpdate() {
+export function blockPwaUpdate(reason: UpdateBlockReason = "operation") {
   const token = Symbol();
-  blockers.add(token);
+  blockers.set(token, reason);
   let releaseLock: (() => void) | undefined;
   if (navigator.locks) {
     void navigator.locks
@@ -64,15 +75,16 @@ export function blockPwaUpdate() {
         /* Current-tab protection still applies. */
       });
   }
-  patch({ blocked: true });
+  patch({ blocked: true, blockReasons: [...new Set(blockers.values())] });
   return () => {
-    blockers.delete(token);
+    if (!blockers.delete(token)) return;
     releaseLock?.();
     releaseLock = undefined;
+    patch({ blocked: !!blockers.size, blockReasons: [...new Set(blockers.values())] });
     if (!blockers.size) {
-      patch({ blocked: false });
       // A controller may have changed in another/older tab. Never reload a busy reader.
       if (reloadPending) patch({ update: true });
+      resumeQueuedUpdate();
     }
   };
 }
@@ -152,17 +164,27 @@ export async function installPwa() {
   }
 }
 export async function applyPwaUpdate() {
-  if (state.blocked || state.updating) return;
-  patch({ updating: true, error: "" });
+  if (state.updating) return;
+  if (state.blocked) {
+    patch({ updateQueued: true, error: "" });
+    return;
+  }
+  patch({ updating: true, updateQueued: false, error: "" });
   const apply = async () => {
-    if (state.blocked) return;
+    if (state.blocked) {
+      patch({ updateQueued: true });
+      return;
+    }
     if (reloadPending) {
       window.location.reload();
       return;
     }
     // Re-read the registration: another tab may have activated the advertised update.
     registration = (await navigator.serviceWorker.getRegistration(import.meta.env.BASE_URL)) || registration;
-    if (state.blocked) return;
+    if (state.blocked) {
+      patch({ updateQueued: true });
+      return;
+    }
     if (reloadPending) {
       window.location.reload();
       return;
@@ -188,7 +210,7 @@ export async function applyPwaUpdate() {
         cleanup();
         reloadPending = true;
         if (!state.blocked) window.location.reload();
-        else patch({ update: true });
+        else patch({ update: true, updateQueued: true });
         resolve();
       };
       const changed = () => {
@@ -220,7 +242,12 @@ export async function applyPwaUpdate() {
     patch({ error: "The update did not finish. Check your connection and try again." });
   } finally {
     patch({ updating: false });
+    resumeQueuedUpdate();
   }
+}
+
+export function cancelPwaUpdate() {
+  patch({ updateQueued: false });
 }
 
 async function repairCache() {

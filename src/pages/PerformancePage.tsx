@@ -5,7 +5,7 @@ import { ActionIcon } from "../components/ActionIcon";
 import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
-import { getAllSongs, getSetlist, type Setlist, type Song, updateSetlist, updateSong } from "../db";
+import { getSetlist, getSongs, type Setlist, type Song, updateSetlist, updateSong } from "../db";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { extractMetadata } from "../utils/chordEngine";
@@ -30,7 +30,7 @@ export const PerformancePage = () => {
   const requested = useRef(requestedIndex);
   requested.current = requestedIndex;
   const awake = useWakeLock();
-  useEffect(() => blockPwaUpdate(), []);
+  useEffect(() => blockPwaUpdate("performance"), []);
   const root = useRef<HTMLDivElement>(null);
   const [setlist, setSetlist] = useState<Setlist>();
   const [songs, setSongs] = useState<(Song | undefined)[]>([]);
@@ -57,11 +57,12 @@ export const PerformancePage = () => {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const library = await getAllSongs();
+      setLoading(true);
+      setError("");
       const list = listId ? await getSetlist(listId) : undefined;
       if (listId && !list) throw new Error("Setlist not found.");
       const ids = list?.songIds ?? (id ? [id] : []);
-      const ordered = ids.map((songId) => library.find((song) => song.id === songId));
+      const ordered = await getSongs(ids);
       if (cancelled) return;
       setSongs(ordered);
       setTempoRunning(true);
