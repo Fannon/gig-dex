@@ -70,6 +70,18 @@ test("search highlights literal matches and counts distinct sets, with exact has
   await expect(row.locator("mark")).toHaveText(["Silver", "signal"]);
   await input.fill("#test");
   await expect(row).toHaveCount(3);
+  await input.press("ArrowDown");
+  await expect(row.nth(0)).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(row.nth(1)).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(row.nth(0)).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(input).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(row.nth(2)).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(row.nth(2)).toBeFocused();
   await expect(dialog.locator('[data-type="Song"]')).toHaveCount(1);
   await expect(dialog.locator('[data-type="Setlist"]')).toHaveCount(2);
   await expect(row.filter({ hasText: "Test in title only" })).toHaveCount(0);

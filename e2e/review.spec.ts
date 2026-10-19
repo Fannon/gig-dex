@@ -75,6 +75,53 @@ test("pasted ChordPro metadata survives saving without overriding later form edi
   await expect(page.getByLabel("Artist", { exact: true })).toHaveValue("Review band");
 });
 
+test("editing preserves metadata stored only in the library and allows removing its raw directive", async ({
+  page,
+}) => {
+  await page.goto("./");
+  const base = new URL(page.url()).pathname;
+  const id = await page.evaluate(async (base) => {
+    const { addSong } = await import(`${base}src/db.ts`);
+    return addSong({
+      title: "Library metadata",
+      artist: "Review band",
+      content: "[C]Synthetic metadata line",
+      tags: [],
+      composer: "Stored composer",
+      year: 2025,
+    });
+  }, base);
+  await page.goto(`./song/${id}?edit=true`);
+  await page.getByLabel("Title", { exact: true }).fill("Revised metadata");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".song-page__title")).toHaveText("Revised metadata");
+  const saved = await page.evaluate(
+    async ({ base, id }) => {
+      const { getSong } = await import(`${base}src/db.ts`);
+      return getSong(id);
+    },
+    { base, id },
+  );
+  expect(saved).toMatchObject({ composer: "Stored composer", year: 2025 });
+  expect(saved.content).toContain("{composer: Stored composer}");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "Advanced (ChordPro)", exact: true }).click();
+  const editor = page.locator("#advanced-content");
+  await editor.fill((await editor.inputValue()).replace("{composer: Stored composer}\n", ""));
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator(".song-page__title")).toHaveText("Revised metadata");
+  const updated = await page.evaluate(
+    async ({ base, id }) => {
+      const { getSong } = await import(`${base}src/db.ts`);
+      return getSong(id);
+    },
+    { base, id },
+  );
+  expect(updated.composer).toBeUndefined();
+  expect(updated.year).toBe(2025);
+  expect(updated.content).not.toContain("{composer:");
+});
+
 test("song overview searches alternative titles and tags consistently with the sidebar", async ({ page }) => {
   await page.goto("./");
   await page.evaluate(async (base) => {

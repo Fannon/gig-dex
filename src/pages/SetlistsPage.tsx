@@ -482,7 +482,7 @@ export const SetlistsPage = () => {
                   const song = songMap.get(songId);
                   return (
                     <li
-                      // biome-ignore lint/suspicious/noArrayIndexKey: Stateless rows represent ordered occurrences, including repeated song IDs.
+                      // Stateless rows represent ordered occurrences, including repeated song IDs.
                       key={`${songId}-${index}`}
                       className="setlists-page__song"
                       data-selected={songIndex === index}

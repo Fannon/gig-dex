@@ -114,6 +114,52 @@ it("refreshes an expired session and keeps account scope", async () => {
   expect(sessionStorage.getItem("dropbox_tokens")).toBeNull();
 });
 
+it("looks up the current account using Dropbox's parameterless RPC contract", async () => {
+  const saved = JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "{}");
+  delete saved.account_id;
+  sessionStorage.setItem("dropbox_tokens", JSON.stringify(saved));
+  mocked.mockImplementationOnce(async (_url, init) =>
+    String(init?.body) === "null"
+      ? new Response(JSON.stringify({ account_id: "dbid:user" }))
+      : new Response("request body: expected null, got value", { status: 400 }),
+  );
+  const provider = new DropboxProvider("testappkey123");
+  await expect(provider.authenticate()).resolves.toBe(true);
+  expect(provider.getScope()).toBe("dropbox:testappkey123:dbid:user");
+});
+
+it.each(["network", 429, 503])("retains the connection after a temporary refresh failure (%s)", async (failure) => {
+  const saved = {
+    access_token: "expired",
+    refresh_token: "refresh",
+    expiresAt: 0,
+    account_id: "dbid:user",
+    appKey: "testappkey123",
+  };
+  sessionStorage.setItem("dropbox_tokens", JSON.stringify(saved));
+  if (typeof failure === "number") respond({ error: "temporarily_unavailable" }, undefined, failure);
+  else mocked.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  const provider = new DropboxProvider("testappkey123");
+  await expect(provider.authenticate()).rejects.toThrow();
+  expect(provider.isAuthenticated()).toBe(true);
+  expect(JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "null")).toEqual(saved);
+  respond({ access_token: "recovered", expires_in: 3600 });
+  await expect(provider.authenticate()).resolves.toBe(true);
+  expect(provider.getScope()).toBe("dropbox:testappkey123:dbid:user");
+  expect(new URLSearchParams(String(mocked.mock.calls[1][1]?.body)).get("refresh_token")).toBe("refresh");
+});
+
+it("refreshes once after an API 401 and retries the request with the new access token", async () => {
+  const saved = JSON.parse(sessionStorage.getItem("dropbox_tokens") ?? "{}");
+  sessionStorage.setItem("dropbox_tokens", JSON.stringify({ ...saved, refresh_token: "refresh" }));
+  respond({ error_summary: "expired_access_token" }, undefined, 401);
+  respond({ access_token: "new-access", expires_in: 3600 });
+  respond({ entries: [], has_more: false });
+  await expect(new DropboxProvider("testappkey123").listFiles()).resolves.toEqual([]);
+  expect(mocked).toHaveBeenCalledTimes(3);
+  expect(new Headers(mocked.mock.calls[2][1]?.headers).get("Authorization")).toBe("Bearer new-access");
+});
+
 it("shows Dropbox's plain-text 400 reason for folder listing failures", async () => {
   mocked.mockResolvedValueOnce(
     new Response('Error in call to API function "files/list_folder": missing scope', { status: 400 }),

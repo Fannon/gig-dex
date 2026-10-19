@@ -357,4 +357,4 @@ export const getSetlistWithSongs = async (id: string): Promise<{ setlist: Setlis
   return { setlist, songs };
 };
 
-export type { Song, Setlist };
+export type { Setlist, Song };

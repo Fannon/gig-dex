@@ -21,23 +21,21 @@ export function startAutomaticSync(
     timer = undefined;
     if (!pending || running || stopped) return;
     await Promise.all(hosts.map(({ provider }) => provider.ready));
+    if (stopped) return;
     if (busy()) {
       schedule(1500);
       return;
     }
     // Google Drive's current OAuth flow can open a popup when its token expires.
     const available = hosts.filter(
-      ({ provider, manager }) =>
-        provider.name !== "Google Drive" &&
-        provider.isEnabled() &&
-        provider.isAuthenticated?.() &&
-        !manager.getStatus().error,
+      ({ provider }) => provider.name !== "Google Drive" && provider.isEnabled() && provider.isAuthenticated?.(),
     );
     const waitForNetwork = !navigator.onLine && available.some(({ provider }) => provider.name !== "Local Folder");
     const connected = available.filter(({ provider }) => provider.name === "Local Folder" || navigator.onLine);
     if (!connected.length) return;
     pending = waitForNetwork;
     running = true;
+    let failed = false;
     try {
       for (const { manager } of connected) {
         if (busy()) {
@@ -45,10 +43,14 @@ export function startAutomaticSync(
           break;
         }
         await manager.sync();
+        failed ||= !!manager.getStatus().error;
       }
     } finally {
       running = false;
       if (pending && !stopped && navigator.onLine) schedule();
+      // Retain failed work for the next edit, focus, or online event without
+      // repeatedly retrying an unavailable provider in the background.
+      pending ||= failed;
     }
   };
   const changed = () => {

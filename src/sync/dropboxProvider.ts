@@ -68,8 +68,19 @@ export class DropboxProvider implements SyncProvider {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ client_id: this.appKey, ...parameters }),
     });
-    if (!response.ok)
-      throw await syncHttpError(context, response, "Dropbox sign-in expired or failed. Connect Dropbox again");
+    if (!response.ok) {
+      // Invalid credentials require reconnecting; network, rate-limit and server
+      // failures must leave the refresh token available for the next attempt.
+      const reconnect = response.status === 400 || response.status === 401;
+      if (reconnect) await this.logout();
+      throw await syncHttpError(
+        context,
+        response,
+        reconnect
+          ? "Dropbox sign-in expired or failed. Connect Dropbox again"
+          : "Dropbox sign-in unavailable. Please retry",
+      );
+    }
     const result = await response.json();
     if (!response.ok || typeof result.access_token !== "string" || !Number.isFinite(Number(result.expires_in)))
       throw new Error("Dropbox sign-in expired or failed. Connect Dropbox again.");
@@ -84,12 +95,7 @@ export class DropboxProvider implements SyncProvider {
   }
   private async refresh() {
     if (!this.tokens?.refresh_token) throw new Error("Connect Dropbox again to continue.");
-    try {
-      await this.token({ grant_type: "refresh_token", refresh_token: this.tokens.refresh_token });
-    } catch (error) {
-      await this.logout();
-      throw error;
-    }
+    await this.token({ grant_type: "refresh_token", refresh_token: this.tokens.refresh_token });
   }
   async authenticate() {
     if (!this.isEnabled()) throw new Error("A Dropbox app key is required to enable sync.");
@@ -181,7 +187,7 @@ export class DropboxProvider implements SyncProvider {
     }
     return response;
   }
-  private async rpc(path: string, body: object) {
+  private async rpc(path: string, body: object | null) {
     const response = await this.request(`${API}/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -190,7 +196,7 @@ export class DropboxProvider implements SyncProvider {
     return response.json();
   }
   private async account() {
-    const result = await this.rpc("users/get_current_account", {});
+    const result = await this.rpc("users/get_current_account", null);
     if (typeof result.account_id !== "string" || !result.account_id) throw new Error("Dropbox account is unavailable.");
     if (this.tokens) {
       this.tokens.account_id = result.account_id;

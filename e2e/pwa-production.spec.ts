@@ -5,6 +5,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
   page,
   context,
 }) => {
+  // biome-ignore lint/suspicious/noSkippedTests: Production checks run separately against a built preview server in CI.
   test.skip(!process.env.PLAYWRIGHT_URL, "Requires a completed production build.");
   const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
   try {
@@ -106,6 +107,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
 });
 
 test("an interrupted update leaves the previous app and songs usable offline", async ({ page, context }) => {
+  // biome-ignore lint/suspicious/noSkippedTests: Production checks run separately against a built preview server in CI.
   test.skip(!process.env.PLAYWRIGHT_URL, "Requires a completed production build.");
   const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
   try {
@@ -141,6 +143,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
 });
 
 test("update shows progress and an already-updated worker can restart another idle tab", async ({ page, context }) => {
+  // biome-ignore lint/suspicious/noSkippedTests: Production checks run separately against a built preview server in CI.
   test.skip(!process.env.PLAYWRIGHT_URL, "Requires a completed production build.");
   const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
   try {

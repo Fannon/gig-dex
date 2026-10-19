@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("production chunks load on demand and cached songs work offline", async ({ page, context }) => {
+  // biome-ignore lint/suspicious/noSkippedTests: Production checks run separately against a built preview server in CI.
   test.skip(!process.env.PLAYWRIGHT_URL, "Requires the production preview server.");
   const scripts: string[] = [];
   page.on("request", (request) => {
