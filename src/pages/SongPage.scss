@@ -349,12 +349,12 @@
 
     @media (max-width: 768px) {
       flex-direction: column;
-      
+
       .song-page__simple-input,
       .song-page__simple-preview {
-        flex: 1 1 auto !important;
+        flex: none !important;
       }
-      
+
       .song-page__resize-handle {
         display: none;
       }
@@ -555,3 +555,13 @@
 
 .song-page .song-page__reading-actions button[aria-expanded=true] { background: var(--color-primary); color: #fff; }
 :root[data-reading-theme=light] .app-shell .song-page__key { background: #ded8ed; color: #493977; }
+
+// Narrow screens stack the editor and let the whole form scroll, so the lyrics
+// keep a usable height instead of sharing what is left below the fields.
+@media (max-width: 768px) {
+  .song-page__content-area { flex: none; overflow: visible; }
+  .song-page__simple-editor { overflow: visible; }
+  .song-page__simple-input textarea,
+  .song-page__advanced-editor textarea { min-height: 55dvh; }
+  .song-page__simple-preview { max-height: 70dvh; margin-top: 0.75rem; }
+}
