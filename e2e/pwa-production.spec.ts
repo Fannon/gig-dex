@@ -141,6 +141,8 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     await cold.getByRole("button", { name: "Edit", exact: true }).click();
     await cold.getByLabel("Title", { exact: true }).fill("Edited offline");
     await cold.getByRole("button", { name: "Save", exact: true }).click();
+    // A full page load right after Save can interrupt the pending write.
+    await expect(cold.locator(".song-page__title")).toHaveText("Edited offline");
     await context.setOffline(false);
     await cold.goto(`${fixture.url}settings?section=offline`);
     await cold.getByText("Technical details", { exact: true }).click();
