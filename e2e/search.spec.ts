@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 test("navbar search is a compact dialog button on desktop and phone", async ({ page }) => {
   await page.goto("./");
@@ -64,7 +65,7 @@ test("search highlights literal matches and counts distinct sets, with exact has
   const row = dialog.getByRole("link");
   await expect(row).toHaveCount(1);
   await expect(row.locator("mark")).toHaveText("[North]");
-  await expect(row).toContainText("In 2 Sets");
+  await expect(row).toContainText("In 2 setlists");
   await input.fill("silver SIGNAL");
   await expect(row).toHaveCount(1);
   await expect(row.locator("mark")).toHaveText(["Silver", "signal"]);
@@ -103,8 +104,7 @@ test("search highlights literal matches and counts distinct sets, with exact has
 });
 
 test("minimum font lives in Settings and refits an open song after a preference change", async ({ page }) => {
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await seedLibrary(page);
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
   await expect(page.getByLabel("Minimum font", { exact: true })).toHaveCount(0);
   await expect(page.locator(".song-view__layout-status")).toHaveCount(0);

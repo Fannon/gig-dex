@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 interface FolderFixture {
   permission: PermissionState;
@@ -25,8 +26,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
     FileSystemHandle.prototype.requestPermission = async () => state.permission;
     FileSystemHandle.prototype.queryPermission = async () => state.permission;
   });
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await seedLibrary(page);
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
@@ -116,8 +116,7 @@ test("connected folder automatically syncs saved songs, setlists, and ChordPro i
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
   await host.getByRole("button", { name: "Choose folder", exact: true }).click();
   await expect(host.getByText(/Last synced/)).toBeVisible();
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await seedLibrary(page);
   const files = () =>
     page.evaluate(async () => {
       const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("Automatic sync");

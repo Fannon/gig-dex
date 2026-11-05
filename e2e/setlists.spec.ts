@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function create(page: Page, name: string, tags = "") {
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "New Setlist", exact: true });
+  const dialog = page.getByRole("dialog", { name: "New setlist", exact: true });
   await dialog.getByLabel("Name", { exact: true }).fill(name);
   await dialog.getByLabel("Tags", { exact: true }).fill(tags);
   await dialog.getByRole("button", { name: "Create", exact: true }).click();
@@ -51,7 +51,7 @@ async function seed(page: Page) {
 
 test("browse and create a tagged setlist, persist details, and delete it", async ({ page }) => {
   await page.goto("./");
-  await page.getByRole("link", { name: /^Sets$/i }).click();
+  await page.getByRole("link", { name: /^Setlists$/i }).click();
   await expect(page.getByText("No setlists yet")).toBeVisible();
   await create(page, "My Gig", "rock, local, rock");
   await expect(page).toHaveURL(/\/setlist\/[^/]+$/);
@@ -180,7 +180,7 @@ for (const viewport of [
     } else {
       await page
         .getByRole("navigation", { name: "Setlist panels" })
-        .getByRole("button", { name: "Sets", exact: true })
+        .getByRole("button", { name: "Setlists", exact: true })
         .click();
       await expect(page.getByRole("region", { name: "Setlist library" })).toBeVisible();
       await page.locator(".setlists-page__item").first().click();

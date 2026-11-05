@@ -171,7 +171,7 @@ test("sidebar New song clears previous content and dirty navigation remains guar
   const firstPrompt = page.waitForEvent("dialog").then((prompt) => prompt.dismiss());
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await firstPrompt;
   await expect(page).toHaveURL(/\/song\/new$/);
@@ -186,7 +186,7 @@ test("sidebar New song clears previous content and dirty navigation remains guar
   page.once("dialog", (prompt) => prompt.accept());
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await expect(page.locator(".setlists-page")).toBeVisible();
 });
@@ -376,12 +376,12 @@ test("sidebar width follows pointer and keyboard resizing, persists, and keeps c
   expect(await sidebar.evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(390 * 0.85);
 });
 
-test("Add to Set creates one dated set when none is selected and then appends to the selected set", async ({
+test("Add to setlist creates one dated setlist when none is selected and then appends to the selected setlist", async ({
   page,
 }) => {
   const { song, list } = await seed(page);
   await page.goto(`./song/${song}`);
-  const action = page.getByRole("button", { name: "Add to Set", exact: true });
+  const action = page.getByRole("button", { name: "Add to setlist", exact: true });
   const perform = page.getByRole("link", { name: "Perform", exact: true });
   await expect(action).toBeVisible();
   expect((await action.boundingBox())?.x).toBeLessThan((await perform.boundingBox())?.x ?? 0);

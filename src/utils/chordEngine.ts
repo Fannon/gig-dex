@@ -5,12 +5,9 @@ import {
   ChordsOverWordsFormatter,
   ChordsOverWordsParser,
   HtmlTableFormatter,
-  TextFormatter,
 } from "chordsheetjs";
 import { standardToGermanChord } from "./chordNotation";
 import { colorSongSections, simpleSectionLabel } from "./songSections";
-
-export { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "./demoSong";
 
 export interface ParsedSong {
   title: string | null;
@@ -136,16 +133,6 @@ export const transposeChordPro = (chordProText: string, semitones: number): stri
   return formatter.format(transposedSong);
 };
 
-/**
- * Convert ChordPro to plain text (for copying/sharing)
- */
-export const chordProToText = (chordProText: string): string => {
-  const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
-  const formatter = new TextFormatter();
-  return formatter.format(song);
-};
-
 const simpleChordToken = (token: string) =>
   /^[A-G](?:#|b)?(?:maj|min|m|M(?:aj)?|dim|aug|sus|add|no|omit|Δ|°|ø|[0-9b#()+-])*(?:\/[A-G](?:#|b)?)?$/.test(token) &&
   !!Chord.parse(token);
@@ -182,15 +169,48 @@ export function normalizeSimpleSpacing(text: string) {
   return output.join("\n");
 }
 
+// The chords-over-words formatter prints comments as plain lyrics. Mark them so
+// the simple editor can show them as directives, which its parser keeps.
+const commentMarker = "\uE000";
+const commentDirective = /^\s*\{(c|comment|ci|comment_italic|cb|comment_box)\s*:\s*(.*?)\s*\}\s*$/i;
+
+// ChordsOverWordsParser reads any line starting with these words as a comment,
+// detaching lyrics such as "Bridge over…" from their chords. While parsing, the
+// first letter becomes a same-width private-use stand-in.
+const parserSectionPrefix = /^(\s*)(verse|chorus|bridge|tag|interlude|instrumental|intro)/i;
+const parserHeading = /^\s*(?:verse|chorus|bridge|tag|interlude|instrumental|intro)\s*\d*\s*:/i;
+const shieldOffset = 0xe000;
+const shieldLyric = (line: string) =>
+  parserHeading.test(line)
+    ? line
+    : line.replace(
+        parserSectionPrefix,
+        (_, space: string, word: string) =>
+          `${space}${String.fromCharCode(shieldOffset + word.charCodeAt(0))}${word.slice(1)}`,
+      );
+const unshieldLyrics = (text: string) =>
+  text.replace(/[\uE041-\uE05A\uE061-\uE07A]/g, (letter) => String.fromCharCode(letter.charCodeAt(0) - shieldOffset));
+
 /**
  * Convert ChordPro to simple "chords over words" format
  * This is for the simple editor mode where chords appear on lines above lyrics
  */
 export const chordProToSimple = (chordProText: string): string => {
+  const marked = chordProText
+    .split("\n")
+    .map((line) => {
+      const comment = commentDirective.exec(line);
+      // Section-like comments from older imports become real section labels.
+      return comment && !simpleSectionLabel(comment[2]) ? `{${comment[1]}: ${commentMarker}${comment[2]}}` : line;
+    })
+    .join("\n");
   const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
+  const song = parser.parse(marked);
   const formatter = new ChordsOverWordsFormatter();
-  return normalizeSimpleSpacing(formatter.format(song));
+  return normalizeSimpleSpacing(formatter.format(song))
+    .split("\n")
+    .map((line) => (line.startsWith(commentMarker) ? `{comment: ${line.slice(1)}}` : line))
+    .join("\n");
 };
 
 /**
@@ -216,13 +236,15 @@ export const simpleToChordPro = (simpleText: string): string => {
       const standalone =
         simpleChordLine(line) &&
         (!next.trim() || !!simpleSectionLabel(next) || simpleChordLine(next) || /^\s*\{/.test(next));
-      prepared.push(standalone ? line.replace(/\S+/g, (token) => (Chord.parse(token) ? `[${token}]` : token)) : line);
+      prepared.push(
+        standalone ? line.replace(/\S+/g, (token) => (Chord.parse(token) ? `[${token}]` : token)) : shieldLyric(line),
+      );
     }
   }
   if (sectionOpen) prepared.push("{end_of_verse}");
   const song = parser.parse(prepared.join("\n"));
   const formatter = new ChordProFormatter();
-  return formatter.format(song);
+  return unshieldLyrics(formatter.format(song));
 };
 
 /**
@@ -235,9 +257,9 @@ export interface SongMetadata {
   artist?: string;
   key?: string;
   tempo?: number;
-  capo?: number;
   time?: string;
   // Extended metadata (preserved but not in simple forms)
+  capo?: number; // Legacy directive from imports; kept in the text, never shown
   subtitle?: string;
   composer?: string;
   lyricist?: string;
@@ -360,72 +382,4 @@ export const injectMetadata = (chordProText: string, metadata: SongMetadata): st
   }
 
   return lines.join("\n") + chordProText;
-};
-
-/**
- * Get the current key of a song
- */
-export const getSongKey = (chordProText: string): string | null => {
-  const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
-  return song.key?.toString() || null;
-};
-
-/**
- * List of all musical keys for transposition UI
- */
-export const MUSICAL_KEYS = [
-  "C",
-  "C#",
-  "Db",
-  "D",
-  "D#",
-  "Eb",
-  "E",
-  "F",
-  "F#",
-  "Gb",
-  "G",
-  "G#",
-  "Ab",
-  "A",
-  "A#",
-  "Bb",
-  "B",
-];
-
-/**
- * Get the semitone difference between two keys
- */
-export const getSemitoneDifference = (fromKey: string, toKey: string): number => {
-  const keyValues: Record<string, number> = {
-    C: 0,
-    "C#": 1,
-    Db: 1,
-    D: 2,
-    "D#": 3,
-    Eb: 3,
-    E: 4,
-    F: 5,
-    "F#": 6,
-    Gb: 6,
-    G: 7,
-    "G#": 8,
-    Ab: 8,
-    A: 9,
-    "A#": 10,
-    Bb: 10,
-    B: 11,
-  };
-
-  const from = keyValues[fromKey];
-  const to = keyValues[toKey];
-
-  if (from === undefined || to === undefined) return 0;
-
-  let diff = to - from;
-  if (diff > 6) diff -= 12;
-  if (diff < -6) diff += 12;
-
-  return diff;
 };

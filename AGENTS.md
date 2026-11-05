@@ -21,7 +21,8 @@ npm run validate
 ```
 This runs:
 - `biome check`: Lints and checks formatting.
-- `vitest run`: Runs unit `tests`.
+- `tsc -b`: Type-checks the app and tooling.
+- `vitest run`: Runs unit tests.
 
 ### 2. Full Verification (`verify`)
 Run this before declaring a task "DONE" or when touching critical paths:
@@ -33,6 +34,7 @@ This runs `validate` plus:
 - `playwright test`: Runs E2E tests.
 
 ## Common Commands
+- **Install**: `bun install --frozen-lockfile` (dependencies are locked with `bun.lock`)
 - **Start Server**: `npm run dev`
 - **Fix Lint**: `npm run lint:fix`
 - **Format**: `npm run format`

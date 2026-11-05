@@ -71,7 +71,7 @@ test("a failed library read offers retry without showing a false empty library",
   const home = page.locator(".home-page");
   await expect(home.getByRole("alert")).toContainText("Could not load the library");
   await expect(page.getByRole("heading", { name: "No songs yet", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Add Demo Songs", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add demo songs", exact: true })).toHaveCount(0);
   await page.evaluate(() => sessionStorage.removeItem("fail-library-reads"));
   await home.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(home.getByRole("alert")).toHaveCount(0);
@@ -137,7 +137,7 @@ test("performance reads only requested songs and preserves repeated and missing 
   await page.getByRole("link", { name: "← Exit", exact: true }).click();
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await expect(page.locator(".setlists-page__content h2")).toHaveText("Repeated performance");
   const beforeSet = await reads(page);

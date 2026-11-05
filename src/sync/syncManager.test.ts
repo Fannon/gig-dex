@@ -10,7 +10,6 @@ import {
   initDB,
   LIBRARY_CHANGED_EVENT,
   type Song,
-  saveSong,
   updateSetlist,
   updateSong,
 } from "../db";
@@ -138,7 +137,7 @@ describe("durable sync with real IndexedDB", () => {
       tags: ["live"],
       date: "2026-12-24",
       songIds: [id, id],
-      songSettings: [{ transpose: 2, capo: 3 }, { transpose: -1 }],
+      songSettings: [{ transpose: 2 }, { transpose: -1 }],
     });
     await manager.sync();
     expect(manager.getStatus().error).toBeNull();
@@ -150,11 +149,11 @@ describe("durable sync with real IndexedDB", () => {
     expect((await getAllSetlists())[0]).toMatchObject({
       songIds: [id, id],
       date: "2026-12-24",
-      songSettings: [{ transpose: 2, capo: 3 }, { transpose: -1 }],
+      songSettings: [{ transpose: 2 }, { transpose: -1 }],
     });
     const song = await getSong(id);
     if (!song) throw new Error("Missing song");
-    await saveSong({ ...song, content: "[G]Remote edit", lastModified: "2000-01-01T00:00:00Z" });
+    await (await initDB()).put("songs", { ...song, content: "[G]Remote edit", lastModified: "2000-01-01T00:00:00Z" });
     await new SyncManager(cloud).sync();
     expect(cloud.files).toHaveLength(3);
     await switchDevice(deviceA);

@@ -1,11 +1,14 @@
+import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const base = process.env.VITE_BASE_PATH || "/";
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(version) },
   // ChordSheetJS eagerly imports jsPDF. Our named HTML/parser imports never use
   // PDF APIs, so omit that dependency’s unused initialization from the browser build.
   build: { rollupOptions: { treeshake: { moduleSideEffects: (id) => !id.includes("/jspdf/") } } },

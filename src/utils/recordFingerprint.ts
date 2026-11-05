@@ -23,6 +23,8 @@ export function recordFingerprint(record: unknown): string {
   const rawSettings = data.songSettings;
   if (Array.isArray(data.songIds) && Array.isArray(rawSettings)) {
     const settings = data.songIds.map((_, index) => {
+      // Older libraries may hold a per-entry capo. Capo is no longer used, but keeping it here
+      // leaves fingerprints of existing sync bases unchanged.
       const entry = rawSettings[index] as { transpose?: number; capo?: number } | undefined;
       return { transpose: entry?.transpose ?? 0, ...(entry?.capo === undefined ? {} : { capo: entry.capo }) };
     });

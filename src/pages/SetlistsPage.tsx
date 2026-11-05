@@ -18,7 +18,7 @@ import {
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { displayCalendarDate, isCalendarDate, localCalendarDate } from "../utils/calendarDate";
 import { createLibrarySearch } from "../utils/librarySearch";
-import { defaultSongSetting, occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
 import "./SetlistsPage.scss";
 
@@ -192,7 +192,7 @@ export const SetlistsPage = () => {
     mutate(async () => {
       if (!selected) return;
       const latest = await getSetlist(selected.id);
-      if (!latest || latest.songIds[songIndex] !== selected.songIds[songIndex]) throw new Error("Set changed");
+      if (!latest || latest.songIds[songIndex] !== selected.songIds[songIndex]) throw new Error("Setlist changed");
       const settings: SetlistSongSettings[] = occurrenceSettings(latest);
       settings[songIndex] = { ...settings[songIndex], transpose };
       await updateSetlist(selected.id, { songSettings: settings });
@@ -277,12 +277,12 @@ export const SetlistsPage = () => {
     if (!selected || !source) return;
     void mutate(async () => {
       const latest = await getSetlist(selected.id);
-      if (!latest) throw new Error("Set no longer exists");
+      if (!latest) throw new Error("Setlist no longer exists");
       const ids = [...latest.songIds];
       const settings = occurrenceSettings(latest);
       let next = songIndex;
       if (source.listId === latest.id && source.index !== undefined) {
-        if (ids[source.index] !== source.songId) throw new Error("Set order changed during drag");
+        if (ids[source.index] !== source.songId) throw new Error("Setlist order changed during drag");
         const to = Math.min(slot > source.index ? slot - 1 : slot, ids.length - 1);
         if (to === source.index) return;
         const [moved] = ids.splice(source.index, 1);
@@ -318,7 +318,7 @@ export const SetlistsPage = () => {
   return (
     <div className="setlists-page" data-panel={panel}>
       <header className="setlists-page__header">
-        <h1>Sets</h1>
+        <h1>Setlists</h1>
         <button type="button" className="setlists-page__add primary" onClick={() => openNewDraft()}>
           New setlist
         </button>
@@ -331,7 +331,7 @@ export const SetlistsPage = () => {
       <nav className="setlists-page__tabs" aria-label="Setlist panels">
         {(
           [
-            ["library", "Sets"],
+            ["library", "Setlists"],
             ["content", "Songs"],
             ["preview", "Preview"],
           ] as const
@@ -388,7 +388,7 @@ export const SetlistsPage = () => {
                 <h3>No setlists yet</h3>
                 <p>Create a setlist for your next gig.</p>
                 <button type="button" className="primary" onClick={() => openNewDraft()}>
-                  Create Setlist
+                  Create setlist
                 </button>
               </div>
             ) : !filtered.length ? (
@@ -423,7 +423,7 @@ export const SetlistsPage = () => {
             <>
               <div className="setlists-page__detail-header">
                 <div className="setlists-page__eyebrow">
-                  SETLIST · {selected.songIds.length} SONGS
+                  SETLIST · {selected.songIds.length} {selected.songIds.length === 1 ? "SONG" : "SONGS"}
                   {selected.date && (
                     <>
                       {" "}
@@ -582,7 +582,7 @@ export const SetlistsPage = () => {
                     void mutate(async () => {
                       const latest = await getSetlist(selected.id);
                       if (!latest || latest.songIds[removedIndex] !== source.songId)
-                        throw new Error("Set order changed during drag");
+                        throw new Error("Setlist order changed during drag");
                       await saveSongs(
                         latest.songIds.filter((_, i) => i !== source.index),
                         songIndex > removedIndex ? songIndex - 1 : songIndex,
@@ -620,7 +620,7 @@ export const SetlistsPage = () => {
               <Suspense fallback={<output className="setlists-page__empty">Loading song…</output>}>
                 <SongView
                   key={`${selected?.id}:${songIndex}:${preview.id}`}
-                  content={occurrenceContent(preview, selected?.songSettings?.[songIndex])}
+                  content={preview.content}
                   transposeValue={selected?.songSettings?.[songIndex]?.transpose ?? 0}
                   onTransposeChange={(transpose) => void saveTranspose(transpose)}
                   fitToScreen={false}
@@ -637,7 +637,7 @@ export const SetlistsPage = () => {
         </section>
       </main>
       {draft && (
-        <WorkspaceDialog title={draft.id ? "Edit setlist" : "New Setlist"} onClose={closeDraft}>
+        <WorkspaceDialog title={draft.id ? "Edit setlist" : "New setlist"} onClose={closeDraft}>
           {error && <p role="alert">{error}</p>}
           <form
             onSubmit={(event) => {
@@ -708,7 +708,7 @@ export const SetlistsPage = () => {
             Search songs
             <input
               type="search"
-              placeholder="Title, artist, or tag"
+              placeholder="Title, artist, or #tag…"
               value={songSearch}
               onChange={(event) => setSongSearch(event.target.value)}
             />
@@ -735,7 +735,9 @@ export const SetlistsPage = () => {
               </li>
             ))}
           </ul>
-          {!availableSongs.length && <p>No matching songs. Add songs to your library first.</p>}
+          {!availableSongs.length && (
+            <p>{songs.length ? "No songs match your search." : "Your library is empty. Add songs first."}</p>
+          )}
           <div className="setlists-page__modal-actions">
             <button type="button" onClick={() => setAddingSongs(false)}>
               Done

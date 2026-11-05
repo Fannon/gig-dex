@@ -46,7 +46,7 @@ async function seedLegacy(invalidDate = false) {
 describe("database migration", () => {
   it("preserves songs, metadata, timestamps, and setlist order when migrating numeric IDs", async () => {
     await seedLegacy();
-    const { initDB, getAllSongs, getAllSetlists, getSetlistWithSongs } = await import("./db");
+    const { initDB, getAllSongs, getAllSetlists, getSongs } = await import("./db");
     const db = await initDB();
     try {
       const songs = await getAllSongs();
@@ -60,8 +60,8 @@ describe("database migration", () => {
       });
       expect(songs.every((song) => typeof song.id === "string")).toBe(true);
       const [setlist] = await getAllSetlists();
-      const result = await getSetlistWithSongs(setlist.id);
-      expect(result?.songs.map((song) => song.title)).toEqual(["Second song", "Legacy song", "Second song"]);
+      const result = await getSongs(setlist.songIds);
+      expect(result.map((song) => song?.title)).toEqual(["Second song", "Legacy song", "Second song"]);
     } finally {
       db.close();
     }

@@ -9,7 +9,7 @@ import { getSetlist, getSongs, type Setlist, type Song, updateSetlist, updateSon
 import { useWakeLock } from "../hooks/useWakeLock";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { extractMetadata } from "../utils/chordEngine";
-import { occurrenceContent, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import { occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { tempoMeter, withSongTime } from "../utils/tempo";
 import "./PerformancePage.scss";
 
@@ -344,7 +344,7 @@ export const PerformancePage = () => {
       {song ? (
         <SongView
           key={`${sessionKey}:${index}:${song.id}:${mode}`}
-          content={occurrenceContent(song, setlist?.songSettings?.[index])}
+          content={song.content}
           transposeValue={setlist ? (setlist.songSettings?.[index]?.transpose ?? 0) : readingTranspose}
           onTransposeChange={
             setlist

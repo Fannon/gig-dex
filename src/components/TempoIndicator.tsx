@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { tempoMeter, tempoPeriod } from "../utils/tempo";
+import { isValidTempo, tempoMeter, tempoPeriod } from "../utils/tempo";
 import "./TempoIndicator.scss";
 
 /** Silent beat cue, derived from a monotonic clock rather than accumulating timer drift. */
@@ -23,7 +23,7 @@ export const TempoIndicator = ({
   const running = runningValue ?? localRunning;
   const [beat, setBeat] = useState(0);
   const start = useRef(0);
-  const valid = typeof bpm === "number" && Number.isFinite(bpm) && bpm > 0 && bpm <= 400;
+  const valid = isValidTempo(bpm);
   useEffect(() => {
     setBeat(0);
     if (!running || !valid) return;

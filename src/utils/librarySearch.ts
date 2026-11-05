@@ -36,12 +36,3 @@ export function createLibrarySearch(query: string) {
     });
   };
 }
-
-export function matchesLibrarySearch(
-  text: string,
-  tags: readonly string[],
-  query: string,
-  songIds?: readonly string[],
-) {
-  return createLibrarySearch(query)(text, tags, songIds);
-}

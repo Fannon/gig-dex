@@ -14,6 +14,12 @@ export function tempoMeter(value?: string) {
     return { beats: 4, division: 4, label: "4/4" };
   return { beats, division, label: `${beats}/${division}` };
 }
+/** Tempo range the editor accepts and the visual pulse plays. */
+export const MIN_BPM = 20;
+export const MAX_BPM = 400;
+export const isValidTempo = (bpm: unknown): bpm is number =>
+  typeof bpm === "number" && Number.isFinite(bpm) && bpm >= MIN_BPM && bpm <= MAX_BPM;
+
 export const tempoPeriod = (bpm: number, division: number) => (60000 / bpm) * (4 / division);
 
 /** Keep the saved song field and its exported ChordPro time directive consistent. */

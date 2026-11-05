@@ -31,7 +31,7 @@ export function parseSyncedSong(content: string, expectedId: string): Song {
     ["key", "time", "subtitle", "composer", "lyricist", "copyright", "album", "duration"].some(
       (key) => value[key] !== undefined && typeof value[key] !== "string",
     ) ||
-    ["tempo", "capo", "year"].some(
+    ["tempo", "year"].some(
       (key) => value[key] !== undefined && (typeof value[key] !== "number" || !Number.isFinite(value[key])),
     )
   ) {
@@ -57,8 +57,7 @@ export function parseSyncedSetlist(content: string, expectedId: string): Setlist
             !setting ||
             typeof setting !== "object" ||
             !Number.isInteger(setting.transpose) ||
-            Math.abs(setting.transpose) > 24 ||
-            (setting.capo !== undefined && (!Number.isInteger(setting.capo) || setting.capo < 0 || setting.capo > 24)),
+            Math.abs(setting.transpose) > 24,
         )))
   ) {
     throw new Error("Invalid remote setlist data");

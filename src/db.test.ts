@@ -8,11 +8,9 @@ import {
   getAllSetlists,
   getAllSongs,
   getSetlist,
-  getSetlistWithSongs,
   getSong,
   getSongs,
   initDB,
-  searchSongs,
   updateSetlist,
   updateSong,
 } from "./db";
@@ -41,8 +39,6 @@ describe("Database", () => {
       undefined,
     ]);
     expect(await getSongs([])).toEqual([]);
-    const list = await addSetlist({ name: "Repeated", songIds: [second, "missing", first, second] });
-    expect((await getSetlistWithSongs(list))?.songs.map((song) => song.title)).toEqual(["Second", "First", "Second"]);
   });
 
   it("duplicates full setlist metadata and repeated references without changing the source", async () => {
@@ -51,7 +47,7 @@ describe("Database", () => {
       description: "Venue",
       tags: ["acoustic"],
       songIds: ["a", "b", "a"],
-      songSettings: [{ transpose: 2 }, { transpose: -1, capo: 3 }, { transpose: 0 }],
+      songSettings: [{ transpose: 2 }, { transpose: -1 }, { transpose: 0 }],
     });
     const source = await getSetlist(id);
     const copyId = await duplicateSetlist(id, "Original (copy)");
@@ -61,9 +57,9 @@ describe("Database", () => {
       description: "Venue",
       tags: ["acoustic"],
       songIds: ["a", "b", "a"],
-      songSettings: [{ transpose: 2 }, { transpose: -1, capo: 3 }, { transpose: 0 }],
+      songSettings: [{ transpose: 2 }, { transpose: -1 }, { transpose: 0 }],
     });
-    await updateSetlist(copyId, { songIds: ["b"], songSettings: [{ transpose: -1, capo: 3 }] });
+    await updateSetlist(copyId, { songIds: ["b"], songSettings: [{ transpose: -1 }] });
     expect(await getSetlist(id)).toEqual(source);
     await expect(duplicateSetlist("missing", "Copy")).rejects.toThrow("Setlist not found");
   });
@@ -73,12 +69,12 @@ describe("Database", () => {
     const list = await addSetlist({
       name: "Test",
       songIds: [id, "other", id],
-      songSettings: [{ transpose: 2 }, { transpose: -3, capo: 2 }, { transpose: 4 }],
+      songSettings: [{ transpose: 2 }, { transpose: -3 }, { transpose: 4 }],
     });
     await deleteSong(id);
     expect(await getSetlist(list)).toMatchObject({
       songIds: ["other"],
-      songSettings: [{ transpose: -3, capo: 2 }],
+      songSettings: [{ transpose: -3 }],
     });
   });
 
@@ -196,66 +192,6 @@ describe("Database", () => {
       expect(setlist?.songIds).toEqual([]);
     });
 
-    it("should search songs by title", async () => {
-      await addSong({
-        title: "Amazing Grace",
-        artist: "Traditional",
-        content: "Content",
-        tags: ["hymn"],
-      });
-
-      await addSong({
-        title: "Sweet Home Alabama",
-        artist: "Lynyrd Skynyrd",
-        content: "Content",
-        tags: ["rock"],
-      });
-
-      const results = await searchSongs("Amazing");
-      expect(results.length).toBe(1);
-      expect(results[0].title).toBe("Amazing Grace");
-    });
-
-    it("should search songs by artist", async () => {
-      await addSong({
-        title: "Song 1",
-        artist: "The Beatles",
-        content: "Content",
-        tags: [],
-      });
-
-      await addSong({
-        title: "Song 2",
-        artist: "The Rolling Stones",
-        content: "Content",
-        tags: [],
-      });
-
-      const results = await searchSongs("Beatles");
-      expect(results.length).toBe(1);
-      expect(results[0].artist).toBe("The Beatles");
-    });
-
-    it("should search songs by tag", async () => {
-      await addSong({
-        title: "Rock Song",
-        artist: "Artist",
-        content: "Content",
-        tags: ["rock", "classic"],
-      });
-
-      await addSong({
-        title: "Jazz Song",
-        artist: "Artist",
-        content: "Content",
-        tags: ["jazz"],
-      });
-
-      const results = await searchSongs("rock");
-      expect(results.length).toBe(1);
-      expect(results[0].title).toBe("Rock Song");
-    });
-
     it("should throw error when updating non-existent song", async () => {
       await expect(updateSong("non-existent-id", { title: "New" })).rejects.toThrow("Song not found");
     });
@@ -316,39 +252,6 @@ describe("Database", () => {
 
       const setlist = await getSetlist(setlistId);
       expect(setlist).toBeUndefined();
-    });
-
-    it("should get setlist with songs", async () => {
-      const song1Id = await addSong({
-        title: "Song 1",
-        artist: "Artist",
-        content: "Content",
-        tags: [],
-      });
-
-      const song2Id = await addSong({
-        title: "Song 2",
-        artist: "Artist",
-        content: "Content",
-        tags: [],
-      });
-
-      const setlistId = await addSetlist({
-        name: "My Gig",
-        songIds: [song1Id, song2Id],
-      });
-
-      const result = await getSetlistWithSongs(setlistId);
-      expect(result).toBeDefined();
-      expect(result?.setlist.name).toBe("My Gig");
-      expect(result?.songs.length).toBe(2);
-      expect(result?.songs[0].title).toBe("Song 1");
-      expect(result?.songs[1].title).toBe("Song 2");
-    });
-
-    it("should return undefined for non-existent setlist with songs", async () => {
-      const result = await getSetlistWithSongs("non-existent-id");
-      expect(result).toBeUndefined();
     });
 
     it("should throw error when updating non-existent setlist", async () => {

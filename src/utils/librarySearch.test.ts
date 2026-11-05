@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { createLibrarySearch, matchesLibrarySearch, tagSearchQuery } from "./librarySearch";
+import { createLibrarySearch, tagSearchQuery } from "./librarySearch";
+
+const matchesLibrarySearch = (text: string, tags: readonly string[], query: string, songIds?: readonly string[]) =>
+  createLibrarySearch(query)(text, tags, songIds);
 
 it("reuses a query across independent records without carrying over normalized tags or membership", () => {
   const matches = createLibrarySearch('#"Sunday morning" harbor');

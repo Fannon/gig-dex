@@ -131,5 +131,8 @@
 @keyframes workspace-sync-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .workspace-sync-link svg { animation: none !important; } }
 @media (max-width: 380px) {
-  .workspace-topbar { gap: 2px; nav { gap: 0; a { padding-inline: 3px; } } }
+  // Keep the topbar on one line with all icons, including the update indicator, at 320px.
+  .workspace-topbar { gap: 2px; nav { gap: 2px; a { padding-inline: 4px; } }
+    > button:first-child, .workspace-sync-link, .workspace-search-button, .pwa-status, .pwa-status > summary { width: 34px; min-width: 34px; padding-inline: 0; }
+  }
 }

@@ -148,7 +148,7 @@ export const SettingsPage = () => {
                 <img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="Gig-Dex" />
                 <div>
                   <h3>Gig-Dex</h3>
-                  <p>Version 0.1.0</p>
+                  <p>Version {__APP_VERSION__}</p>
                 </div>
               </div>
               <p className="settings-page__about-description">
@@ -160,7 +160,7 @@ export const SettingsPage = () => {
                   Project &amp; help
                 </a>
                 <a href="https://www.chordpro.org/" target="_blank" rel="noopener noreferrer">
-                  Learn ChordPro Format
+                  Learn ChordPro format
                 </a>
               </div>
             </div>

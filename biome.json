@@ -8,6 +8,9 @@
   "files": {
     "includes": ["**", "!**/dist", "!**/node_modules", "!**/reports", "!**/coverage", "!**/tmp"]
   },
+  "javascript": {
+    "globals": ["__APP_VERSION__"]
+  },
   "formatter": {
     "indentStyle": "space",
     "indentWidth": 2,

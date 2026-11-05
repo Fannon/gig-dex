@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 test("offline settings distinguish local songs, storage protection, installation and backups", async ({
   page,
@@ -19,9 +20,8 @@ test("offline settings distinguish local songs, storage protection, installation
     });
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
-  await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
+  await seedLibrary(page);
+  await expect(page.locator(".song-page__title")).toHaveText("Harbor Lights");
   await page.goto("./settings?section=offline");
   const settings = page.getByRole("region", { name: "Offline app" });
   await settings.getByText("Technical details", { exact: true }).click();
@@ -111,8 +111,7 @@ test("performance wake lock is remembered, retried and released on exit", async 
       },
     });
   });
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await seedLibrary(page);
   await page.getByRole("link", { name: "Perform", exact: true }).click();
   await page.getByRole("button", { name: "Performance options", exact: true }).click();
   const toggle = page.getByRole("button", { name: "Keep screen awake" });
@@ -131,9 +130,8 @@ test("performance wake lock is remembered, retried and released on exit", async 
 });
 
 test("a failed route download shows a recovery view with the library preserved", async ({ page, context }) => {
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
-  await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
+  await seedLibrary(page);
+  await expect(page.getByRole("heading", { name: "Harbor Lights", exact: true })).toBeVisible();
   await context.route("**/src/pages/SettingsPage.tsx*", (route) => route.abort());
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "This view couldn’t load" })).toBeVisible();

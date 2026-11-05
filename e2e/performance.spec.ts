@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 test("perform a repeated setlist, paginate, remember position and pulse tempo", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -52,14 +53,13 @@ test("perform a repeated setlist, paginate, remember position and pulse tempo", 
 });
 
 test("unsaved song edits survive rejected navigation, cancellation and browser Back", async ({ page }) => {
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await seedLibrary(page);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Unsaved title");
   page.on("dialog", (dialog) => dialog.dismiss());
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -70,10 +70,10 @@ test("unsaved song edits survive rejected navigation, cancellation and browser B
   await expect(page.locator(".song-page__title")).toHaveText("Unsaved title");
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toContainText([
-    "Tutorial Song",
+    "Mountain Road",
     "Unsaved title",
   ]);
 });
@@ -81,7 +81,7 @@ test("unsaved song edits survive rejected navigation, cancellation and browser B
 test("setlist drafts survive rejected Escape and cancel, and save without discard prompts", async ({ page }) => {
   await page.goto("./setlists");
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
-  const modal = page.getByRole("dialog", { name: "New Setlist", exact: true });
+  const modal = page.getByRole("dialog", { name: "New setlist", exact: true });
   await modal.getByLabel("Name", { exact: true }).fill("Unsaved setlist");
   page.once("dialog", (dialog) => dialog.dismiss());
   await page.keyboard.press("Escape");

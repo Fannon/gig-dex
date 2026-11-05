@@ -19,12 +19,8 @@ import {
   stripMetadata,
 } from "../utils/chordEngine";
 import { tagSearchQuery } from "../utils/librarySearch";
-import {
-  defaultSongSetting,
-  occurrenceContent,
-  occurrenceSettings,
-  songSettingDetails,
-} from "../utils/setlistSettings";
+import { defaultSongSetting, occurrenceSettings, songSettingDetails } from "../utils/setlistSettings";
+import { isValidTempo, MAX_BPM, MIN_BPM } from "../utils/tempo";
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
@@ -73,7 +69,7 @@ export const SongPage = () => {
         setSetMessage(`Created ${date} and added song`);
       }
     } catch {
-      setSetMessage("Could not add the song to a set. Please try again.");
+      setSetMessage("Could not add the song to a setlist. Please try again.");
     } finally {
       addingRef.current = false;
       setAddingToSet(false);
@@ -91,7 +87,6 @@ export const SongPage = () => {
     content: "",
     key: "",
     tempo: undefined,
-    capo: undefined,
     time: "",
     tags: [],
   });
@@ -112,7 +107,8 @@ export const SongPage = () => {
     occurrence.list ? occurrence.setting : { transpose: readingTranspose },
     chordMode,
   );
-  const hasTempo = Number.isFinite(readingDetails.bpm) && readingDetails.bpm > 0 && readingDetails.bpm <= 400;
+  const setCount = songSetCounts.get(id ?? "") ?? 0;
+  const hasTempo = isValidTempo(readingDetails.bpm);
   const performanceReturn =
     searchParams.get("from") === "performance"
       ? occurrence.list
@@ -125,7 +121,7 @@ export const SongPage = () => {
     setAddingToSet(true);
     try {
       const current = await getSetlist(currentSetlistId);
-      if (!current) throw new Error("Set no longer exists");
+      if (!current) throw new Error("Setlist no longer exists");
       const index =
         occurrence.list?.id === current.id && current.songIds[occurrenceIndex] === id
           ? occurrenceIndex
@@ -288,9 +284,9 @@ export const SongPage = () => {
       artist: song.artist || undefined,
       key: song.key || undefined,
       tempo: song.tempo || undefined,
-      capo: song.capo || undefined,
       time: song.time || undefined,
-      // Preserve extended metadata from original content
+      // Preserve extended metadata from original content, including legacy {capo} directives
+      capo: existingMetadata.capo,
       subtitle: song.subtitle || undefined,
       composer: existingMetadata.composer,
       lyricist: existingMetadata.lyricist,
@@ -312,8 +308,8 @@ export const SongPage = () => {
       setSaveError("Standard transposition must be a whole number between -24 and 24.");
       return;
     }
-    if (song.tempo !== undefined && (!Number.isInteger(song.tempo) || song.tempo < 20 || song.tempo > 300)) {
-      setSaveError("Tempo must be a whole number between 20 and 300 BPM.");
+    if (song.tempo !== undefined && (!Number.isInteger(song.tempo) || !isValidTempo(song.tempo))) {
+      setSaveError(`Tempo must be a whole number between ${MIN_BPM} and ${MAX_BPM} BPM.`);
       return;
     }
     setSaving(true);
@@ -325,7 +321,6 @@ export const SongPage = () => {
         key: song.key,
         defaultTranspose: song.defaultTranspose ?? 0,
         tempo: song.tempo,
-        capo: song.capo,
         time: song.time,
         // Preserve extended metadata in database too
         subtitle: song.subtitle || undefined,
@@ -395,7 +390,6 @@ export const SongPage = () => {
           artist: song.artist || undefined,
           key: song.key || undefined,
           tempo: song.tempo || undefined,
-          capo: song.capo || undefined,
           time: song.time || undefined,
         };
         setSong((prev) => ({ ...prev, content: injectMetadata(chordPro, metadata) }));
@@ -419,7 +413,7 @@ export const SongPage = () => {
     return (
       <div className="song-page song-page--loading">
         <div className="song-page__spinner" />
-        <p>Loading song...</p>
+        <p>Loading song…</p>
       </div>
     );
   }
@@ -433,7 +427,7 @@ export const SongPage = () => {
             {occurrence.list && <span className="song-page__meta-tag">{occurrence.list.name}</span>}
             {song.artist && <span className="song-page__artist">by {song.artist}</span>}
             <Link className="song-page__set-count" to={`/setlists?q=${encodeURIComponent(id ?? "")}`}>
-              In {songSetCounts.get(id ?? "") ?? 0} Sets
+              In {setCount} {setCount === 1 ? "setlist" : "setlists"}
             </Link>
             <span className="song-page__meta-tag song-page__key" title="Key">
               {readingDetails.key}
@@ -442,11 +436,6 @@ export const SongPage = () => {
             {!hasTempo && readingDetails.time && (
               <span className="song-page__meta-tag" title="Time signature">
                 {readingDetails.time}
-              </span>
-            )}
-            {!!readingDetails.capo && (
-              <span className="song-page__meta-tag" title="Capo">
-                Capo {readingDetails.capo}
               </span>
             )}
             {song.tags && song.tags.length > 0 && (
@@ -484,11 +473,11 @@ export const SongPage = () => {
                 className="song-page__btn song-page__btn--secondary"
                 disabled={addingToSet}
                 onClick={() => void addToSet()}
-                aria-label="Add to Set"
-                title="Add this song to the current set, or create a dated set"
+                aria-label="Add to setlist"
+                title="Add this song to the current setlist, or create one dated today"
               >
                 <ActionIcon name="add" />
-                Set
+                Setlist
               </button>
               {currentSetlist?.songIds.includes(id ?? "") && (
                 <button
@@ -496,11 +485,11 @@ export const SongPage = () => {
                   className="song-page__btn song-page__btn--secondary"
                   disabled={addingToSet}
                   onClick={() => void removeFromSet()}
-                  aria-label="Remove from Set"
-                  title="Remove one occurrence from the current set"
+                  aria-label="Remove from setlist"
+                  title="Remove one occurrence from the current setlist"
                 >
                   <ActionIcon name="remove" />
-                  Set
+                  Setlist
                 </button>
               )}
               <Link
@@ -557,7 +546,7 @@ export const SongPage = () => {
                 className="song-page__btn song-page__btn--primary"
               >
                 <ActionIcon name="save" />
-                {saving ? "Saving..." : "Save"}
+                {saving ? "Saving…" : "Save"}
               </button>
             </>
           ) : (
@@ -618,7 +607,7 @@ export const SongPage = () => {
             </div>
           </div>
 
-          {/* Row 2: Tempo, Capo, Time, Tags */}
+          {/* Row 2: Tempo, Standard transposition, Time, Tags */}
           <div className="song-page__meta-row">
             <div className="song-page__field song-page__field--flex1">
               <label htmlFor="song-tempo">Tempo (BPM)</label>
@@ -633,8 +622,8 @@ export const SongPage = () => {
                   }))
                 }
                 placeholder="120"
-                min="20"
-                max="300"
+                min={MIN_BPM}
+                max={MAX_BPM}
               />
             </div>
             <div className="song-page__field song-page__field--flex1">
@@ -679,7 +668,7 @@ export const SongPage = () => {
                         handleAddTag();
                       }
                     }}
-                    placeholder="Add tag..."
+                    placeholder="Add tag…"
                   />
                   <button type="button" onClick={handleAddTag} aria-label="Add tag" disabled={!tagInput.trim()}>
                     +
@@ -831,11 +820,9 @@ That [G]saved a [Em]wretch like [D]me
           headerControls={headerControls}
           readingKey={occurrence.list ? `setlist:${occurrence.list.id}:${occurrenceIndex}:${id}` : `song:${id}`}
           key={`${id}:${searchParams.get("setlist")}:${occurrenceIndex}`}
-          content={occurrence.list ? occurrenceContent(song as Song, occurrence.setting) : song.content || ""}
+          content={song.content || ""}
           transposeValue={occurrence.list ? (occurrence.setting?.transpose ?? 0) : readingTranspose}
           onTransposeChange={occurrence.list ? (value) => void occurrence.transpose(value) : setReadingTranspose}
-          title={song.title}
-          artist={song.artist}
         />
       )}
     </div>
