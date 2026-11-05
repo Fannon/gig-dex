@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { seedLibrary } from "./fixtures";
+import { answerConfirm, seedLibrary } from "./fixtures";
 
 test("song editing preserves pending tags and discards cancelled tag drafts", async ({ page }) => {
   await page.goto("./song/new");
@@ -14,8 +14,8 @@ test("song editing preserves pending tags and discards cancelled tag drafts", as
   await expect(page.locator(".song-page__tag-inline")).toHaveText("acoustic");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByLabel("Tags", { exact: true }).fill("discard me");
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await answerConfirm(page, "Discard changes");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await expect(page.getByLabel("Tags", { exact: true })).toHaveValue("");
   await page.getByRole("button", { name: "Remove tag acoustic", exact: true }).click();
@@ -318,9 +318,16 @@ test("mobile song controls stay compact and selected colors remain clear in ever
         "background-color",
         "rgb(103, 82, 169)",
       );
-      await expect(page.getByRole("button", { name: "Delete", exact: true })).toHaveCSS("color", "rgb(166, 41, 41)");
     }
     await info.attach(`toolbar-${theme}`, { body: JSON.stringify(controls), contentType: "application/json" });
     await page.screenshot({ path: `reports/final-review/song-${theme}-phone.png` });
+    if (theme === "light") {
+      await page.getByRole("button", { name: "Edit", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Delete song", exact: true })).toHaveCSS(
+        "color",
+        "rgb(166, 41, 41)",
+      );
+      await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    }
   }
 });

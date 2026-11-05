@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * A small synthetic library for specs that need songs but do not test the
@@ -91,4 +91,11 @@ export async function addDemoSongs(page: Page) {
       }),
   );
   return { title, count };
+}
+
+/** Answer the app's confirmation dialog with the named button. */
+export async function answerConfirm(page: Page, button: string) {
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("button", { name: button, exact: true }).click();
+  await expect(dialog).toBeHidden();
 }

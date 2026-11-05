@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useBlocker } from "react-router-dom";
 import { blockPwaUpdate } from "../pwa/lifecycle";
+import { confirmAction, discardChangesRequest } from "../utils/confirm";
 
 export function useUnsavedEdits(dirty: boolean) {
   const dirtyRef = useRef(dirty);
@@ -23,8 +24,7 @@ export function useUnsavedEdits(dirty: boolean) {
     }
     if (handled.current) return;
     handled.current = true;
-    if (window.confirm("Discard unsaved changes?")) blocker.proceed();
-    else blocker.reset();
+    void confirmAction(discardChangesRequest).then((discard) => (discard ? blocker.proceed?.() : blocker.reset?.()));
   }, [blocker]);
   useEffect(() => {
     if (!dirty) return;

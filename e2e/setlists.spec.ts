@@ -62,9 +62,12 @@ test("browse and create a tagged setlist, persist details, and delete it", async
   await page.reload();
   await expect(page.getByRole("region", { name: "Setlist content" })).toContainText("Saturday night");
   await expect(page.locator(".setlists-page__item .setlists-page__tags span")).toHaveText(["rock", "local"]);
-  page.on("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete setlist" }).click();
   await expect(page.getByText("No setlists yet")).toBeVisible();
+  // Deleting is immediate; Undo brings the setlist back with its details.
+  await page.getByRole("status").filter({ hasText: "Deleted" }).getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByRole("region", { name: "Setlist content" })).toContainText("Saturday night");
+  await expect(page.locator(".setlists-page__item .setlists-page__tags span")).toHaveText(["rock", "local"]);
 });
 
 test("search names, descriptions and tags, filter tags, sort both directions and by song count", async ({ page }) => {

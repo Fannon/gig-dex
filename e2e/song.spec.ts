@@ -134,4 +134,18 @@ test.describe("Song Page", () => {
       .click();
     await expect(page.locator(".song-page__title")).toHaveText("Harbor Lights");
   });
+
+  test("delete lives in the editor and Undo restores the song and its setlist entry", async ({ page }) => {
+    const { setlistId } = await seedLibrary(page);
+    await expect(page.getByRole("button", { name: "Delete song", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page.getByRole("button", { name: "Delete song", exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
+    const toast = page.getByRole("status").filter({ hasText: "Deleted “Harbor Lights”." });
+    await toast.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.locator(".song-page__title")).toHaveText("Harbor Lights");
+    await page.goto(`./setlist/${setlistId}`);
+    await expect(page.locator(".setlists-page__song strong")).toHaveText(["Harbor Lights", "Mountain Road"]);
+  });
 });

@@ -10,6 +10,7 @@ import {
   restoreLibrary,
 } from "../utils/libraryBackup";
 import "./DataManagement.scss";
+import { confirmAction } from "../utils/confirm";
 
 type LibraryOperation = "export" | "preview" | "restore" | "import";
 const itemCount = (count: number, item: "song" | "setlist") => `${count} ${item}${count === 1 ? "" : "s"}`;
@@ -155,12 +156,15 @@ export const DataManagement = () => {
                 type="button"
                 disabled={busy}
                 className={mode === "replace" ? "settings-page__button--danger" : "settings-page__button--primary"}
-                onClick={() => {
+                onClick={async () => {
                   if (
                     mode === "replace" &&
-                    !confirm(
-                      `Remove all current songs and setlists from this device and replace them with ${itemCount(backup.songs.length, "song")} and ${itemCount(backup.setlists.length, "setlist")} from this file?`,
-                    )
+                    !(await confirmAction({
+                      title: "Replace your library?",
+                      message: `This removes all current songs and setlists from this device and imports ${itemCount(backup.songs.length, "song")} and ${itemCount(backup.setlists.length, "setlist")} from this file.`,
+                      confirmLabel: "Replace library",
+                      danger: true,
+                    }))
                   )
                     return;
                   void run("restore", async () => {

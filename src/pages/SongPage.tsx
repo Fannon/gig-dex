@@ -4,7 +4,17 @@ import { ActionIcon } from "../components/ActionIcon";
 import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
 import { SongView } from "../components/SongView";
 import { TempoIndicator } from "../components/TempoIndicator";
-import { addSetlist, addSong, deleteSong, getSetlist, getSong, type Song, updateSetlist, updateSong } from "../db";
+import {
+  addSetlist,
+  addSong,
+  deleteSong,
+  getSetlist,
+  getSong,
+  restoreSong,
+  type Song,
+  updateSetlist,
+  updateSong,
+} from "../db";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { useSetlistOccurrence } from "../hooks/useSetlistOccurrence";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
@@ -18,9 +28,11 @@ import {
   simpleToChordPro,
   stripMetadata,
 } from "../utils/chordEngine";
+import { confirmAction, discardChangesRequest } from "../utils/confirm";
 import { tagSearchQuery } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, songSettingDetails } from "../utils/setlistSettings";
 import { isValidTempo, MAX_BPM, MIN_BPM } from "../utils/tempo";
+import { showToast } from "../utils/toast";
 import "./SongPage.scss";
 
 type EditorMode = "simple" | "advanced";
@@ -358,6 +370,28 @@ export const SongPage = () => {
     }
   };
 
+  // Delete right away and offer Undo, which also restores the song's setlist entries.
+  const removeSong = async () => {
+    if (!id) return;
+    try {
+      const deleted = await deleteSong(id);
+      allowLeave();
+      setDirty(false);
+      navigate("/");
+      if (deleted)
+        showToast({
+          message: `Deleted “${deleted.song.title}”.`,
+          actionLabel: "Undo",
+          action: async () => {
+            await restoreSong(deleted);
+            navigate(`/song/${deleted.song.id}`);
+          },
+        });
+    } catch {
+      setSaveError("Could not delete the song. Please try again.");
+    }
+  };
+
   const handleAddTag = () => {
     if (tagInput.trim() && !song.tags?.includes(tagInput.trim())) {
       setDirty(true);
@@ -503,28 +537,26 @@ export const SongPage = () => {
                 <ActionIcon name="perform" />
                 Perform
               </Link>
-              <button
-                type="button"
-                className="song-page__btn song-page__btn--danger"
-                onClick={() => {
-                  if (!id || !confirm(`Delete “${song.title}”? It will also be removed from setlists.`)) return;
-                  void deleteSong(id)
-                    .then(() => navigate("/"))
-                    .catch(() => alert("Could not delete the song. Please try again."));
-                }}
-              >
-                <ActionIcon name="delete" />
-                Delete
-              </button>
             </>
           )}
           {isEditing ? (
             <>
+              {!isNew && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void removeSong()}
+                  className="song-page__btn song-page__btn--danger song-page__delete"
+                >
+                  <ActionIcon name="delete" />
+                  Delete song
+                </button>
+              )}
               <button
                 type="button"
                 disabled={saving}
                 onClick={async () => {
-                  if (dirty && !confirm("Discard unsaved changes?")) return;
+                  if (dirty && !(await confirmAction(discardChangesRequest))) return;
                   allowLeave();
                   setDirty(false);
                   if (performanceReturn) navigate(performanceReturn);

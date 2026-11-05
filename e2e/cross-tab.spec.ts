@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { answerConfirm } from "./fixtures";
 
 async function createSong(page: Page, title: string) {
   await page.goto("./song/new");
@@ -54,7 +55,6 @@ test("saved songs, setlists and deletions refresh other tabs without focus or an
   await dialog.getByLabel("Name", { exact: true }).fill("Renamed set");
   await dialog.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(observer.locator(".setlists-page__content h2")).toHaveText("Renamed set");
-  page.on("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete setlist", exact: true }).click();
   await expect(observer.getByText("No setlists yet", { exact: true })).toBeVisible();
 
@@ -63,7 +63,8 @@ test("saved songs, setlists and deletions refresh other tabs without focus or an
     .getByRole("link", { name: "Songs", exact: true })
     .click();
   await page.goto(songUrl);
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "Delete song", exact: true }).click();
   await expect(observer.getByRole("heading", { name: "No songs yet", exact: true })).toBeVisible();
   expect(await observer.evaluate(() => performance.timeOrigin)).toBe(initial);
   expect(await observer.evaluate(() => Reflect.get(window, "crossTabCounts"))).toEqual({ focus: 0, mutations: 0 });
@@ -80,8 +81,8 @@ test("other tabs refresh the sidebar while preserving dirty song drafts and the 
   await renameSong(page, "Saved in another tab");
   await expect(editor.locator("#sidebar-songs").getByRole("link", { name: /Saved in another tab/ })).toBeVisible();
   await expect(editor.getByLabel("Title", { exact: true })).toHaveValue("Unsaved draft");
-  editor.on("dialog", (dialog) => dialog.accept());
   await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+  await answerConfirm(editor, "Discard changes");
   await expect(editor.locator(".song-page__title")).toHaveText("Saved in another tab");
   await editor.getByRole("link", { name: "Perform", exact: true }).click();
   await expect(editor.getByRole("heading", { name: "Saved in another tab", exact: true })).toBeVisible();
