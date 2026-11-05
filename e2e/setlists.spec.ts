@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function create(page: Page, name: string, tags = "") {
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "New Setlist", exact: true });
+  const dialog = page.getByRole("dialog", { name: "New setlist", exact: true });
   await dialog.getByLabel("Name", { exact: true }).fill(name);
   await dialog.getByLabel("Tags", { exact: true }).fill(tags);
   await dialog.getByRole("button", { name: "Create", exact: true }).click();

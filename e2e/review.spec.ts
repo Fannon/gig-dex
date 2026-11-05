@@ -240,9 +240,9 @@ test("performance remains usable when reading preferences cannot be stored", asy
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Songs", exact: true }).click();
+  await page.getByRole("button", { name: "Add demo songs", exact: true }).click();
   await page.getByRole("link", { name: "Perform", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hello, Songbook", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Performance options", exact: true }).click();
   await page.getByLabel("Reading mode").selectOption("scroll");
   await expect(page.getByRole("dialog", { name: "Performance options" })).not.toBeVisible();
@@ -292,8 +292,8 @@ test("mobile song controls stay compact and selected colors remain clear in ever
   await mkdir("reports/final-review", { recursive: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Songs", exact: true }).click();
-  await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
+  await page.getByRole("button", { name: "Add demo songs", exact: true }).click();
+  await expect(page.locator(".song-page__title")).toHaveText("Hello, Songbook");
   const songUrl = page.url();
   for (const theme of ["black", "violet", "light"]) {
     await page.goto("./settings");

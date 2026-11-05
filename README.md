@@ -27,12 +27,12 @@ It understands the popular [ChordPro](https://www.chordpro.org/) format (`[Am]He
 
 <table>
   <tr valign="top">
-    <td><a href="docs/screenshots/tutorial-song.png"><img src="docs/screenshots/tutorial-song.png" alt="Tutorial Song with chords aligned over the lyrics" width="100%"></a></td>
-    <td><a href="docs/screenshots/edit-song.png"><img src="docs/screenshots/edit-song.png" alt="Tutorial Song in the simple editor with live preview" width="100%"></a></td>
+    <td><a href="docs/screenshots/tutorial-song.png"><img src="docs/screenshots/tutorial-song.png" alt="Hello, Songbook demo song with chords aligned over the lyrics" width="100%"></a></td>
+    <td><a href="docs/screenshots/edit-song.png"><img src="docs/screenshots/edit-song.png" alt="Demo song in the simple editor with live preview" width="100%"></a></td>
     <td><a href="docs/screenshots/demo-setlist.png"><img src="docs/screenshots/demo-setlist.png" alt="Demo Night setlist with ordered songs and song preview" width="100%"></a></td>
   </tr>
   <tr valign="middle" align="center">
-    <td><em>The Tutorial Song. Tap "Add Demo Songs" to get it.</em></td>
+    <td><em>A demo song. Tap "Add demo songs" for a short sung tour.</em></td>
     <td><em>Simple editor with live preview</em></td>
     <td><em>Demo Night setlist with song preview</em></td>
   </tr>
@@ -40,7 +40,7 @@ It understands the popular [ChordPro](https://www.chordpro.org/) format (`[Am]He
 
 ### Get started in 3 steps (no account needed)
 
-1. **Open the app** in your browser (link above).
+1. **Open the app** in your browser (link above). New here? Tap **Add demo songs**: three short songs (a pop tune, a blues and a waltz) walk you through reading, setlists, editing and backups, plus a *Demo Night* setlist to try **Perform setlist**. Delete them whenever you like.
 2. **Add songs:** go to *Settings → Library → Import ChordPro songs* and select a few `.pro` / `.chopro` / `.txt` files, or create a new song and paste text.
 3. **Make a setlist:** go to *Sets → New setlist*, tap **+** on songs to add them, then hit **Perform setlist**.
 
@@ -131,7 +131,7 @@ More commands:
 - `npm run test` / `npm run test:e2e`: Vitest / Playwright
 - `npm run lint:fix` / `npm run format`: Biome
 - `npm run screenshots -- --input tmp/import --output reports/song-layout`: song layout audit (see script help)
-- `node scripts/readme-screenshots.mjs`: regenerate the synthetic README screenshots
+- `npm run screenshots:readme`: regenerate the README screenshots from the demo songs
 
 ### Docs
 

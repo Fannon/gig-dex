@@ -6,8 +6,8 @@ import { chromium } from "@playwright/test";
 // Generates the committed README screenshots in docs/screenshots/.
 // Unlike scripts/song-screenshots.mjs (ignored reports/ output for layout
 // review), these files are checked into git and embedded in README.md.
-// Uses the same "Add Demo Songs" flow a new user sees: Tutorial Song,
-// Amazing Grace and the "Demo Night" setlist.
+// Uses the same "Add demo songs" flow a new user sees: three tutorial songs
+// and the "Demo Night" setlist.
 const output = path.resolve("docs/screenshots");
 await mkdir(output, { recursive: true });
 
@@ -52,14 +52,14 @@ try {
 
   // Seed through the real UI, like a new user would.
   await page.goto(url);
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await page.getByRole("button", { name: "Add demo songs" }).click();
   await page.locator(".song-page__title").waitFor();
   const ids = await page.evaluate(async (basePath) => {
     const { getAllSongs, getAllSetlists } = await import(`${basePath}src/db.ts`);
     const songs = await getAllSongs();
     const setlists = await getAllSetlists();
     return {
-      tutorialId: songs.find((song) => song.title === "Tutorial Song")?.id,
+      tutorialId: songs.find((song) => song.title === "Hello, Songbook")?.id,
       setlistId: setlists.find((list) => list.name === "Demo Night")?.id,
     };
   }, new URL(url).pathname);
@@ -67,7 +67,7 @@ try {
   const songUrl = new URL(`song/${ids.tutorialId}`, url.endsWith("/") ? url : `${url}/`).href;
   const setlistUrl = new URL(`setlist/${ids.setlistId}`, url.endsWith("/") ? url : `${url}/`).href;
 
-  // 1. Tutorial Song view (desktop).
+  // 1. First demo song view (desktop).
   await page.goto(songUrl);
   await settleSong();
   await page.evaluate(() => document.fonts.ready);
@@ -83,7 +83,7 @@ try {
   await page.screenshot({ path: path.join(output, "demo-setlist.png"), fullPage: false });
   console.log("Saved demo-setlist.png");
 
-  // 3. Tutorial Song in the simple editor (desktop).
+  // 3. First demo song in the simple editor (desktop).
   await page.goto(songUrl);
   await settleSong();
   await page.getByRole("button", { name: "Edit", exact: true }).click();

@@ -6,7 +6,7 @@ description: Run the full verification suite (lint, test, build, e2e)
 This workflow runs the complete verification process to ensure the project is in a releasable state.
 
 1.  **Validate Code Quality and Unit Tests**
-    This step runs the linter and unit tests. It is the fastest way to catch common errors.
+    This step runs the linter, type checks and unit tests. It is the fastest way to catch common errors.
     ```bash
     npm run validate
     ```

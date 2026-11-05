@@ -112,6 +112,7 @@ export const SongPage = () => {
     occurrence.list ? occurrence.setting : { transpose: readingTranspose },
     chordMode,
   );
+  const setCount = songSetCounts.get(id ?? "") ?? 0;
   const hasTempo = Number.isFinite(readingDetails.bpm) && readingDetails.bpm > 0 && readingDetails.bpm <= 400;
   const performanceReturn =
     searchParams.get("from") === "performance"
@@ -419,7 +420,7 @@ export const SongPage = () => {
     return (
       <div className="song-page song-page--loading">
         <div className="song-page__spinner" />
-        <p>Loading song...</p>
+        <p>Loading song…</p>
       </div>
     );
   }
@@ -433,7 +434,7 @@ export const SongPage = () => {
             {occurrence.list && <span className="song-page__meta-tag">{occurrence.list.name}</span>}
             {song.artist && <span className="song-page__artist">by {song.artist}</span>}
             <Link className="song-page__set-count" to={`/setlists?q=${encodeURIComponent(id ?? "")}`}>
-              In {songSetCounts.get(id ?? "") ?? 0} Sets
+              In {setCount} {setCount === 1 ? "Set" : "Sets"}
             </Link>
             <span className="song-page__meta-tag song-page__key" title="Key">
               {readingDetails.key}
@@ -557,7 +558,7 @@ export const SongPage = () => {
                 className="song-page__btn song-page__btn--primary"
               >
                 <ActionIcon name="save" />
-                {saving ? "Saving..." : "Save"}
+                {saving ? "Saving…" : "Save"}
               </button>
             </>
           ) : (
@@ -618,7 +619,7 @@ export const SongPage = () => {
             </div>
           </div>
 
-          {/* Row 2: Tempo, Capo, Time, Tags */}
+          {/* Row 2: Tempo, Standard transposition, Time, Tags */}
           <div className="song-page__meta-row">
             <div className="song-page__field song-page__field--flex1">
               <label htmlFor="song-tempo">Tempo (BPM)</label>
@@ -679,7 +680,7 @@ export const SongPage = () => {
                         handleAddTag();
                       }
                     }}
-                    placeholder="Add tag..."
+                    placeholder="Add tag…"
                   />
                   <button type="button" onClick={handleAddTag} aria-label="Add tag" disabled={!tagInput.trim()}>
                     +
@@ -834,8 +835,6 @@ That [G]saved a [Em]wretch like [D]me
           content={occurrence.list ? occurrenceContent(song as Song, occurrence.setting) : song.content || ""}
           transposeValue={occurrence.list ? (occurrence.setting?.transpose ?? 0) : readingTranspose}
           onTransposeChange={occurrence.list ? (value) => void occurrence.transpose(value) : setReadingTranspose}
-          title={song.title}
-          artist={song.artist}
         />
       )}
     </div>

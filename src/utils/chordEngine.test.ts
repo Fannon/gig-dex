@@ -2,26 +2,26 @@ import { describe, expect, it } from "vitest";
 import {
   chordProToSimple,
   chordProToText,
-  DEMO_SONG,
   getSemitoneDifference,
   getSongKey,
   normalizeSimpleSpacing,
   parseChordPro,
   simpleToChordPro,
-  TUTORIAL_SONG,
   transposeChordPro,
 } from "./chordEngine";
 
 describe("chordEngine", () => {
   describe("parseChordPro", () => {
     it("should parse a basic ChordPro song", () => {
-      const result = parseChordPro(DEMO_SONG);
+      const result = parseChordPro(
+        "{title: Synthetic Hymn}\n{artist: Traditional}\n{key: G}\n{tempo: 72}\n\n[G]Morning [C]light",
+      );
 
-      expect(result.title).toBe("Amazing Grace");
+      expect(result.title).toBe("Synthetic Hymn");
       expect(result.artist).toBe("Traditional");
       expect(result.key).toBe("G");
       expect(result.tempo).toBe("72");
-      expect(result.html).toContain("Amazing");
+      expect(result.html).toContain("Morning");
     });
 
     it("should handle songs without metadata", () => {
@@ -39,9 +39,11 @@ describe("chordEngine", () => {
       expect(typeof result.html).toBe("string");
     });
 
-    it("renders the demo instrumental as styled chords", () => {
+    it("renders an instrumental section as styled chords", () => {
       const container = document.createElement("div");
-      container.innerHTML = parseChordPro(TUTORIAL_SONG).html;
+      container.innerHTML = parseChordPro(
+        "{start_of_verse: Instrumental}\n[E7] [A7] [E7] [B7]\n{end_of_verse}\n{start_of_verse: Verse 1}\n[E7]Words\n{end_of_verse}",
+      ).html;
       const label = container.querySelector(".section-instrumental");
       expect(label).not.toBeNull();
       const instrumental = label?.closest(".paragraph") ?? label?.parentElement;
@@ -137,12 +139,42 @@ describe("chordEngine", () => {
       expect(result).toContain("G     C");
       expect(result).toContain("Hello World");
     });
+
+    it("keeps ordinary comments as directives and turns section-like comments into labels", () => {
+      const simple = chordProToSimple(
+        "{comment: Play softly}\n{c: Chorus Deutsch}\n{start_of_verse: Verse 1}\n[C]Hello [G]world\n{end_of_verse}",
+      );
+      expect(simple.split("\n")).toEqual([
+        "{comment: Play softly}",
+        "Chorus Deutsch",
+        "Verse 1",
+        "C     G",
+        "Hello world",
+      ]);
+      const chordPro = simpleToChordPro(simple);
+      expect(chordPro).toContain("{comment: Play softly}");
+      expect(chordPro).toContain("{start_of_verse: Chorus Deutsch}");
+    });
   });
 
   describe("simpleToChordPro", () => {
     it("should convert chords-over-words to ChordPro", () => {
       const result = simpleToChordPro("G     C\nHello World");
       expect(result).toContain("[G]Hello [C]World");
+    });
+
+    it("keeps chords on lyrics that start with a section word", () => {
+      const result = simpleToChordPro(
+        "Verse 1\nC         G\nBridge over troubled water\nAm       F\nChorus girls are singing\nD      G\nIntroducing the band",
+      );
+      expect(result).toContain("[C]Bridge ove[G]r troubled water");
+      expect(result).toContain("[Am]Chorus gi[F]rls are singing");
+      expect(result).toContain("[D]Introdu[G]cing the band");
+      expect(result).not.toContain("{comment");
+    });
+
+    it("leaves 'Intro: C G' style headings between lyrics as comments", () => {
+      expect(simpleToChordPro("C\nHello\nIntro: C G Am\nG\nWorld")).toContain("{comment: Intro: C G Am}");
     });
   });
 });

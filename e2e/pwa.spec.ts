@@ -20,12 +20,12 @@ test("offline settings distinguish local songs, storage protection, installation
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
-  await expect(page.locator(".song-page__title")).toHaveText("Amazing Grace");
+  await page.getByRole("button", { name: "Add demo songs" }).click();
+  await expect(page.locator(".song-page__title")).toHaveText("Hello, Songbook");
   await page.goto("./settings?section=offline");
   const settings = page.getByRole("region", { name: "Offline app" });
   await settings.getByText("Technical details", { exact: true }).click();
-  await expect(settings).toContainText("2 songs · 1 setlist stored on this device");
+  await expect(settings).toContainText("3 songs · 1 setlist stored on this device");
   await expect(settings).toContainText("1.0 MB of 100.0 MB");
   await settings.getByRole("button", { name: "Protect local storage" }).click();
   await expect(settings).toContainText("Persistent storage granted");
@@ -112,7 +112,7 @@ test("performance wake lock is remembered, retried and released on exit", async 
     });
   });
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await page.getByRole("button", { name: "Add demo songs" }).click();
   await page.getByRole("link", { name: "Perform", exact: true }).click();
   await page.getByRole("button", { name: "Performance options", exact: true }).click();
   const toggle = page.getByRole("button", { name: "Keep screen awake" });
@@ -132,11 +132,11 @@ test("performance wake lock is remembered, retried and released on exit", async 
 
 test("a failed route download shows a recovery view with the library preserved", async ({ page, context }) => {
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
-  await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Add demo songs" }).click();
+  await expect(page.getByRole("heading", { name: "Hello, Songbook", exact: true })).toBeVisible();
   await context.route("**/src/pages/SettingsPage.tsx*", (route) => route.abort());
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "This view couldn’t load" })).toBeVisible();
   await page.getByRole("link", { name: "Go to your library" }).click();
-  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
 });

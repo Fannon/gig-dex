@@ -104,7 +104,7 @@ test("search highlights literal matches and counts distinct sets, with exact has
 
 test("minimum font lives in Settings and refits an open song after a preference change", async ({ page }) => {
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await page.getByRole("button", { name: "Add demo songs" }).click();
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
   await expect(page.getByLabel("Minimum font", { exact: true })).toHaveCount(0);
   await expect(page.locator(".song-view__layout-status")).toHaveCount(0);

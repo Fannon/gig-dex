@@ -388,7 +388,7 @@ export const SetlistsPage = () => {
                 <h3>No setlists yet</h3>
                 <p>Create a setlist for your next gig.</p>
                 <button type="button" className="primary" onClick={() => openNewDraft()}>
-                  Create Setlist
+                  Create setlist
                 </button>
               </div>
             ) : !filtered.length ? (
@@ -423,7 +423,7 @@ export const SetlistsPage = () => {
             <>
               <div className="setlists-page__detail-header">
                 <div className="setlists-page__eyebrow">
-                  SETLIST · {selected.songIds.length} SONGS
+                  SETLIST · {selected.songIds.length} {selected.songIds.length === 1 ? "SONG" : "SONGS"}
                   {selected.date && (
                     <>
                       {" "}
@@ -637,7 +637,7 @@ export const SetlistsPage = () => {
         </section>
       </main>
       {draft && (
-        <WorkspaceDialog title={draft.id ? "Edit setlist" : "New Setlist"} onClose={closeDraft}>
+        <WorkspaceDialog title={draft.id ? "Edit setlist" : "New setlist"} onClose={closeDraft}>
           {error && <p role="alert">{error}</p>}
           <form
             onSubmit={(event) => {
@@ -708,7 +708,7 @@ export const SetlistsPage = () => {
             Search songs
             <input
               type="search"
-              placeholder="Title, artist, or tag"
+              placeholder="Title, artist, or #tag…"
               value={songSearch}
               onChange={(event) => setSongSearch(event.target.value)}
             />
@@ -735,7 +735,9 @@ export const SetlistsPage = () => {
               </li>
             ))}
           </ul>
-          {!availableSongs.length && <p>No matching songs. Add songs to your library first.</p>}
+          {!availableSongs.length && (
+            <p>{songs.length ? "No songs match your search." : "Your library is empty. Add songs first."}</p>
+          )}
           <div className="setlists-page__modal-actions">
             <button type="button" onClick={() => setAddingSongs(false)}>
               Done

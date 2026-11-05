@@ -45,7 +45,7 @@ test("saved songs, setlists and deletions refresh other tabs without focus or an
     .getByRole("link", { name: "Sets", exact: true })
     .click();
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
-  let dialog = page.getByRole("dialog", { name: "New Setlist", exact: true });
+  let dialog = page.getByRole("dialog", { name: "New setlist", exact: true });
   await dialog.getByLabel("Name", { exact: true }).fill("Shared set");
   await dialog.getByRole("button", { name: "Create", exact: true }).click();
   await expect(observer.locator(".setlists-page__content h2")).toHaveText("Shared set");

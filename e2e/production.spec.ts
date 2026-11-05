@@ -26,9 +26,9 @@ test("production chunks load on demand and cached songs work offline", async ({ 
   await page.goto("./");
   await expect(page.getByRole("heading", { name: "No songs yet", exact: true })).toBeVisible();
   expect(scripts.some((url) => /chordEngine|jspdf|html2canvas/.test(url))).toBe(false);
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await page.getByRole("button", { name: "Add demo songs" }).click();
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
-  await expect(page.locator(".song-view__content")).toContainText("Amazing");
+  await expect(page.locator(".song-view__content")).toContainText("Chords sit on top");
   expect(scripts.some((url) => /chordEngine/.test(url))).toBe(true);
   await page.goto("./settings?section=library");
   await expect(page.getByRole("button", { name: /Export library/ })).toBeVisible();
@@ -36,14 +36,14 @@ test("production chunks load on demand and cached songs work offline", async ({ 
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await context.setOffline(true);
   await page.goto("./");
-  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
   await page
     .getByRole("main")
-    .getByRole("link", { name: /Amazing Grace/ })
+    .getByRole("link", { name: /Hello, Songbook/ })
     .click();
-  await expect(page.locator(".song-view__content")).toContainText("Amazing");
+  await expect(page.locator(".song-view__content")).toContainText("Chords sit on top");
   await page.getByRole("link", { name: "Perform", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Amazing Grace", exact: true })).toBeVisible();
-  await expect(page.locator(".song-view__content")).toContainText("Amazing");
+  await expect(page.getByRole("heading", { name: "Hello, Songbook", exact: true })).toBeVisible();
+  await expect(page.locator(".song-view__content")).toContainText("Chords sit on top");
   await context.setOffline(false);
 });

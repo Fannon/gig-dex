@@ -1,14 +1,18 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import type { LibraryWorkspaceContext } from "../components/LibraryWorkspace";
-import { addSetlist, addSong } from "../db";
-import { DEMO_SETLIST, DEMO_SONG, TUTORIAL_SONG } from "../utils/demoSong";
 import { createLibrarySearch, tagSearchQuery } from "../utils/librarySearch";
 import "./HomePage.scss";
 
 export const HomePage = () => {
   const navigate = useNavigate();
-  const { songs, libraryLoading: loading, libraryError, refreshLibrary } = useOutletContext<LibraryWorkspaceContext>();
+  const {
+    songs,
+    libraryLoading: loading,
+    libraryError,
+    refreshLibrary,
+    selectCurrentSetlist,
+  } = useOutletContext<LibraryWorkspaceContext>();
   const [error, setError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
@@ -31,31 +35,13 @@ export const HomePage = () => {
   }, [songs, query]);
   const addDemo = async () => {
     try {
-      const tutorialId = await addSong({
-        title: "Tutorial Song",
-        artist: "Gig-Dex Demo",
-        content: TUTORIAL_SONG,
-        key: "C",
-        tempo: 100,
-        capo: 2,
-        time: "4/4",
-        tags: ["demo", "tutorial"],
-      });
-      const amazingId = await addSong({
-        title: "Amazing Grace",
-        artist: "Traditional",
-        content: DEMO_SONG,
-        key: "G",
-        tags: ["hymn", "classic", "worship"],
-      });
-      await addSetlist({
-        ...DEMO_SETLIST,
-        songIds: [tutorialId, amazingId],
-        songSettings: [{ transpose: 0 }, { transpose: 0 }],
-      });
-      navigate(`/song/${amazingId}`);
+      // Loaded on demand so the chord engine stays out of the start-up bundle.
+      const { addDemoLibrary } = await import("../utils/demoSongs");
+      const { songId, setlistId } = await addDemoLibrary();
+      selectCurrentSetlist(setlistId);
+      navigate(`/song/${songId}`);
     } catch {
-      setError("Could not add the songs. Please try again.");
+      setError("Could not add the demo songs. Please try again.");
     }
   };
   return (
@@ -89,7 +75,7 @@ export const HomePage = () => {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Title, artist, or #tag"
+              placeholder="Title, artist, or #tag…"
             />
             {visibleSongs.length ? (
               <ul className="home-page__songs">
@@ -129,10 +115,14 @@ export const HomePage = () => {
         ) : !libraryError ? (
           <div className="home-page__empty">
             <h1>No songs yet</h1>
-            <p>Add your first song to get started</p>
+            <p>Start with three short demo songs that show you around, or bring your own.</p>
             <button type="button" onClick={() => void addDemo()} className="home-page__demo-btn">
-              Add Demo Songs
+              Add demo songs
             </button>
+            <div className="home-page__empty-links">
+              <Link to="/song/new">Write a new song</Link>
+              <Link to="/settings?section=library">Import ChordPro files</Link>
+            </div>
           </div>
         ) : null}
       </main>

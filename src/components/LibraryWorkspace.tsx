@@ -37,6 +37,8 @@ const remember = (key: string, value: string) => {
   }
 };
 
+const searchShortcut = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl+K";
+
 export interface LibraryWorkspaceContext {
   songs: Song[];
   libraryLoading: boolean;
@@ -432,7 +434,7 @@ export function LibraryWorkspace() {
         >
           <ActionIcon name="search" />
           <span className="workspace-search-button__label">Search</span>
-          <kbd>Ctrl+K</kbd>
+          <kbd>{searchShortcut}</kbd>
         </button>
       </header>
       <div
@@ -482,7 +484,7 @@ export function LibraryWorkspace() {
                   <div id="sidebar-songs" className="library-sidebar__panel">
                     <input
                       aria-label="Search sidebar songs"
-                      placeholder="Song, artist or tag…"
+                      placeholder="Title, artist, or #tag…"
                       value={songQuery}
                       onChange={(event) => setSongQuery(event.target.value)}
                     />
@@ -783,7 +785,11 @@ export function LibraryWorkspace() {
                   <HighlightedText text={result.detail} query={query} />
                 </small>
               </span>
-              {result.type === "Song" && <span className="workspace-search__set-count">In {result.setCount} Sets</span>}
+              {result.type === "Song" && (
+                <span className="workspace-search__set-count">
+                  In {result.setCount} {result.setCount === 1 ? "Set" : "Sets"}
+                </span>
+              )}
             </Link>
           ))}
           {!!query.trim() && !results.length && <p>No matches. Try another title or tag.</p>}

@@ -15,9 +15,6 @@ interface SongViewProps {
   onTransposeChange?: (value: number) => void;
   content: string;
   fitToScreen?: boolean;
-  title?: string;
-  artist?: string;
-  onContentChange?: (content: string) => void;
   onKeyChange?: (key: string | null) => void;
   readingKey?: string;
   paginated?: boolean;
@@ -30,9 +27,6 @@ export const SongView = ({
   onTransposeChange,
   content,
   fitToScreen = true,
-  title: _title,
-  artist: _artist,
-  onContentChange,
   onKeyChange,
   readingKey,
   paginated = false,
@@ -235,13 +229,6 @@ export const SongView = ({
     displayOpen,
   ]);
 
-  // Update parent with transposed content if needed
-  useEffect(() => {
-    if (!parsed.error && transpose !== 0 && onContentChange) {
-      onContentChange(parsed.transposedContent);
-    }
-  }, [transpose, parsed.transposedContent, parsed.error, onContentChange]);
-
   const handleTranspose = (delta: number) => {
     let next = transpose + delta;
     if (next > 11) next -= 12;
@@ -326,7 +313,7 @@ export const SongView = ({
           {!compactControls && transposeControls}
 
           <fieldset className="song-view__control-group" aria-label="Font size">
-            <span className="song-view__control-label">Font Size</span>
+            <span className="song-view__control-label">Font size</span>
             <div className="song-view__buttons">
               <button
                 type="button"

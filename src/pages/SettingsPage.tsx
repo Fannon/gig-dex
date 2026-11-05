@@ -160,7 +160,7 @@ export const SettingsPage = () => {
                   Project &amp; help
                 </a>
                 <a href="https://www.chordpro.org/" target="_blank" rel="noopener noreferrer">
-                  Learn ChordPro Format
+                  Learn ChordPro format
                 </a>
               </div>
             </div>

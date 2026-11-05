@@ -66,7 +66,7 @@ test("import multiple songs, report duplicates and invalid content, export and r
 
 test("replace restore requires confirmation and restores an empty library", async ({ page }) => {
   await page.goto("./");
-  await page.getByRole("button", { name: "Add Demo Song" }).click();
+  await page.getByRole("button", { name: "Add demo songs" }).click();
   await page.goto("./settings?section=library");
   const buffer = Buffer.from(
     JSON.stringify({
