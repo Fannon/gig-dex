@@ -15,6 +15,7 @@ import {
   injectMetadata,
   parseChordPro,
   type SongMetadata,
+  simpleEditorChanges,
   simpleToChordPro,
   stripMetadata,
 } from "../utils/chordEngine";
@@ -33,6 +34,9 @@ function extractEditorMetadata(song: Partial<Song>): SongMetadata {
     ...Object.fromEntries(extendedMetadataFields.map((key) => [key, metadata[key] ?? song[key]])),
   };
 }
+
+const listPhrase = (items: string[]) =>
+  items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}` : (items[0] ?? "");
 
 export const SongPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -153,20 +157,42 @@ export const SongPage = () => {
   const [isResizing, setIsResizing] = useState(false);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
+  // The simple text generated from the song. While it is unchanged, the ChordPro
+  // content is kept as is instead of being rebuilt from the simple text.
+  const simpleBaseline = useRef("");
+  const loadSimple = useCallback((content: string) => {
+    let simple: string;
+    try {
+      simple = chordProToSimple(stripMetadata(content));
+    } catch {
+      // If conversion fails, just strip metadata and use as-is
+      simple = stripMetadata(content);
+    }
+    simpleBaseline.current = simple;
+    setSimpleContent(simple);
+  }, []);
+
   // Convert ChordPro to simple format (with metadata stripped) when entering edit mode
   useEffect(() => {
-    if (isEditing && song.content) {
-      try {
-        // First strip metadata, then convert to simple format
-        const contentWithoutMeta = stripMetadata(song.content);
-        const simple = chordProToSimple(contentWithoutMeta);
-        setSimpleContent(simple);
-      } catch {
-        // If conversion fails, just strip metadata and use as-is
-        setSimpleContent(stripMetadata(song.content));
-      }
+    if (isEditing && song.content) loadSimple(song.content);
+  }, [isEditing, song.content, loadSimple]);
+
+  // What saving from the simple editor would change; songs it cannot keep intact open in Advanced.
+  const simpleChanges = useMemo(
+    () => (isEditing ? simpleEditorChanges(song.content ?? "") : []),
+    [isEditing, song.content],
+  );
+  const editorModeChosenFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!isEditing) {
+      editorModeChosenFor.current = undefined;
+      return;
     }
-  }, [isEditing, song.content]);
+    const songKey = song.id ?? "new";
+    if (loading || editorModeChosenFor.current === songKey) return;
+    editorModeChosenFor.current = songKey;
+    setEditorMode(simpleEditorChanges(song.content ?? "").length ? "advanced" : "simple");
+  }, [isEditing, loading, song.id, song.content]);
 
   const loadSong = useCallback(
     async (songId: string) => {
@@ -262,14 +288,14 @@ export const SongPage = () => {
     // Build the final ChordPro content with metadata
     let lyricsContent = "";
 
-    if (editorMode === "simple") {
+    if (editorMode === "simple" && simpleContent !== simpleBaseline.current) {
       try {
         lyricsContent = simpleToChordPro(simpleContent);
       } catch {
         lyricsContent = simpleContent;
       }
     } else {
-      // In advanced mode, strip existing metadata first (we'll re-inject from form)
+      // Advanced mode or untouched simple text: strip existing metadata first (we'll re-inject from form)
       lyricsContent = stripMetadata(song.content || "");
     }
 
@@ -378,8 +404,8 @@ export const SongPage = () => {
   };
 
   const switchEditorMode = (mode: EditorMode) => {
-    if (mode === "advanced" && editorMode === "simple") {
-      // Convert simple to ChordPro before switching
+    if (mode === "advanced" && editorMode === "simple" && simpleContent !== simpleBaseline.current) {
+      // Convert edited simple text to ChordPro before switching
       try {
         const chordPro = simpleToChordPro(simpleContent);
         // Preserve extended metadata while updating the editable fields.
@@ -398,13 +424,7 @@ export const SongPage = () => {
       }
     } else if (mode === "simple" && editorMode === "advanced") {
       // Convert ChordPro to simple before switching (strip metadata)
-      try {
-        const contentWithoutMeta = stripMetadata(song.content || "");
-        const simple = chordProToSimple(contentWithoutMeta);
-        setSimpleContent(simple);
-      } catch {
-        setSimpleContent(stripMetadata(song.content || ""));
-      }
+      loadSimple(song.content || "");
     }
     setEditorMode(mode);
   };
@@ -709,6 +729,13 @@ export const SongPage = () => {
               Advanced (ChordPro)
             </button>
           </div>
+          {simpleChanges.length > 0 && (
+            <p className="song-page__mode-note" role={editorMode === "simple" ? "alert" : undefined}>
+              {editorMode === "simple"
+                ? `Saving from Simple will change ${listPhrase(simpleChanges)}. Use Advanced (ChordPro) to keep the song exactly as it is.`
+                : `This song opens in Advanced (ChordPro) because the simple editor would change ${listPhrase(simpleChanges)}.`}
+            </p>
+          )}
 
           {/* Content editor */}
           <div className="song-page__content-area">

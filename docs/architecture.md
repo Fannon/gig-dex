@@ -29,7 +29,7 @@ Schema upgrades run inside the IndexedDB upgrade transaction. The v1→v2 migrat
 - **Safety:** the HTML formatter interpolates user text, so source `&`, `<` and `>` are escaped before parsing, only the formatter's structural elements and `class` attributes survive, and everything else becomes text. Malformed ChordPro is shown as escaped raw text with a hint to repair it.
 - **Sections:** labels are colored by category (verse, chorus, bridge, …). Comments that look like section labels, which older imports produced, are promoted to labels.
 - **Notation:** German spelling and Nashville/Roman numerals are applied at render time; stored chords never change.
-- **Simple editor:** converts between ChordPro and chords-over-words text. Section labels the editor recognizes (`Verse 1`, `Chorus`, `Bridge`, `Instrumental`, …) become sections; lyric lines that merely start with such a word are protected from ChordSheetJS's section heuristics, and comments survive as `{comment: …}` lines.
+- **Simple editor:** converts between ChordPro and chords-over-words text without normalizing chord spellings. Section labels (`Verse 1`, `Chorus`, or any bracketed `[Label]`) become verse, chorus or bridge sections by name, and unlabeled sections get a default label. Other directives stay in the simple text verbatim. Lyric lines that merely start with a section word are protected from ChordSheetJS's section heuristics. `simpleEditorChanges` round-trips a song and compares chords, lyrics, labels and directives; songs it cannot keep (annotations, some chord symbols) open in Advanced with an explanation, and untouched simple text never rewrites the stored ChordPro.
 
 ## Fitting songs to the screen
 

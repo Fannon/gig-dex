@@ -298,6 +298,13 @@
     width: fit-content;
   }
 
+  &__mode-note {
+    max-width: 60rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--color-warning);
+  }
+
   &__mode-btn {
     padding: 0.35rem 0.75rem;
     background: transparent;
