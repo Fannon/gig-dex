@@ -2,6 +2,7 @@ import { useState } from "react";
 import { logSyncError } from "../sync/diagnostics";
 import { applyRevisionCleanup, type CleanupPlan, previewRevisionCleanup } from "../sync/revisionCleanup";
 import type { SyncProvider } from "../sync/types";
+import { confirmAction } from "../utils/confirm";
 
 export const RevisionCleanup = ({ provider, disabled }: { provider: SyncProvider; disabled: boolean }) => {
   const [plan, setPlan] = useState<CleanupPlan | null>(null);
@@ -25,9 +26,12 @@ export const RevisionCleanup = ({ provider, disabled }: { provider: SyncProvider
   const apply = async () => {
     if (
       !plan ||
-      !confirm(
-        `Move ${plan.candidates.length} reviewed ${provider.name} revisions to trash? Current songs, deletion markers and retained history stay available.`,
-      )
+      !(await confirmAction({
+        title: `Move ${plan.candidates.length} old revisions to trash?`,
+        message: `Reviewed ${provider.name} revisions move to trash. Current songs, deletion markers and retained history stay available.`,
+        confirmLabel: "Move to trash",
+        danger: true,
+      }))
     )
       return;
     setBusy(true);

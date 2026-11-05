@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { repairPwaCache, usePwaState } from "../pwa/lifecycle";
+import { confirmAction } from "../utils/confirm";
 
 export function PwaRecovery() {
   const state = usePwaState();
@@ -18,11 +19,14 @@ export function PwaRecovery() {
         <button
           type="button"
           disabled={busy || !state.online || state.blocked}
-          onClick={() => {
+          onClick={async () => {
             if (
-              !window.confirm(
-                "Repair downloaded app files and restart? Your local library will be preserved. Close other Gig-Dex tabs first.",
-              )
+              !(await confirmAction({
+                title: "Repair app files and restart?",
+                message:
+                  "Gig-Dex downloads its app files again. Your songs, setlists and preferences stay on this device. Close other Gig-Dex tabs first.",
+                confirmLabel: "Repair and restart",
+              }))
             )
               return;
             setBusy(true);

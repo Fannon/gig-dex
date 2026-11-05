@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { syntheticSongs } from "../scripts/song-layout-fixtures.mjs";
+import { answerConfirm } from "./fixtures";
 
 async function openSong(page: Page, content: string, title = "Layout test") {
   await page.goto("./song/new");
@@ -131,17 +132,14 @@ test("cancel restores saved content, and clearing simple lyrics does not restore
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.locator('input[placeholder="Song title"]').fill("Unsaved title");
   await page.locator("textarea").fill("Changed lyrics");
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await answerConfirm(page, "Discard changes");
   await expect(page.locator(".song-page__title")).toHaveText("Saved title");
   await expect(page.locator(".song-view__content")).toContainText("Original lyrics");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.locator("textarea").fill("");
-  page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toContain("title and content");
-    await dialog.accept();
-  });
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("title and content");
   await expect(page.locator("textarea")).toBeVisible();
 });
 

@@ -175,14 +175,9 @@ test("new sets prefill today's date and drag indicators remain straight", async 
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   });
   await expect(page.getByRole("dialog").getByLabel("Date", { exact: true })).toHaveValue(today);
-  let prompted = false;
-  page.once("dialog", async (dialog) => {
-    prompted = true;
-    await dialog.dismiss();
-  });
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  expect(prompted).toBe(false);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
   await page.getByRole("dialog").getByLabel("Name", { exact: true }).fill("Dated fixture");
   await page.getByRole("button", { name: "Create", exact: true }).click();

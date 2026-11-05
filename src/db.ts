@@ -211,10 +211,18 @@ export const updateSong = async (id: string, updates: Partial<Song>): Promise<vo
   notifyLibraryMutated();
 };
 
-export const deleteSong = async (id: string): Promise<void> => {
+/** What a deletion removed, so it can be undone. */
+export interface DeletedSong {
+  song: Song;
+  /** Setlists that contained the song, as they were before the deletion. */
+  setlists: Setlist[];
+}
+
+export const deleteSong = async (id: string): Promise<DeletedSong | undefined> => {
   const db = await initDB();
   const tx = db.transaction(["songs", "setlists", "tombstones"], "readwrite");
   const song = await tx.objectStore("songs").get(id);
+  const affected: Setlist[] = [];
   if (song)
     await tx.objectStore("tombstones").put({
       id,
@@ -229,6 +237,7 @@ export const deleteSong = async (id: string): Promise<void> => {
   const setlists = await tx.objectStore("setlists").getAll();
   for (const setlist of setlists) {
     if (!setlist.songIds.includes(id)) continue;
+    affected.push(setlist);
     await tx.objectStore("setlists").put({
       ...setlist,
       songIds: setlist.songIds.filter((songId) => songId !== id),
@@ -237,6 +246,35 @@ export const deleteSong = async (id: string): Promise<void> => {
     });
   }
 
+  await tx.done;
+  notifyLibraryMutated();
+  return song && { song, setlists: affected };
+};
+
+/**
+ * Undo a song deletion: restore the song and put its setlist entries back where
+ * they were. Restored records count as new edits, so sync shares them again.
+ */
+export const restoreSong = async ({ song, setlists }: DeletedSong): Promise<void> => {
+  const db = await initDB();
+  const tx = db.transaction(["songs", "setlists", "tombstones"], "readwrite");
+  const currentTime = now();
+  await tx.objectStore("songs").put({ ...song, lastModified: currentTime });
+  await tx.objectStore("tombstones").delete(song.id);
+  for (const before of setlists) {
+    const current = await tx.objectStore("setlists").get(before.id);
+    if (!current) continue;
+    const songIds = [...current.songIds];
+    const songSettings = current.songIds.map((_, index) => current.songSettings?.[index] ?? { transpose: 0 });
+    // Ascending reinsertion restores each entry at its original position.
+    before.songIds.forEach((songId, index) => {
+      if (songId !== song.id) return;
+      const at = Math.min(index, songIds.length);
+      songIds.splice(at, 0, songId);
+      songSettings.splice(at, 0, before.songSettings?.[index] ?? { transpose: 0 });
+    });
+    await tx.objectStore("setlists").put({ ...current, songIds, songSettings, lastModified: currentTime });
+  }
   await tx.done;
   notifyLibraryMutated();
 };
@@ -294,7 +332,7 @@ export const updateSetlist = async (id: string, updates: Partial<Setlist>): Prom
   notifyLibraryMutated();
 };
 
-export const deleteSetlist = async (id: string): Promise<void> => {
+export const deleteSetlist = async (id: string): Promise<Setlist | undefined> => {
   const db = await initDB();
   const tx = db.transaction(["setlists", "tombstones"], "readwrite");
   const list = await tx.objectStore("setlists").get(id);
@@ -308,6 +346,17 @@ export const deleteSetlist = async (id: string): Promise<void> => {
       lastModified: now(),
     });
   await tx.objectStore("setlists").delete(id);
+  await tx.done;
+  notifyLibraryMutated();
+  return list;
+};
+
+/** Undo a setlist deletion. The restored setlist counts as a new edit for sync. */
+export const restoreSetlist = async (setlist: Setlist): Promise<void> => {
+  const db = await initDB();
+  const tx = db.transaction(["setlists", "tombstones"], "readwrite");
+  await tx.objectStore("setlists").put({ ...setlist, lastModified: now() });
+  await tx.objectStore("tombstones").delete(setlist.id);
   await tx.done;
   notifyLibraryMutated();
 };

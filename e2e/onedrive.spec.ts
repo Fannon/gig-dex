@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect, test } from "@playwright/test";
+import { answerConfirm } from "./fixtures";
 
 test("Microsoft popup uses PKCE and rejects mismatched OAuth state", async ({ page, context }) => {
   let challenge = "";
@@ -174,14 +175,14 @@ test("OneDrive sync and reviewed cleanup preserve current records and reject sta
   await expect(host.getByText("3 old revisions eligible")).toBeVisible();
   const head = files.get("file8");
   if (head) head.eTag = "updated";
-  page.once("dialog", (dialog) => dialog.accept());
   await host.getByRole("button", { name: "Move reviewed revisions to trash" }).click();
+  await answerConfirm(page, "Move to trash");
   await expect(host.getByRole("alert")).toContainText("changed since");
   expect(deleted).toBe(0);
   await host.getByRole("button", { name: "Review OneDrive history cleanup" }).click();
   await expect(host.getByText("3 old revisions eligible")).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
   await host.getByRole("button", { name: "Move reviewed revisions to trash" }).click();
+  await answerConfirm(page, "Move to trash");
   await expect(host.getByText("3 old revisions moved to trash.")).toBeVisible();
   expect(files.has("file8")).toBe(true);
   expect(files.size).toBe(6);

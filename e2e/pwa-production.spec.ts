@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { createUpgradeServer } from "../scripts/pwa-upgrade-server.mjs";
-import { addDemoSongs } from "./fixtures";
+import { addDemoSongs, answerConfirm } from "./fixtures";
 
 async function appStatus(page: Page) {
   const summary = page.locator(".pwa-status > summary");
@@ -151,8 +151,8 @@ test("production upgrade waits for editors and readers across tabs; offline rela
       await (await caches.open("unrelated-app-cache")).put("/unrelated", new Response("keep me"));
     });
     await cold.locator("summary").filter({ hasText: "Repair app files" }).click();
-    cold.once("dialog", (dialog) => dialog.accept());
     await cold.getByRole("button", { name: "Repair app files" }).click();
+    await answerConfirm(cold, "Repair and restart");
     await cold.goto(fixture.url);
     await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline/ })).toBeVisible();
     expect(await cold.evaluate(() => caches.has("unrelated-app-cache"))).toBe(true);

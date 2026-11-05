@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { seedLibrary } from "./fixtures";
+import { answerConfirm, seedLibrary } from "./fixtures";
 
 test("import multiple songs, report duplicates and invalid content, export and restore full library", async ({
   page,
@@ -80,11 +80,11 @@ test("replace restore requires confirmation and restores an empty library", asyn
   await page.getByLabel("Restore backup").setInputFiles({ name: "empty.json", mimeType: "application/json", buffer });
   await page.getByLabel("Restore mode").selectOption("replace");
   await expect(page.getByText(/Removes every current song and setlist/)).toBeVisible();
-  page.once("dialog", (dialog) => dialog.dismiss());
   await page.getByRole("button", { name: "Replace library", exact: true }).click();
+  await answerConfirm(page, "Cancel");
   await expect(page.getByText("Selected: empty.json")).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Replace library", exact: true }).click();
+  await answerConfirm(page, "Replace library");
   await expect(page.getByRole("status")).toContainText("Library replaced on this device.");
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(0);
   await page.goto("./");

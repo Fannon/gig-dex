@@ -11,6 +11,8 @@ import {
   getSong,
   getSongs,
   initDB,
+  restoreSetlist,
+  restoreSong,
   updateSetlist,
   updateSong,
 } from "./db";
@@ -62,6 +64,40 @@ describe("Database", () => {
     await updateSetlist(copyId, { songIds: ["b"], songSettings: [{ transpose: -1 }] });
     expect(await getSetlist(id)).toEqual(source);
     await expect(duplicateSetlist("missing", "Copy")).rejects.toThrow("Setlist not found");
+  });
+
+  it("undoing a song deletion restores repeated setlist entries with their keys", async () => {
+    const id = await addSong({ title: "Undo me", artist: "", content: "[C]Test", tags: ["x"] });
+    const other = await addSong({ title: "Other", artist: "", content: "[D]Test", tags: [] });
+    const list = await addSetlist({
+      name: "Gig",
+      songIds: [id, other, id],
+      songSettings: [{ transpose: 2 }, { transpose: -1 }, { transpose: 4 }],
+    });
+    const deleted = await deleteSong(id);
+    if (!deleted) throw new Error("Nothing deleted");
+    // Changes made after the deletion survive the undo.
+    const afterDelete = await getSetlist(list);
+    await updateSetlist(list, { name: "Renamed", songSettings: [{ transpose: -3 }] });
+    expect(afterDelete?.songIds).toEqual([other]);
+    await restoreSong(deleted);
+    expect(await getSong(id)).toMatchObject({ title: "Undo me", tags: ["x"] });
+    expect(await getSetlist(list)).toMatchObject({
+      name: "Renamed",
+      songIds: [id, other, id],
+      songSettings: [{ transpose: 2 }, { transpose: -3 }, { transpose: 4 }],
+    });
+    expect(await (await initDB()).get("tombstones", id)).toBeUndefined();
+  });
+
+  it("undoing a setlist deletion restores it and clears its deletion record", async () => {
+    const list = await addSetlist({ name: "Gig", songIds: ["a"], songSettings: [{ transpose: 1 }] });
+    const deleted = await deleteSetlist(list);
+    if (!deleted) throw new Error("Nothing deleted");
+    expect(await getSetlist(list)).toBeUndefined();
+    await restoreSetlist(deleted);
+    expect(await getSetlist(list)).toMatchObject({ name: "Gig", songIds: ["a"], songSettings: [{ transpose: 1 }] });
+    expect(await (await initDB()).get("tombstones", list)).toBeUndefined();
   });
 
   it("deleting repeated songs preserves surviving occurrence settings", async () => {

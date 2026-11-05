@@ -10,6 +10,7 @@ import {
   getSetlist,
   getSong,
   LIBRARY_CHANGED_EVENT,
+  restoreSetlist,
   type Setlist,
   type SetlistSongSettings,
   type Song,
@@ -17,9 +18,11 @@ import {
 } from "../db";
 import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { displayCalendarDate, isCalendarDate, localCalendarDate } from "../utils/calendarDate";
+import { confirmAction, discardChangesRequest } from "../utils/confirm";
 import { createLibrarySearch } from "../utils/librarySearch";
 import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
+import { showToast } from "../utils/toast";
 import "./SetlistsPage.scss";
 
 const SongView = lazy(() => import("../components/SongView").then((module) => ({ default: module.SongView })));
@@ -125,11 +128,10 @@ export const SetlistsPage = () => {
     const date = localCalendarDate();
     setDraft({ ...emptyDraft, date, initialDate: date });
   };
-  const closeDraft = () => {
-    if (!dirtyDraft || confirm("Discard unsaved changes?")) {
-      allowLeave();
-      setDraft(null);
-    }
+  const closeDraft = async () => {
+    if (dirtyDraft && !(await confirmAction(discardChangesRequest))) return;
+    allowLeave();
+    setDraft(null);
   };
   const availableSongs = useMemo(() => {
     const matches = createLibrarySearch(songSearch);
@@ -239,9 +241,18 @@ export const SetlistsPage = () => {
       select(listId, false);
     });
   const remove = () => {
-    if (!selected || !confirm(`Delete “${selected.name}”? Your songs will stay in the library.`)) return;
+    if (!selected) return;
     void mutate(async () => {
-      await deleteSetlist(selected.id);
+      const deleted = await deleteSetlist(selected.id);
+      if (deleted)
+        showToast({
+          message: `Deleted “${deleted.name}”. Your songs stay in the library.`,
+          actionLabel: "Undo",
+          action: async () => {
+            await restoreSetlist(deleted);
+            navigate(`/setlist/${deleted.id}`);
+          },
+        });
       const remaining = await getAllSetlists();
       setSetlists(remaining);
       navigate(remaining.length ? `/setlist/${remaining[remaining.length - 1].id}` : "/setlists");
@@ -637,7 +648,7 @@ export const SetlistsPage = () => {
         </section>
       </main>
       {draft && (
-        <WorkspaceDialog title={draft.id ? "Edit setlist" : "New setlist"} onClose={closeDraft}>
+        <WorkspaceDialog title={draft.id ? "Edit setlist" : "New setlist"} onClose={() => void closeDraft()}>
           {error && <p role="alert">{error}</p>}
           <form
             onSubmit={(event) => {
@@ -691,7 +702,7 @@ export const SetlistsPage = () => {
               />
             </label>
             <div className="setlists-page__modal-actions">
-              <button type="button" onClick={closeDraft}>
+              <button type="button" onClick={() => void closeDraft()}>
                 Cancel
               </button>
               <button type="submit" className="primary" disabled={busy || !draft.name.trim()}>

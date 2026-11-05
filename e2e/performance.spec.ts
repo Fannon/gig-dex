@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { seedLibrary } from "./fixtures";
+import { answerConfirm, seedLibrary } from "./fixtures";
 
 test("perform a repeated setlist, paginate, remember position and pulse tempo", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -54,17 +54,25 @@ test("perform a repeated setlist, paginate, remember position and pulse tempo", 
 
 test("unsaved song edits survive rejected navigation, cancellation and browser Back", async ({ page }) => {
   await seedLibrary(page);
+  // Open the song in-app so browser Back stays within Gig-Dex.
+  await page
+    .locator("#sidebar-songs")
+    .getByRole("link", { name: /Mountain Road/ })
+    .click();
+  await expect(page.locator(".song-page__title")).toHaveText("Mountain Road");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Unsaved title");
-  page.on("dialog", (dialog) => dialog.dismiss());
   await page
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "Setlists", exact: true })
     .click();
+  await answerConfirm(page, "Keep editing");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await answerConfirm(page, "Keep editing");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
   await page.evaluate(() => history.back());
+  await answerConfirm(page, "Keep editing");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved title");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.locator(".song-page__title")).toHaveText("Unsaved title");
@@ -73,7 +81,7 @@ test("unsaved song edits survive rejected navigation, cancellation and browser B
     .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toContainText([
-    "Mountain Road",
+    "Harbor Lights",
     "Unsaved title",
   ]);
 });
@@ -83,8 +91,8 @@ test("setlist drafts survive rejected Escape and cancel, and save without discar
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
   const modal = page.getByRole("dialog", { name: "New setlist", exact: true });
   await modal.getByLabel("Name", { exact: true }).fill("Unsaved setlist");
-  page.once("dialog", (dialog) => dialog.dismiss());
   await page.keyboard.press("Escape");
+  await answerConfirm(page, "Keep editing");
   await expect(modal).toBeVisible();
   await expect(modal.getByLabel("Name", { exact: true })).toHaveValue("Unsaved setlist");
   await modal.getByRole("button", { name: "Create", exact: true }).click();

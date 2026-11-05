@@ -3,6 +3,7 @@ import { getAllSetlists, getAllSongs, LIBRARY_CHANGED_EVENT } from "../db";
 import { checkPwaUpdate, installPwa, repairPwaCache, usePwaState } from "../pwa/lifecycle";
 import { PwaUpdateControls } from "./PwaUpdateControls";
 import "./PwaStatus.scss";
+import { confirmAction } from "../utils/confirm";
 
 export function PwaSettings() {
   const state = usePwaState();
@@ -245,11 +246,14 @@ export function PwaSettings() {
         <button
           type="button"
           disabled={busy || state.blocked || !state.online || !state.ready}
-          onClick={() => {
+          onClick={async () => {
             if (
-              window.confirm(
-                "Repair downloaded app files and restart? Your local library will be preserved. Close other Gig-Dex tabs first.",
-              )
+              await confirmAction({
+                title: "Repair app files and restart?",
+                message:
+                  "Gig-Dex downloads its app files again. Your songs, setlists and preferences stay on this device. Close other Gig-Dex tabs first.",
+                confirmLabel: "Repair and restart",
+              })
             )
               void run("repair", repairPwaCache);
           }}
