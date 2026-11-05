@@ -38,11 +38,11 @@ test("saved songs, setlists and deletions refresh other tabs without focus or an
 
   await observer
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await page.getByRole("button", { name: "New setlist", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "New setlist", exact: true });

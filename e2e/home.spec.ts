@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 test("overview tags fit equal cards and filter by exact tag from cards and song headers", async ({ page }) => {
   await page.goto("./");
@@ -83,7 +84,7 @@ test.describe("Home Page", () => {
     await expect(
       page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Songs", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Sets$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Setlists$/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
     // Check empty state
@@ -108,24 +109,21 @@ test.describe("Home Page", () => {
     const setlist = page.locator("#sidebar-setlist .library-sidebar__song-row");
     await expect(setlist).toHaveCount(4);
     await expect(setlist.last()).toContainText("T+2");
-    await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Sets" }).click();
+    await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Setlists" }).click();
     await expect(page.getByRole("button", { name: /Demo Night/ })).toBeVisible();
   });
 
   test("should search songs", async ({ page }) => {
-    await page.goto("./");
-
-    // Add demo song first
-    await page.getByRole("button", { name: "Add demo songs" }).click();
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+    await seedLibrary(page);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
     await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Songs" }).click();
     await expect(page.getByRole("heading", { name: "Songs" })).toBeVisible();
-    await expect(page.locator(".home-page__songs a")).toHaveCount(3);
+    await expect(page.locator(".home-page__songs a")).toHaveCount(2);
 
     // Search for the song
-    await page.getByRole("searchbox", { name: "Search your songs" }).fill("Shuffle");
+    await page.getByRole("searchbox", { name: "Search your songs" }).fill("Mountain");
     await expect(page.locator(".home-page__songs a")).toHaveCount(1);
-    await expect(page.locator(".home-page__songs a")).toContainText("The Setlist Shuffle");
+    await expect(page.locator(".home-page__songs a")).toContainText("Mountain Road");
 
     // Search for non-existent song
     await page.getByRole("searchbox", { name: "Search your songs" }).fill("NonExistent");
@@ -134,13 +132,11 @@ test.describe("Home Page", () => {
 
   test("opens a searchable library on a narrow screen", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("./");
-    await page.getByRole("button", { name: "Add demo songs" }).click();
-    await expect(page).toHaveURL(/\/song\/[^/]+$/);
+    await seedLibrary(page);
     await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Songs" }).click();
     await expect(page.getByRole("heading", { name: "Songs" })).toBeVisible();
-    await expect(page.locator(".home-page__songs a")).toHaveCount(3);
-    await page.getByRole("searchbox", { name: "Search your songs" }).fill("#blues");
+    await expect(page.locator(".home-page__songs a")).toHaveCount(2);
+    await page.getByRole("searchbox", { name: "Search your songs" }).fill("#waltz");
     await expect(page.locator(".home-page__songs a")).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });

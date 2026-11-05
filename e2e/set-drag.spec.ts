@@ -84,7 +84,7 @@ test("Sets supports sidebar song drops, occurrence reordering, end drops and saf
 test("song membership counts distinct sets and filters only by a complete ID", async ({ page }) => {
   const { first, second } = await seed(page);
   await page.goto(`./song/${first}`);
-  await page.getByRole("link", { name: "In 2 Sets", exact: true }).click();
+  await page.getByRole("link", { name: "In 2 setlists", exact: true }).click();
   await expect(page.getByLabel("Search setlists", { exact: true })).toHaveValue(first);
   const lists = page.locator(".setlists-page__item");
   await expect(lists).toHaveCount(2);

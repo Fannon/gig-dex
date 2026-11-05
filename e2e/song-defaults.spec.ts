@@ -32,14 +32,14 @@ test("song default and alternative title persist, while new entries copy the def
   await expect(page.locator(".song-page__key")).toHaveText("G#");
   await expect(page.getByRole("group", { name: "Transpose", exact: true })).toContainText("-4");
   await expect(page.locator(".tempo-indicator__label")).toHaveText("120bpm");
-  await page.getByRole("button", { name: "Add to Set", exact: true }).click();
+  await page.getByRole("button", { name: "Add to setlist", exact: true }).click();
   const rows = page.locator("#sidebar-setlist .library-sidebar__song-row");
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("T-4");
   await rows.first().getByRole("link").click();
   await page.getByRole("button", { name: "+1", exact: true }).click();
   await expect(rows.first()).toContainText("T-3");
-  await page.getByRole("button", { name: "Add to Set", exact: true }).click();
+  await page.getByRole("button", { name: "Add to setlist", exact: true }).click();
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(1)).toContainText("T-4");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
@@ -48,7 +48,7 @@ test("song default and alternative title persist, while new entries copy the def
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(rows.first()).toContainText("T-3");
   await expect(rows.nth(1)).toContainText("T-4");
-  await page.getByRole("button", { name: "Add to Set", exact: true }).click();
+  await page.getByRole("button", { name: "Add to setlist", exact: true }).click();
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(2)).toContainText("T+2");
   await page.getByLabel("Search sidebar songs").fill("Silver signal");
@@ -78,20 +78,20 @@ test("song default and alternative title persist, while new entries copy the def
   await expect(page.getByLabel("Standard transposition", { exact: true })).toHaveValue("2");
 });
 
-test("Remove from Set removes only the selected occurrence and retains independent settings", async ({ page }) => {
+test("Remove from setlist removes only the selected occurrence and retains independent settings", async ({ page }) => {
   const { song, list } = await seed(page);
   await page.goto(`./setlist/${list}`);
   await page.goto(`./song/${song}?setlist=${list}&occurrence=1`);
   const rows = page.locator("#sidebar-setlist .library-sidebar__song-row");
   await page.getByRole("button", { name: "+1", exact: true }).click();
   await expect(rows.nth(1)).toContainText("T+1");
-  await page.getByRole("button", { name: "Remove from Set", exact: true }).click();
+  await page.getByRole("button", { name: "Remove from setlist", exact: true }).click();
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).not.toContainText("T+1");
   await expect(page).toHaveURL(new RegExp(`/song/${song}(?:\\?)?$`));
-  await page.getByRole("button", { name: "Remove from Set", exact: true }).click();
+  await page.getByRole("button", { name: "Remove from setlist", exact: true }).click();
   await expect(rows).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Remove from Set", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove from setlist", exact: true })).toHaveCount(0);
   await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(1);
 });
 

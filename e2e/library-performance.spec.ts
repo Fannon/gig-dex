@@ -137,7 +137,7 @@ test("performance reads only requested songs and preserves repeated and missing 
   await page.getByRole("link", { name: "← Exit", exact: true }).click();
   await page
     .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "Sets", exact: true })
+    .getByRole("link", { name: "Setlists", exact: true })
     .click();
   await expect(page.locator(".setlists-page__content h2")).toHaveText("Repeated performance");
   const beforeSet = await reads(page);

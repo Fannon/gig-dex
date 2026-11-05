@@ -22,31 +22,6 @@ export function findSongLayout(
   return { fontSize: manualFontSize ?? Math.max(18, minimumFontSize), columns: 1, fits: false };
 }
 
-/** Check every chord/lyric pair, including overflow into implicit extra CSS columns. */
-export function songContentFits(content: HTMLElement): boolean {
-  const bounds = content.getBoundingClientRect();
-  const style = getComputedStyle(content);
-  const columns = Number.parseInt(style.columnCount, 10) || 1;
-  const columnWidth =
-    (bounds.width -
-      Number.parseFloat(style.paddingLeft) -
-      Number.parseFloat(style.paddingRight) -
-      (Number.parseFloat(style.columnGap) || 0) * (columns - 1)) /
-    columns;
-  const bottom = bounds.bottom - Number.parseFloat(style.paddingBottom);
-  const right = bounds.right - Number.parseFloat(style.paddingRight);
-  return Array.from(content.querySelectorAll<HTMLElement>("table")).every((row) =>
-    Array.from(row.getClientRects()).every(
-      (rect) =>
-        rect.width <= columnWidth + 0.5 &&
-        rect.left >= bounds.left - 0.5 &&
-        rect.right <= right + 0.5 &&
-        rect.top >= bounds.top - 0.5 &&
-        rect.bottom <= bottom + 0.5,
-    ),
-  );
-}
-
 /** Cache row nodes and per-size intrinsic bounds during one descending layout search. */
 export function createSongFitChecker(content: HTMLElement): () => boolean {
   const rows = Array.from(content.querySelectorAll<HTMLElement>("table"));

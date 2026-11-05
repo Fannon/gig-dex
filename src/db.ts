@@ -3,7 +3,6 @@ import { openDB } from "idb";
 import { notifyLibraryMutated } from "./libraryEvents";
 import type { DeletionRecord, SyncBase, SyncConflict } from "./sync/records";
 import type { RevisionCacheEntry } from "./sync/types";
-import { createLibrarySearch } from "./utils/librarySearch";
 
 // Database schema types
 // Contains ALL ChordPro metadata fields for full compatibility
@@ -15,8 +14,7 @@ interface Song {
   // Primary metadata (shown in forms)
   key?: string;
   tempo?: number;
-  defaultTranspose?: number; // Starting transpose; copied into each newly added set occurrence
-  capo?: number;
+  defaultTranspose?: number; // Starting transpose; copied into each newly added setlist occurrence
   time?: string; // e.g., "4/4", "3/4"
   tags: string[];
   // Extended metadata (preserved but not in simple forms)
@@ -34,7 +32,6 @@ interface Song {
 
 export interface SetlistSongSettings {
   transpose: number;
-  capo?: number;
 }
 
 interface Setlist {
@@ -214,12 +211,6 @@ export const updateSong = async (id: string, updates: Partial<Song>): Promise<vo
   notifyLibraryMutated();
 };
 
-export const saveSong = async (song: Song): Promise<void> => {
-  const db = await initDB();
-  await db.put("songs", song);
-  notifyLibraryMutated();
-};
-
 export const deleteSong = async (id: string): Promise<void> => {
   const db = await initDB();
   const tx = db.transaction(["songs", "setlists", "tombstones"], "readwrite");
@@ -271,14 +262,6 @@ export const getAllSongs = async (): Promise<Song[]> => {
   return db.getAllFromIndex("songs", "by-updated");
 };
 
-export const searchSongs = async (query: string): Promise<Song[]> => {
-  const songs = await getAllSongs();
-  const matches = createLibrarySearch(query);
-  return songs.filter((song) =>
-    matches([song.title, song.subtitle ?? "", song.artist, ...song.tags].join(" "), song.tags),
-  );
-};
-
 // Setlist operations
 export const addSetlist = async (setlist: Omit<Setlist, "id" | "lastModified" | "createdAt">): Promise<string> => {
   const db = await initDB();
@@ -308,12 +291,6 @@ export const updateSetlist = async (id: string, updates: Partial<Setlist>): Prom
     lastModified: now(),
   });
   await tx.done;
-  notifyLibraryMutated();
-};
-
-export const saveSetlist = async (setlist: Setlist): Promise<void> => {
-  const db = await initDB();
-  await db.put("setlists", setlist);
   notifyLibraryMutated();
 };
 
@@ -351,15 +328,6 @@ export const duplicateSetlist = async (id: string, name: string): Promise<string
 export const getAllSetlists = async (): Promise<Setlist[]> => {
   const db = await initDB();
   return db.getAllFromIndex("setlists", "by-updated");
-};
-
-export const getSetlistWithSongs = async (id: string): Promise<{ setlist: Setlist; songs: Song[] } | undefined> => {
-  const setlist = await getSetlist(id);
-  if (!setlist) return undefined;
-
-  const songs = (await getSongs(setlist.songIds)).filter((song) => song !== undefined);
-
-  return { setlist, songs };
 };
 
 export type { Setlist, Song };

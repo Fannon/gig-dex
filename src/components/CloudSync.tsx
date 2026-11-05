@@ -121,7 +121,7 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
   const providerGuide = guide(provider.name);
   const description = provider.pickFolder
     ? "Works with a cloud folder already on this computer, and can sync while offline."
-    : "Keep songs and sets in sync across devices. Setup required.";
+    : "Keep songs and setlists in sync across devices. Setup required.";
   return (
     <section className="settings-page__sync-box" aria-label={`${provider.name} sync`}>
       {!provider.pickFolder && !connected ? (

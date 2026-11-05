@@ -1,32 +1,25 @@
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 test.describe("Song Page", () => {
   test("should navigate to song detail and display content", async ({ page }) => {
-    await page.goto("./");
-
-    // Add demo song
-    await page.getByRole("button", { name: "Add demo songs" }).click();
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
-
-    // Click on song card
+    await seedLibrary(page);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
 
     // Verify song page loaded
-    await expect(page.locator(".song-page__title")).toContainText("Hello, Songbook");
-    await expect(page.locator(".song-page__artist")).toContainText("by Gig-Dex Demo");
+    await expect(page.locator(".song-page__title")).toContainText("Harbor Lights");
+    await expect(page.locator(".song-page__artist")).toContainText("by Fixture Band");
     await expect(page.locator(".song-page__key")).toHaveText("G");
-    await expect(page.locator(".tempo-indicator__label")).toHaveText("96bpm");
+    await expect(page.locator(".tempo-indicator__label")).toHaveText("72bpm");
     await expect(page.locator(".song-page__title-row")).not.toContainText("4/4");
   });
 
   test("should transpose song", async ({ page }) => {
-    await page.goto("./");
-
-    // Add and navigate to demo song
-    await page.getByRole("button", { name: "Add demo songs" }).click();
+    await seedLibrary(page);
 
     // Get initial key display
     await expect(page.locator(".song-page__key")).toHaveText("G");
-    await expect(page.locator(".tempo-indicator__label")).toHaveText("96bpm");
+    await expect(page.locator(".tempo-indicator__label")).toHaveText("72bpm");
     await expect(page.locator(".song-page__title-row")).not.toContainText("4/4");
 
     // Get transpose value
@@ -45,10 +38,7 @@ test.describe("Song Page", () => {
   });
 
   test("should adjust font size", async ({ page }) => {
-    await page.goto("./");
-
-    // Add and navigate to demo song
-    await page.getByRole("button", { name: "Add demo songs" }).click();
+    await seedLibrary(page);
 
     await page.getByRole("button", { name: "Display options", exact: true }).click();
 
@@ -67,10 +57,7 @@ test.describe("Song Page", () => {
   });
 
   test("should toggle chords visibility", async ({ page }) => {
-    await page.goto("./");
-
-    // Add and navigate to demo song
-    await page.getByRole("button", { name: "Add demo songs" }).click();
+    await seedLibrary(page);
 
     // Chords should be visible initially
     const content = page.locator(".song-view__content");
@@ -111,10 +98,7 @@ test.describe("Song Page", () => {
   });
 
   test("should edit existing song", async ({ page }) => {
-    await page.goto("./");
-
-    // Add demo song
-    await page.getByRole("button", { name: "Add demo songs" }).click();
+    await seedLibrary(page);
 
     // Click edit button
     await page.getByRole("button", { name: "Edit" }).click();
@@ -123,34 +107,31 @@ test.describe("Song Page", () => {
     await expect(page.locator('input[placeholder="Song title"]')).toBeVisible();
 
     // Update title
-    await page.locator('input[placeholder="Song title"]').fill("Hello, Songbook (Updated)");
+    await page.locator('input[placeholder="Song title"]').fill("Harbor Lights (Updated)");
 
     // Save changes
     await page.getByRole("button", { name: "Save" }).click();
 
     // Verify update
-    await expect(page.locator(".song-page__title")).toContainText("Hello, Songbook (Updated)");
+    await expect(page.locator(".song-page__title")).toContainText("Harbor Lights (Updated)");
   });
 
   test("main Songs navigation opens the library overview", async ({ page }) => {
-    await page.goto("./");
+    await seedLibrary(page);
 
-    // Add and navigate to demo song
-    await page.getByRole("button", { name: "Add demo songs" }).click();
-
-    await expect(page.locator(".song-page__title")).toHaveText("Hello, Songbook");
+    await expect(page.locator(".song-page__title")).toHaveText("Harbor Lights");
     await page
       .getByRole("navigation", { name: "Main navigation" })
       .getByRole("link", { name: "Songs", exact: true })
       .click();
 
     await expect(page.getByRole("main").getByRole("heading", { name: "Songs" })).toBeVisible();
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
     await expect(page).toHaveURL(/\/$/);
     await page
       .getByRole("main")
-      .getByRole("link", { name: /Hello, Songbook/ })
+      .getByRole("link", { name: /Harbor Lights/ })
       .click();
-    await expect(page.locator(".song-page__title")).toHaveText("Hello, Songbook");
+    await expect(page.locator(".song-page__title")).toHaveText("Harbor Lights");
   });
 });

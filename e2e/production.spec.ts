@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { addDemoSongs } from "./fixtures";
 
 test("a failed update check shows an error without a success message", async ({ page }) => {
   // biome-ignore lint/suspicious/noSkippedTests: Requires an actual production service-worker registration.
@@ -26,9 +27,9 @@ test("production chunks load on demand and cached songs work offline", async ({ 
   await page.goto("./");
   await expect(page.getByRole("heading", { name: "No songs yet", exact: true })).toBeVisible();
   expect(scripts.some((url) => /chordEngine|jspdf|html2canvas/.test(url))).toBe(false);
-  await page.getByRole("button", { name: "Add demo songs" }).click();
+  const demo = await addDemoSongs(page);
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
-  await expect(page.locator(".song-view__content")).toContainText("Chords sit on top");
+  await expect(page.locator(".song-view__content .chord").first()).toBeVisible();
   expect(scripts.some((url) => /chordEngine/.test(url))).toBe(true);
   await page.goto("./settings?section=library");
   await expect(page.getByRole("button", { name: /Export library/ })).toBeVisible();
@@ -36,14 +37,11 @@ test("production chunks load on demand and cached songs work offline", async ({ 
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await context.setOffline(true);
   await page.goto("./");
-  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
-  await page
-    .getByRole("main")
-    .getByRole("link", { name: /Hello, Songbook/ })
-    .click();
-  await expect(page.locator(".song-view__content")).toContainText("Chords sit on top");
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(demo.count);
+  await page.getByRole("main").getByRole("link", { name: demo.title }).click();
+  await expect(page.locator(".song-view__content .chord").first()).toBeVisible();
   await page.getByRole("link", { name: "Perform", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Hello, Songbook", exact: true })).toBeVisible();
-  await expect(page.locator(".song-view__content")).toContainText("Chords sit on top");
+  await expect(page.getByRole("heading", { name: demo.title, exact: true })).toBeVisible();
+  await expect(page.locator(".song-view__content .chord").first()).toBeVisible();
   await context.setOffline(false);
 });

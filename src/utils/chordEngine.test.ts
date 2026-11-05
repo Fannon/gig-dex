@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   chordProToSimple,
-  chordProToText,
-  getSemitoneDifference,
-  getSongKey,
   normalizeSimpleSpacing,
   parseChordPro,
   simpleToChordPro,
@@ -72,64 +69,6 @@ describe("chordEngine", () => {
       const result = transposeChordPro(original, -2);
 
       expect(result).toContain("F");
-    });
-  });
-
-  describe("chordProToText", () => {
-    it("should convert ChordPro to plain text", () => {
-      const result = chordProToText("{title: Test}\n\n[G]Hello World");
-
-      expect(result).toContain("Hello World");
-      expect(result).toContain("G");
-    });
-  });
-
-  describe("getSongKey", () => {
-    it("should extract the key from a song", () => {
-      const result = getSongKey("{key: Am}\n[Am]Test");
-
-      expect(result).toBe("Am");
-    });
-
-    it("should return null if no key is set", () => {
-      const result = getSongKey("[C]No key defined");
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("getSemitoneDifference", () => {
-    it("should return 0 for same key", () => {
-      expect(getSemitoneDifference("C", "C")).toBe(0);
-      expect(getSemitoneDifference("G", "G")).toBe(0);
-    });
-
-    it("should calculate positive differences", () => {
-      expect(getSemitoneDifference("C", "D")).toBe(2);
-      expect(getSemitoneDifference("C", "E")).toBe(4);
-      expect(getSemitoneDifference("C", "F")).toBe(5);
-    });
-
-    it("should calculate negative differences", () => {
-      expect(getSemitoneDifference("D", "C")).toBe(-2);
-      expect(getSemitoneDifference("E", "C")).toBe(-4);
-    });
-
-    it("should handle enharmonic equivalents", () => {
-      expect(getSemitoneDifference("C#", "Db")).toBe(0);
-      expect(getSemitoneDifference("F#", "Gb")).toBe(0);
-    });
-
-    it("should wrap around the octave", () => {
-      // From C to B is -1, not +11
-      expect(getSemitoneDifference("C", "B")).toBe(-1);
-      // From B to C is +1, not -11
-      expect(getSemitoneDifference("B", "C")).toBe(1);
-    });
-
-    it("should return 0 for invalid keys", () => {
-      expect(getSemitoneDifference("X", "Y")).toBe(0);
-      expect(getSemitoneDifference("C", "Invalid")).toBe(0);
     });
   });
 

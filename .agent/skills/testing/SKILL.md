@@ -66,6 +66,11 @@ it('should handle user interaction', () => {
 });
 ```
 
+### E2E Tests (`e2e/*.spec.ts`)
+Seed data with `seedLibrary(page)` from `e2e/fixtures.ts` (or your own synthetic records) instead of the in-app
+"Add demo songs" button, so the demo content can change without breaking unrelated specs. Only demo-specific tests
+use the button. Production specs cannot import app modules; use `addDemoSongs(page)`, which reports what it created.
+
 ## Running Tests
 
 - **Run all tests**: `npm run test`

@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 test("song editing preserves pending tags and discards cancelled tag drafts", async ({ page }) => {
   await page.goto("./song/new");
@@ -32,7 +33,7 @@ test("editor validates title and tempo and exposes keyboard controls", async ({ 
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText("Please enter a title and content.");
   await page.getByLabel("Title", { exact: true }).fill("Review song");
-  for (const tempo of ["-1", "301", "120.5"]) {
+  for (const tempo of ["-1", "401", "120.5"]) {
     await page.getByLabel("Tempo (BPM)").fill(tempo);
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Tempo must be a whole number");
@@ -239,10 +240,9 @@ test("performance remains usable when reading preferences cannot be stored", asy
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add demo songs", exact: true }).click();
+  await seedLibrary(page);
   await page.getByRole("link", { name: "Perform", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Hello, Songbook", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Harbor Lights", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Performance options", exact: true }).click();
   await page.getByLabel("Reading mode").selectOption("scroll");
   await expect(page.getByRole("dialog", { name: "Performance options" })).not.toBeVisible();
@@ -291,9 +291,8 @@ test("global reading preferences persist and update songs, previews and performa
 test("mobile song controls stay compact and selected colors remain clear in every theme", async ({ page }, info) => {
   await mkdir("reports/final-review", { recursive: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add demo songs", exact: true }).click();
-  await expect(page.locator(".song-page__title")).toHaveText("Hello, Songbook");
+  await seedLibrary(page);
+  await expect(page.locator(".song-page__title")).toHaveText("Harbor Lights");
   const songUrl = page.url();
   for (const theme of ["black", "violet", "light"]) {
     await page.goto("./settings");

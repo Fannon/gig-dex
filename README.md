@@ -16,8 +16,8 @@ Gig-Dex keeps all your songs, chords, and setlists in one place, readable on pho
 ### What can I do with it?
 
 - **Collect your repertoire:** keep lyrics + chords together, neatly aligned.
-- **Play in any key:** transpose any song instantly and add a capo without rewriting anything.
-- **Build setlists:** put songs in gig order, including repeats, notes, and per-song key/capo settings.
+- **Play in any key:** transpose any song instantly without rewriting anything, and give each song a standard key offset.
+- **Build setlists:** put songs in gig order, including repeats, notes, and a separate key for every entry.
 - **Perform distraction-free:** big, auto-fitting text, page-by-page or scrolling reading, simple Previous / Next navigation, optional visual beat pulse.
 - **Read your way:** choose chord names, Nashville numbers, or Roman numerals; set a minimum font size and column limit in *Settings → Appearance → Song reading*.
 - **Find songs fast:** search by title, artist, tag, or setlist with `Ctrl+K` (`Cmd+K` on Mac).
@@ -41,71 +41,27 @@ It understands the popular [ChordPro](https://www.chordpro.org/) format (`[Am]He
 ### Get started in 3 steps (no account needed)
 
 1. **Open the app** in your browser (link above). New here? Tap **Add demo songs**: three short songs (a pop tune, a blues and a waltz) walk you through reading, setlists, editing and backups, plus a *Demo Night* setlist to try **Perform setlist**. Delete them whenever you like.
-2. **Add songs:** go to *Settings → Library → Import ChordPro songs* and select a few `.pro` / `.chopro` / `.txt` files, or create a new song and paste text.
-3. **Make a setlist:** go to *Sets → New setlist*, tap **+** on songs to add them, then hit **Perform setlist**.
+2. **Add songs:** go to *Settings → Library → Import ChordPro songs* and select a few `.cho` / `.pro` / `.txt` files, or create a new song and paste chords-over-words text.
+3. **Make a setlist:** go to *Setlists → New setlist*, use **Add songs**, then hit **Perform setlist**.
 
 Press **Save** after editing a song or setlist details. Setlist song order and additions are saved automatically on that device.
 
-### Your songs are safe: backup & sync
+The song editor accepts simple chords-over-words text (chords on the line above the lyrics) and standard ChordPro. *Settings → Appearance* chooses the theme and chord notation: standard, German (`H` for B natural, `B` for B flat), Nashville numbers or Roman numerals. Stored chords never change.
 
-Your library lives **on your device** (in your browser). That means it's private and offline-capable. You should still back it up or sync it if you use multiple devices.
+### Keep your songs safe: backup & sync
 
-**1. Backup file: simple and available to everyone**
+Your library lives **on your device**, in your browser: private and available offline. Back it up, and sync it if you use several devices:
 
-*Settings → Library → Export library* downloads a single `.json` file with all your songs and setlists. Email it to yourself, put it on a USB stick, keep it somewhere safe. To add one on any device, select it under *Settings → Library → Restore backup*, review the file preview, leave **Restore mode** on **Merge**, then press **Import backup**. Selecting the file alone does not import it. **Replace library** removes the current library first; use it only with a complete backup.
+- **Backup file** (everyone): *Settings → Library → Export library* downloads one `.json` file with everything. Restore it under *Restore backup*. Do this before gigs and updates. → [Backup and import](docs/backup-and-import.md)
+- **Dropbox** (desktop and mobile, easiest direct sync): register your own Dropbox app once, then connect under *Settings → Sync*. → [Dropbox setup](docs/dropbox-sync.md)
+- **Local folder** (Chrome/Edge on desktop): pick a folder inside your OneDrive, Google Drive, Dropbox or Nextcloud desktop folder; your existing sync app carries the files. No registration needed. → [Local folder sync](docs/local-folder-sync.md)
+- **Google Drive / OneDrive direct** (advanced): needs your own OAuth app registration. → [Sync overview](docs/sync.md#direct-google-drive-and-onedrive)
 
-Use this before gigs, before updates, before cleaning up. It just works.
-
-**2. Dropbox sync: easiest direct option across desktop and mobile**
-
-Dropbox works directly in the browser on desktop and mobile. Open **Settings → Sync → Add sync provider → Set up Dropbox** for the three setup steps: create a Dropbox app, save its public app key, and connect your account. The setup includes your site's redirect URL with a copy button. Follow the [Dropbox setup guide](docs/dropbox-sync.md). No desktop sync client is needed.
-
-Once connected, Gig-Dex checks for remote changes when it opens and syncs after you save a song or setlist or finish an import. Use **Sync now** for an immediate check if another device changed the library while this app stayed open. Dropbox needs internet access. The connection stays saved in this browser across tabs and reopening; **Stop syncing** disconnects it. Existing session connections migrate automatically when opened in the updated app.
-
-The navbar sync icon rotates slowly on a colored background during sync, turns red when sync needs attention, and stays grey when no provider is connected. Select it to open sync settings. The provider card and **Recent activity** show the current sync stage, start time and elapsed time; finished runs include their duration.
-
-**3. Local folder sync: use your existing cloud folder**
-
-If you already use OneDrive, Google Drive, Dropbox, or Nextcloud on your computer, folder sync needs no separate app registration:
-
-In *Settings → Sync → Sync from a folder on this computer*, select **Choose folder** and pick a dedicated folder **inside** your existing sync folder (e.g. inside your OneDrive folder).
-
-Gig-Dex checks the folder when it opens and syncs after saved edits and imports while the app is open. It writes small files to that folder, and *your existing desktop sync app* carries them to your other computers. Press **Sync now** if files arrive while Gig-Dex stays open and you want to pull them immediately. No extra login in Gig-Dex, no registration, and folder sync works offline.
-
-Placing a backup `.json` file in the sync folder does not import it. Select it through *Settings → Library → Restore backup* and press **Import**; the connected folder then syncs automatically.
-
-The song editor supports simple chords-over-words text and standard ChordPro. Library file import accepts ChordPro; full library import/export uses Gig-Dex JSON. The global *Settings → Appearance → Notation* choice can display standard stored chords using German spelling (`H` for B natural, `B` for B flat) without changing their pitches.
-
-Limitations to know:
-
-- Picking a folder only works in Chrome or Edge on desktop (browser limitation).
-- On your phone/tablet, use Dropbox direct sync or a backup file because mobile browsers can't pick local sync folders.
-
-Details: [docs/local-folder-sync.md](docs/local-folder-sync.md)
-
-**4. Direct Google Drive / OneDrive sync: advanced setup**
-
-Gig-Dex can also talk directly to Google Drive and OneDrive, but there is no shared, ready-to-click cloud integration:
-
-> You have to register your **own** cloud app and paste its public Client ID into Gig-Dex under *Settings → Sync → Configure Google Drive/OneDrive*.
-
-That's doable if you're tech-savvy, but registering OAuth apps, redirect URLs, and consent screens is fiddly. **Most musicians should use Dropbox or a local folder.**
-
-For Google Drive or OneDrive, start with [docs/local-folder-sync.md](docs/local-folder-sync.md) ("Runtime cloud configuration").
-
-Direct Google Drive still needs **Sync now** because its sign-in flow can open a popup; connected OneDrive sessions check automatically on open.
-
-Open tabs refresh their library lists when another tab saves or syncs changes, while unsaved song drafts and active performance views remain in place. Sync runs wait their turn across tabs; cleanup and connection changes ask you to retry if another tab is busy.
-
-Active connections appear first under **Active syncs**, with **Recent activity** before configuration and **History cleanup**. Setup guides are beside the relevant provider settings.
-
-Under each provider's **Recent activity**, you can see how many songs and setlists were added, updated or removed, with separate **Sent** and **Received** counts. Failed syncs show any changes that completed; unchanged records are not counted. For troubleshooting, open the browser console and filter for `[Gig-Dex sync]`: errors include the provider, operation, HTTP status, API reason and request ID when the provider supplies one. Request bodies and authorization headers are not logged; tokens and signed download URLs are redacted.
+Connected providers sync when Gig-Dex opens and after you save; **Sync now** checks immediately. The navbar sync icon spins while syncing and turns red when something needs attention. If two devices change the same song, Gig-Dex keeps both versions for you to review. Details, conflicts and troubleshooting: [Sync and multiple devices](docs/sync.md).
 
 ### Install it like an app (Android / desktop)
 
-Open the live URL in Chrome or Edge and use the browser's **Install app** or **Add to home screen** action. It then opens as an app, stays available offline after its files are downloaded, and can keep the screen awake during a gig (see *Performance options*).
-
-When a new version is downloaded, a small **App update ready** indicator appears in the navbar. Open it and select **Update and restart** to load the new version. If editing, syncing or another operation is active, the menu explains what must finish and offers **Restart when ready**; you can cancel that scheduled restart. Saved songs and setlists remain on the device. Updates stay out of the way during performance.
+Open the live URL in Chrome or Edge and use the browser's **Install app** or **Add to home screen** action. It then opens as an app, works offline, and can keep the screen awake during a gig. When a new version is ready, an **App update ready** indicator appears in the navbar; updates never interrupt a performance or unsaved edits. → [Offline use and updates](docs/offline-and-updates.md), [Performance mode](docs/performance-mode.md)
 
 Before an important gig, open your setlist once while online, then try airplane mode and close/reopen the app. You'll see exactly what the stage will see.
 
@@ -135,15 +91,9 @@ More commands:
 
 ### Docs
 
-- Sync design (local folder + bring-your-own Client IDs): [docs/local-folder-sync.md](docs/local-folder-sync.md)
-- Dropbox app setup: [docs/dropbox-sync.md](docs/dropbox-sync.md)
-- Sync folder file format and compatibility: [docs/sync-format.md](docs/sync-format.md)
-- Setlists workspace: [docs/sets-workspace.md](docs/sets-workspace.md)
-- Offline / PWA / Android: [docs/pwa-offline-2026-09-27.md](docs/pwa-offline-2026-09-27.md)
-- Performance mode, song defaults: [docs/song-defaults-and-performance.md](docs/song-defaults-and-performance.md), [docs/performance-and-onedrive-2026-09-27.md](docs/performance-and-onedrive-2026-09-27.md)
-- Search & reading settings: [docs/search-and-reading-settings.md](docs/search-and-reading-settings.md)
-
-OneDrive / Google OAuth setup for local development lives in those docs. End users don't need it.
+- Using Gig-Dex: [setlists](docs/setlists.md), [performance mode](docs/performance-mode.md), [search and reading settings](docs/search-and-reading-settings.md), [backup and import](docs/backup-and-import.md), [offline use and updates](docs/offline-and-updates.md)
+- Sync: [overview](docs/sync.md), [Dropbox setup](docs/dropbox-sync.md), [local folder and your own Client IDs](docs/local-folder-sync.md), [sync folder format](docs/sync-format.md)
+- Development: [architecture notes](docs/architecture.md), [AGENTS.md](AGENTS.md) (verification workflow)
 
 ---
 

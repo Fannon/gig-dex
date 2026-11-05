@@ -377,7 +377,7 @@ export function LibraryWorkspace() {
             Songs
           </NavLink>
           <NavLink to="/setlists" className={location.pathname.startsWith("/setlist/") ? "active" : undefined}>
-            Sets
+            Setlists
           </NavLink>
           <NavLink to={pwaIssue ? "/settings?section=offline" : "/settings"}>
             Settings
@@ -605,7 +605,7 @@ export function LibraryWorkspace() {
                             </Link>
                           </div>
                         ))}
-                        {!current.songIds.length && <p>Drag songs here or use + Set.</p>}
+                        {!current.songIds.length && <p>Drag songs here or use + Setlist.</p>}
                         <div className="library-sidebar__drop-end" data-active={dropSlot === current.songIds.length}>
                           Drop here to append
                         </div>
@@ -787,7 +787,7 @@ export function LibraryWorkspace() {
               </span>
               {result.type === "Song" && (
                 <span className="workspace-search__set-count">
-                  In {result.setCount} {result.setCount === 1 ? "Set" : "Sets"}
+                  In {result.setCount} {result.setCount === 1 ? "setlist" : "setlists"}
                 </span>
               )}
             </Link>

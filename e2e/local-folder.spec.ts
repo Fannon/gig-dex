@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLibrary } from "./fixtures";
 
 interface FolderFixture {
   permission: PermissionState;
@@ -25,9 +26,8 @@ test("folder picker connects, survives reload, handles denied permission and swi
     FileSystemHandle.prototype.requestPermission = async () => state.permission;
     FileSystemHandle.prototype.queryPermission = async () => state.permission;
   });
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add demo songs" }).click();
-  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+  await seedLibrary(page);
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.goto("./settings?section=sync");
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
   await host.getByRole("button", { name: "Choose folder", exact: true }).click();
@@ -42,7 +42,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
   ).toBeVisible();
   await host.getByText("Recent activity", { exact: true }).click();
   const activity = page.getByRole("region", { name: "Local Folder sync activity" });
-  await expect(activity).toContainText("Sent: 4 added · 0 updated · 0 removed");
+  await expect(activity).toContainText("Sent: 3 added · 0 updated · 0 removed");
   await host.getByText("Recent activity", { exact: true }).click();
   expect(
     await page.evaluate(() => (window as unknown as { folderFixture: FolderFixture }).folderFixture.pickerActivation),
@@ -53,7 +53,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
     for await (const entry of dir.values()) names.push(entry.name);
     return names;
   });
-  expect(names.filter((name) => /^gigdex-song-[0-9a-f-]+\.json$/.test(name))).toHaveLength(3);
+  expect(names.filter((name) => /^gigdex-song-[0-9a-f-]+\.json$/.test(name))).toHaveLength(2);
   expect(names.filter((name) => /^gigdex-setlist-[0-9a-f-]+\.json$/.test(name))).toHaveLength(1);
   await page.reload();
   await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
@@ -66,7 +66,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
   await host.getByText("Recent activity", { exact: true }).click();
   await expect(page.getByRole("region", { name: "Local Folder sync activity" })).toContainText("permission denied");
   await expect(activity).toContainText("No changes sent or received.");
-  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+  await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(2);
   await page.evaluate(() => {
     const state = (window as unknown as { folderFixture: FolderFixture }).folderFixture;
     state.permission = "granted";
@@ -102,7 +102,7 @@ test("folder picker connects, survives reload, handles denied permission and swi
     }
     return counts;
   });
-  expect(retained).toEqual([4, 4]);
+  expect(retained).toEqual([3, 3]);
 });
 
 test("connected folder automatically syncs saved songs, setlists, and ChordPro imports", async ({ page }) => {
@@ -116,8 +116,7 @@ test("connected folder automatically syncs saved songs, setlists, and ChordPro i
   const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
   await host.getByRole("button", { name: "Choose folder", exact: true }).click();
   await expect(host.getByText(/Last synced/)).toBeVisible();
-  await page.goto("./");
-  await page.getByRole("button", { name: "Add demo songs" }).click();
+  await seedLibrary(page);
   const files = () =>
     page.evaluate(async () => {
       const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("Automatic sync");
@@ -125,14 +124,14 @@ test("connected folder automatically syncs saved songs, setlists, and ChordPro i
       for await (const entry of folder.values()) names.push(entry.name);
       return names;
     });
-  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(3);
+  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(2);
   await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-setlist-")).length).toBe(1);
   await page.goto("./settings?section=library");
   await page
     .getByLabel("Import ChordPro songs")
     .setInputFiles({ name: "imported.cho", mimeType: "text/plain", buffer: Buffer.from("{title: Imported}\n[C]Line") });
   await expect(page.getByText("1 imported, 0 duplicates skipped, 0 failed.")).toBeVisible();
-  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(4);
+  await expect.poll(async () => (await files()).filter((name) => name.startsWith("gigdex-song-")).length).toBe(3);
 });
 
 test("connected folder pulls a new song automatically when the app opens", async ({ page }) => {

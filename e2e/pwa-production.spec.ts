@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { createUpgradeServer } from "../scripts/pwa-upgrade-server.mjs";
+import { addDemoSongs } from "./fixtures";
 
 async function appStatus(page: Page) {
   const summary = page.locator(".pwa-status > summary");
@@ -65,9 +66,9 @@ test("production upgrade waits for editors and readers across tabs; offline rela
   const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
   try {
     await page.goto(fixture.url);
-    await page.getByRole("button", { name: "Add demo songs" }).click();
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
-    await page.locator("#sidebar-songs .library-sidebar__links a").filter({ hasText: "Hello, Songbook" }).click();
+    const demo = await addDemoSongs(page);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(demo.count);
+    await page.locator("#sidebar-songs .library-sidebar__links a").filter({ hasText: demo.title }).click();
     await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByRole("button", { name: "Advanced (ChordPro)", exact: true }).click();
     await page
@@ -151,7 +152,7 @@ test("production upgrade waits for editors and readers across tabs; offline rela
     cold.once("dialog", (dialog) => dialog.accept());
     await cold.getByRole("button", { name: "Repair app files" }).click();
     await cold.goto(fixture.url);
-    await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline Gig-Dex Demo/ })).toBeVisible();
+    await expect(cold.getByRole("main").getByRole("link", { name: /Edited offline/ })).toBeVisible();
     expect(await cold.evaluate(() => caches.has("unrelated-app-cache"))).toBe(true);
     await cold.goto(songUrl);
     await expect(cold.locator(".song-page__title")).toHaveText("Edited offline");
@@ -172,7 +173,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
   const fixture = await createUpgradeServer({ base: process.env.VITE_BASE_PATH || "/" });
   try {
     await page.goto(fixture.url);
-    await page.getByRole("button", { name: "Add demo songs" }).click();
+    const demo = await addDemoSongs(page);
     await page.evaluate(() => navigator.serviceWorker.ready);
     await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
     fixture.upgrade({ failDownload: true });
@@ -183,7 +184,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
     await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.ready).waiting)).toBe(false);
     await context.setOffline(true);
     await page.reload();
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(demo.count);
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "A");
     await context.setOffline(false);
     fixture.upgrade();
@@ -192,7 +193,7 @@ test("an interrupted update leaves the previous app and songs usable offline", a
     });
     await (await appStatus(page)).getByRole("button", { name: "Update and restart" }).click();
     await expect(page.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
-    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+    await expect(page.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(demo.count);
     await expect(page.getByRole("alert")).toHaveCount(0);
     await page.close();
   } finally {
@@ -216,7 +217,7 @@ test("update shows progress and an already-updated worker can restart another id
       };
     });
     await page.goto(fixture.url);
-    await page.getByRole("button", { name: "Add demo songs" }).click();
+    const demo = await addDemoSongs(page);
     await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
     const other = await context.newPage();
     await other.goto(fixture.url);
@@ -232,7 +233,7 @@ test("update shows progress and an already-updated worker can restart another id
     expect(await other.evaluate(async () => (await navigator.serviceWorker.ready).waiting)).toBeNull();
     await (await appStatus(other)).getByRole("button", { name: "Update and restart" }).click();
     await expect(other.locator('meta[name="gigdex-test-deployment"]')).toHaveAttribute("content", "B");
-    await expect(other.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(3);
+    await expect(other.locator("#sidebar-songs .library-sidebar__links a")).toHaveCount(demo.count);
     await expect(other.getByRole("alert")).toHaveCount(0);
     await other.close();
     await page.close();

@@ -8,14 +8,14 @@ the desktop client to finish transferring files before syncing another device.
 
 Folder picking requires a browser exposing `showDirectoryPicker`, normally Chrome
 or Edge on desktop, over HTTPS or localhost. Unsupported browsers show alternatives;
-mobile users can use Google Drive/OneDrive or export/import backups. An installed
+mobile users can use [Dropbox sync](dropbox-sync.md) or [backup files](backup-and-import.md). An installed
 Chromium PWA uses the same folder connection as its browser origin. Permissions
 may need to be granted again after reopening. [Chrome's File System Access guide](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
 explains handle persistence and permission renewal.
 
 Gig-Dex checks the folder when it opens with permission. After a completed song or setlist edit or import, it starts
 folder sync automatically while the app is open and permission remains granted.
-**Sync now** pulls changes that arrived while the app stayed open and merges songs, sets and
+**Sync now** pulls changes that arrived while the app stayed open and merges songs, setlists and
 deletion markers through conflict review. It requests read/write permission again
 when needed. **Choose a different folder** merges with the selected folder;
 **Stop syncing** forgets the connection and leaves

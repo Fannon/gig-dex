@@ -1,16 +1,18 @@
 # Search and reading preferences
 
 Open the centered search dialog with the navbar's **Search** button (magnifying glass on narrow screens), **Ctrl+K** (Windows/Linux), or **Cmd+K** (Mac).
-Search includes song titles, alternative titles, artists and tags, as well as set
+Search includes song titles, alternative titles, artists and tags, as well as setlist
 names, dates, descriptions and tags. Matching text is highlighted safely as React
 text nodes, including literal punctuation such as `[North]`. Song results show
-**In N Sets**, counting distinct sets rather than repeated occurrences. Counts are
-cached with the set library rather than recalculated on every search keystroke.
+**In N setlists**, counting distinct setlists rather than repeated entries. Counts are
+cached with the setlist library rather than recalculated on every search keystroke.
+A song's **Alternative title** (the ChordPro `subtitle`, editable in the song editor)
+is searchable everywhere a title is.
 
 A token starting with `#` matches an entire tag, case-insensitively: `#test` finds
 the `test` tag, not the `testing` tag or songs with “test” only in their title.
 Combine tags and words, for example `#test acoustic`. Multiple terms must all
-match. This also works in the sidebar, Sets search, and the Add songs picker.
+match. This also works in the sidebar, the Setlists search, and the Add songs picker.
 
 Song overview cards show a row of tag buttons when there is room beneath the
 title and artist. Click a tag to replace the overview search with its exact tag
@@ -43,5 +45,4 @@ Key and tempo have separate badges. The tempo badge includes the beat dots and
 starts or stops the visual beat pulse when selected. Its tooltip includes the
 time signature; songs without tempo retain a written time signature.
 
-The Sets detail header places the date alongside its song count, and Add songs
-shares the action group and its button height. On narrow screens, actions wrap.
+**Settings → Appearance → Theme** offers Pure black (the default), Dark violet and Light.

@@ -5,7 +5,6 @@ import {
   ChordsOverWordsFormatter,
   ChordsOverWordsParser,
   HtmlTableFormatter,
-  TextFormatter,
 } from "chordsheetjs";
 import { standardToGermanChord } from "./chordNotation";
 import { colorSongSections, simpleSectionLabel } from "./songSections";
@@ -134,16 +133,6 @@ export const transposeChordPro = (chordProText: string, semitones: number): stri
   return formatter.format(transposedSong);
 };
 
-/**
- * Convert ChordPro to plain text (for copying/sharing)
- */
-export const chordProToText = (chordProText: string): string => {
-  const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
-  const formatter = new TextFormatter();
-  return formatter.format(song);
-};
-
 const simpleChordToken = (token: string) =>
   /^[A-G](?:#|b)?(?:maj|min|m|M(?:aj)?|dim|aug|sus|add|no|omit|Δ|°|ø|[0-9b#()+-])*(?:\/[A-G](?:#|b)?)?$/.test(token) &&
   !!Chord.parse(token);
@@ -268,9 +257,9 @@ export interface SongMetadata {
   artist?: string;
   key?: string;
   tempo?: number;
-  capo?: number;
   time?: string;
   // Extended metadata (preserved but not in simple forms)
+  capo?: number; // Legacy directive from imports; kept in the text, never shown
   subtitle?: string;
   composer?: string;
   lyricist?: string;
@@ -393,72 +382,4 @@ export const injectMetadata = (chordProText: string, metadata: SongMetadata): st
   }
 
   return lines.join("\n") + chordProText;
-};
-
-/**
- * Get the current key of a song
- */
-export const getSongKey = (chordProText: string): string | null => {
-  const parser = new ChordProParser();
-  const song = parser.parse(chordProText);
-  return song.key?.toString() || null;
-};
-
-/**
- * List of all musical keys for transposition UI
- */
-export const MUSICAL_KEYS = [
-  "C",
-  "C#",
-  "Db",
-  "D",
-  "D#",
-  "Eb",
-  "E",
-  "F",
-  "F#",
-  "Gb",
-  "G",
-  "G#",
-  "Ab",
-  "A",
-  "A#",
-  "Bb",
-  "B",
-];
-
-/**
- * Get the semitone difference between two keys
- */
-export const getSemitoneDifference = (fromKey: string, toKey: string): number => {
-  const keyValues: Record<string, number> = {
-    C: 0,
-    "C#": 1,
-    Db: 1,
-    D: 2,
-    "D#": 3,
-    Eb: 3,
-    E: 4,
-    F: 5,
-    "F#": 6,
-    Gb: 6,
-    G: 7,
-    "G#": 8,
-    Ab: 8,
-    A: 9,
-    "A#": 10,
-    Bb: 10,
-    B: 11,
-  };
-
-  const from = keyValues[fromKey];
-  const to = keyValues[toKey];
-
-  if (from === undefined || to === undefined) return 0;
-
-  let diff = to - from;
-  if (diff > 6) diff -= 12;
-  if (diff < -6) diff += 12;
-
-  return diff;
 };

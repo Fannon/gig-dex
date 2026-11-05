@@ -58,7 +58,7 @@ export const SETLIST_SHUFFLE = `{title: The Setlist Shuffle}
 {start_of_verse: Verse 1}
 [E7]The drummer lost the setlist, it was [A7]written on a paper [E7]plate.
 [A7]Yeah, the drummer lost the setlist, it was [E7]written on a paper plate.
-[B7]Go to Sets, tap New setlist, [A7]give it a name and a [E7]date. [B7]
+[B7]Open Setlists, tap New setlist, [A7]give it a name and a [E7]date. [B7]
 {end_of_verse}
 
 {start_of_verse: Verse 2}
@@ -70,7 +70,7 @@ export const SETLIST_SHUFFLE = `{title: The Setlist Shuffle}
 {start_of_verse: Verse 3}
 [E7]Every song in a setlist [A7]keeps its very own [E7]key.
 [A7]Every song in a setlist [E7]keeps its very own key:
-[B7]transpose it once inside the set, [A7]and that's where it will [E7]be. [B7]
+[B7]transpose it once inside the setlist, [A7]and that's where it will [E7]be. [B7]
 {end_of_verse}
 
 {start_of_verse: Instrumental}
@@ -89,7 +89,7 @@ export const SETLIST_SHUFFLE = `{title: The Setlist Shuffle}
 [E7]That's the setlist shuffle, [B7]now go play your [E7]gig. [B7] [E7]
 {end_of_verse}
 
-{comment: The + Set button on any song adds it to the setlist chosen in the sidebar, or starts one dated today.}`;
+{comment: The + Setlist button on any song adds it to the setlist chosen in the sidebar, or starts one dated today.}`;
 
 export const BACK_IT_UP_WALTZ = `{title: Back It Up Waltz}
 {artist: Gig-Dex Demo}

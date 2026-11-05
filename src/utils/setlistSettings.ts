@@ -31,24 +31,18 @@ export function songSettingDetails(
   const key = song?.key ?? /\{key:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
   const transposedKey = transposeKey(key, transpose);
   const displayedKey = chordMode === "german" ? standardToGermanChord(transposedKey) : transposedKey;
-  const capo = setting?.capo ?? song?.capo;
   const bpm = song?.tempo ?? Number(/\{tempo:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]);
   const time = song?.time || /\{time:\s*([^}]+)\}/i.exec(song?.content ?? "")?.[1]?.trim();
-  return { key: displayedKey, transpose, capo, bpm, time };
+  return { key: displayedKey, transpose, bpm, time };
 }
 export function settingLabel(song: Song | undefined, setting?: SetlistSongSettings) {
-  const { key, transpose, capo, bpm, time } = songSettingDetails(song, setting);
+  const { key, transpose, bpm, time } = songSettingDetails(song, setting);
   return [
     key,
     transpose ? `T${transpose > 0 ? "+" : ""}${transpose}` : "",
     bpm > 0 ? `${bpm}bpm` : "",
     tempoMeter(time).label,
-    capo ? `Capo ${capo}` : "",
   ]
     .filter(Boolean)
     .join(" | ");
-}
-export function occurrenceContent(song: Song, setting?: SetlistSongSettings) {
-  if (setting?.capo === undefined) return song.content;
-  return `{capo: ${setting.capo}}\n${song.content.replace(/\{capo:\s*[^}]*\}/gi, "")}`;
 }
