@@ -40,6 +40,7 @@ html, body, #root {
  .app-shell :is(button,input,select,textarea) { background: #e8e6ed; color: #292b31; border-color: #c6c2d3; }
  .app-shell :is(input,textarea)::placeholder { color: #66616f; opacity: 1; }
  .app-shell .song-page__simple-preview > .label { color: #50515d; }
+ .app-shell .song-page__mode-note { color: #8a4b00; }
  .app-shell .song-page__preview-content { background: #efeee9; border-color: #c6c2d3; }
  .app-shell .song-page__resize-handle { background: #c6c2d3; &:focus-visible { outline: 2px solid #6d54b8; } }
  .app-shell :is(button,a):focus-visible { outline: 2px solid #6d54b8; outline-offset: 2px; }

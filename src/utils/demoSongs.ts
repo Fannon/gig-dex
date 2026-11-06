@@ -132,7 +132,7 @@ export const BACK_IT_UP_WALTZ = `{title: Back It Up Waltz}
 [F]your own songs de[G]serve the [C]stage and the sound.
 {end_of_verse}
 
-{comment: To remove a demo song, open it and tap Delete. Have a great gig!}`;
+{comment: To remove a demo song, tap Edit, then Delete song; Undo brings it back. Have a great gig!}`;
 
 export const DEMO_SONGS = [
   { content: HELLO_SONGBOOK, tags: ["demo", "reading"] },

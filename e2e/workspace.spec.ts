@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
+import { answerConfirm } from "./fixtures";
 
 async function seed(page: Page) {
   await page.goto("./");
@@ -168,26 +169,24 @@ test("sidebar New song clears previous content and dirty navigation remains guar
   await page.getByRole("complementary").getByRole("link", { name: "Add song", exact: true }).click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("");
   await page.getByLabel("Title", { exact: true }).fill("Unsaved new song");
-  const firstPrompt = page.waitForEvent("dialog").then((prompt) => prompt.dismiss());
   await page
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "Setlists", exact: true })
     .click();
-  await firstPrompt;
+  await answerConfirm(page, "Keep editing");
   await expect(page).toHaveURL(/\/song\/new$/);
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved new song");
   await page.keyboard.press("Control+k");
   const dialog = page.getByRole("dialog", { name: "Search library" });
   await dialog.getByLabel("Search songs and setlists").fill("Gig");
-  const searchPrompt = page.waitForEvent("dialog").then((prompt) => prompt.dismiss());
   await dialog.getByRole("link").click();
-  await searchPrompt;
+  await answerConfirm(page, "Keep editing");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Unsaved new song");
-  page.once("dialog", (prompt) => prompt.accept());
   await page
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "Setlists", exact: true })
     .click();
+  await answerConfirm(page, "Discard changes");
   await expect(page.locator(".setlists-page")).toBeVisible();
 });
 

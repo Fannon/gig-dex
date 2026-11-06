@@ -3,7 +3,9 @@ import {
   chordProToSimple,
   normalizeSimpleSpacing,
   parseChordPro,
+  simpleEditorChanges,
   simpleToChordPro,
+  stripMetadata,
   transposeChordPro,
 } from "./chordEngine";
 
@@ -92,7 +94,7 @@ describe("chordEngine", () => {
       ]);
       const chordPro = simpleToChordPro(simple);
       expect(chordPro).toContain("{comment: Play softly}");
-      expect(chordPro).toContain("{start_of_verse: Chorus Deutsch}");
+      expect(chordPro).toContain("{start_of_chorus: Chorus Deutsch}");
     });
   });
 
@@ -147,7 +149,7 @@ it("recognizes complete simple section headings and retains instrumental chord s
   ]);
   expect(element.querySelector(".section-chorus")).not.toBeNull();
   expect(chordProToSimple(converted)).toContain("C G D/F# Em");
-  expect(simpleToChordPro(chordProToSimple(converted))).toContain("{start_of_verse: Chorus}");
+  expect(simpleToChordPro(chordProToSimple(converted))).toContain("{start_of_chorus: Chorus}");
 });
 
 it("colors section comments from legacy songs without promoting ordinary comments", () => {
@@ -178,4 +180,62 @@ it("keeps extended instrumental chords together without treating section names a
   expect(normalizeSimpleSpacing("Intro\nCMaj7 D/F#\n\nCmMaj7 G7(b9)\n\n\nChorus")).toBe(
     "Intro\nCMaj7 D/F#\nCmMaj7 G7(b9)\n\nChorus",
   );
+});
+
+describe("simple editor fidelity", () => {
+  const resave = (chordPro: string) => simpleToChordPro(chordProToSimple(stripMetadata(chordPro)));
+
+  it("keeps chord spellings exactly as written", () => {
+    const chords = ["Asus4", "Dsus2", "Cmaj7", "CM7", "Bbm7b5", "Cadd9", "Am(maj7)", "E7#9", "G7b9", "Caug", "F#m7/C#"];
+    const result = resave(chords.map((chord) => `[${chord}]Word`).join(" "));
+    for (const chord of chords) expect(result).toContain(`[${chord}]`);
+  });
+
+  it("keeps section types and gives unlabeled sections a label", () => {
+    const result = resave(
+      "{soc}\n[F]Hook line\n{eoc}\n{start_of_bridge}\n[Am]Bridge\n{end_of_bridge}\n{sov}\n[C]Verse\n{eov}",
+    );
+    expect(result).toContain("{start_of_chorus: Chorus}");
+    expect(result).toContain("{start_of_bridge: Bridge}");
+    expect(result).toContain("{start_of_verse: Verse}");
+  });
+
+  it("keeps unusual labels as bracketed label lines", () => {
+    const simple = chordProToSimple("{start_of_verse: Verse 1 (Reading)}\n[C]Hi [G]there\n{end_of_verse}");
+    expect(simple.split("\n")[0]).toBe("[Verse 1 (Reading)]");
+    expect(simpleToChordPro(simple)).toContain("{start_of_verse: Verse 1 (Reading)}");
+    expect(simpleToChordPro("[C]\nWords")).not.toContain("start_of"); // A bracketed chord is not a label.
+  });
+
+  it("keeps directives in place", () => {
+    const directives = [
+      "{chorus}",
+      "{new_page}",
+      "{column_break}",
+      "{ci: softly}",
+      "{comment_box: boxed}",
+      "{define: Asus4 base-fret 1 frets x 0 2 2 3 0}",
+      "{x_note: band only}",
+    ];
+    const result = resave(`{start_of_chorus: Chorus}\n[C]Hook\n{end_of_chorus}\n${directives.join("\n[G]Line\n")}`);
+    for (const directive of directives) expect(result).toContain(directive);
+    expect(result.indexOf("{end_of_chorus}")).toBeLessThan(result.indexOf("{chorus}"));
+  });
+
+  it("keeps mid-song key changes while the header metadata moves to the form", () => {
+    expect(stripMetadata("{title: T}\n{key: C}\n[C]First\n{key: D}\n{title: Ignored}\n[D]Second")).toBe(
+      "[C]First\n{key: D}\n[D]Second",
+    );
+  });
+
+  it("reports only what the simple editor cannot keep", () => {
+    expect(simpleEditorChanges("")).toEqual([]);
+    expect(simpleEditorChanges("{title: Only metadata}")).toEqual([]);
+    expect(simpleToChordPro("  \n")).toBe("");
+    expect(
+      simpleEditorChanges("{key: G}\n{start_of_tab}\ne|---0---|\n{end_of_tab}\n{soc}\n[Cmaj7]Fine\n{eoc}"),
+    ).toEqual([]);
+    expect(simpleEditorChanges("[*Rit.]Slow [C]down")).toContain("annotations such as [*Rit.]");
+    expect(simpleEditorChanges("[C°]Diminished")).toEqual(["some chords"]);
+  });
 });

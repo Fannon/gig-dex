@@ -289,6 +289,10 @@
     }
   }
 
+  &__delete {
+    margin-inline-end: 0.75rem;
+  }
+
   &__mode-toggle {
     display: flex;
     gap: 0.25rem;
@@ -296,6 +300,13 @@
     background: rgba(255, 255, 255, 0.05);
     border-radius: 6px;
     width: fit-content;
+  }
+
+  &__mode-note {
+    max-width: 60rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--color-warning);
   }
 
   &__mode-btn {

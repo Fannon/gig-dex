@@ -44,9 +44,9 @@ It understands the popular [ChordPro](https://www.chordpro.org/) format (`[Am]He
 2. **Add songs:** go to *Settings → Library → Import ChordPro songs* and select a few `.cho` / `.pro` / `.txt` files, or create a new song and paste chords-over-words text.
 3. **Make a setlist:** go to *Setlists → New setlist*, use **Add songs**, then hit **Perform setlist**.
 
-Press **Save** after editing a song or setlist details. Setlist song order and additions are saved automatically on that device.
+Press **Save** after editing a song or setlist details. Setlist song order and additions are saved automatically on that device. To delete a song, open it, tap **Edit**, then **Delete song**; **Undo** brings it back, including its places in your setlists.
 
-The song editor accepts simple chords-over-words text (chords on the line above the lyrics) and standard ChordPro. *Settings → Appearance* chooses the theme and chord notation: standard, German (`H` for B natural, `B` for B flat), Nashville numbers or Roman numerals. Stored chords never change.
+The song editor accepts simple chords-over-words text (chords on the line above the lyrics) and standard ChordPro. Songs using ChordPro features the simple editor can't keep open in the ChordPro editor, with a note explaining why. *Settings → Appearance* chooses the theme and chord notation: standard, German (`H` for B natural, `B` for B flat), Nashville numbers or Roman numerals. Stored chords never change.
 
 ### Keep your songs safe: backup & sync
 

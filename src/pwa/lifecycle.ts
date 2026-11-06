@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { confirmAction } from "../utils/confirm";
 
 interface InstallEvent extends Event {
   prompt(): Promise<void>;
@@ -239,7 +240,14 @@ export async function applyPwaUpdate() {
             error: "Close performance mode or save edits in other Gig-Dex tabs before updating.",
           });
       });
-    else if (window.confirm("Close other Gig-Dex tabs before updating. Restart now?")) await apply();
+    else if (
+      await confirmAction({
+        title: "Restart to update?",
+        message: "Close other Gig-Dex tabs first so they do not keep the old version.",
+        confirmLabel: "Restart now",
+      })
+    )
+      await apply();
   } catch {
     patch({ error: "The update did not finish. Check your connection and try again." });
   } finally {

@@ -1,13 +1,15 @@
 import {
   Chord,
+  ChordLyricsPair,
   ChordProFormatter,
   ChordProParser,
   ChordsOverWordsFormatter,
   ChordsOverWordsParser,
   HtmlTableFormatter,
+  Tag,
 } from "chordsheetjs";
 import { standardToGermanChord } from "./chordNotation";
-import { colorSongSections, simpleSectionLabel } from "./songSections";
+import { colorSongSections, simpleSectionLabel, songSection } from "./songSections";
 
 export interface ParsedSong {
   title: string | null;
@@ -169,10 +171,32 @@ export function normalizeSimpleSpacing(text: string) {
   return output.join("\n");
 }
 
-// The chords-over-words formatter prints comments as plain lyrics. Mark them so
-// the simple editor can show them as directives, which its parser keeps.
-const commentMarker = "\uE000";
-const commentDirective = /^\s*\{(c|comment|ci|comment_italic|cb|comment_box)\s*:\s*(.*?)\s*\}\s*$/i;
+// The chords-over-words formatter drops or moves most directives. Wrap each
+// standalone directive in a marked comment so it comes back verbatim, in place.
+const directiveMarker = "\uE000";
+const standaloneDirective = /^\s*\{\s*([a-z_]+)[^{}]*\}\s*$/i;
+const commentDirective = /^\s*\{\s*(?:c|comment|ci|comment_italic|cb|comment_box)\s*:\s*(.*?)\s*\}\s*$/i;
+const sectionStart = /^\s*\{\s*(?:start_of_(verse|chorus|bridge)|so([vcb]))\s*(?::\s*(.*?))?\s*\}\s*$/i;
+const sectionEnd = /^\s*\{\s*(?:end_of_(?:verse|chorus|bridge)|eo[vcb])\s*\}\s*$/i;
+const defaultSectionLabels: Record<string, string> = { v: "Verse", c: "Chorus", b: "Bridge" };
+const hideBraces = (text: string) => text.replace(/\{/g, "\uE001").replace(/\}/g, "\uE002");
+const showBraces = (text: string) => text.replace(/\uE001/g, "{").replace(/\uE002/g, "}");
+
+/** A line the simple editor reads as a section label, written bracketed when the label is unusual. */
+function simpleLabelLine(label: string) {
+  return simpleSectionLabel(label) === label ? label : `[${label}]`;
+}
+/** Simple-editor label lines: known section names, or any bracketed text that is not a chord. */
+function readSimpleLabel(line: string): string | null {
+  const known = simpleSectionLabel(line);
+  if (known) return known;
+  const bracketed = /^\s*\[([^[\]]*[^[\]\s][^[\]]*)\]\s*$/.exec(line)?.[1].trim();
+  return bracketed && !Chord.parse(bracketed) ? bracketed : null;
+}
+const sectionEnvironment = (label: string) => {
+  const section = songSection(label);
+  return section === "chorus" || section === "bridge" ? section : "verse";
+};
 
 // ChordsOverWordsParser reads any line starting with these words as a comment,
 // detaching lyrics such as "Bridge over…" from their chords. While parsing, the
@@ -199,18 +223,31 @@ export const chordProToSimple = (chordProText: string): string => {
   const marked = chordProText
     .split("\n")
     .map((line) => {
+      const start = sectionStart.exec(line);
+      if (start) {
+        const type = (start[1] ?? start[2]).charAt(0).toLowerCase();
+        const label = start[3] || defaultSectionLabels[type];
+        // Mark the label so it is written as an editable label line.
+        return `{comment: ${directiveMarker}${hideBraces(simpleLabelLine(label))}}`;
+      }
+      if (sectionEnd.test(line)) return "";
       const comment = commentDirective.exec(line);
       // Section-like comments from older imports become real section labels.
-      return comment && !simpleSectionLabel(comment[2]) ? `{${comment[1]}: ${commentMarker}${comment[2]}}` : line;
+      if (comment && simpleSectionLabel(comment[1])) return line;
+      if (standaloneDirective.test(line)) return `{comment: ${directiveMarker}${hideBraces(line.trim())}}`;
+      return line;
     })
     .join("\n");
   const parser = new ChordProParser();
   const song = parser.parse(marked);
-  const formatter = new ChordsOverWordsFormatter();
-  return normalizeSimpleSpacing(formatter.format(song))
-    .split("\n")
-    .map((line) => (line.startsWith(commentMarker) ? `{comment: ${line.slice(1)}}` : line))
-    .join("\n");
+  const formatter = new ChordsOverWordsFormatter({ normalizeChords: false });
+  return normalizeSimpleSpacing(
+    formatter
+      .format(song)
+      .split("\n")
+      .map((line) => (line.startsWith(directiveMarker) ? showBraces(line.slice(1)) : line))
+      .join("\n"),
+  );
 };
 
 /**
@@ -218,34 +255,96 @@ export const chordProToSimple = (chordProText: string): string => {
  * Parses the visual format and converts to ChordPro syntax
  */
 export const simpleToChordPro = (simpleText: string): string => {
+  if (!simpleText.trim()) return ""; // ChordsOverWordsParser rejects empty input.
   const parser = new ChordsOverWordsParser();
   const lines = normalizeSimpleSpacing(simpleText).split("\n");
 
-  let sectionOpen = false;
+  let openSection: string | null = null;
+  const closeSection = () => {
+    if (openSection) prepared.push(`{end_of_${openSection}}`);
+    openSection = null;
+  };
   const prepared: string[] = [];
   for (const [index, line] of lines.entries()) {
-    const label = simpleSectionLabel(line);
+    const label = readSimpleLabel(line);
     if (label) {
-      if (sectionOpen) prepared.push("{end_of_verse}");
-      prepared.push(`{start_of_verse: ${label}}`);
-      sectionOpen = true;
+      closeSection();
+      openSection = sectionEnvironment(label);
+      prepared.push(`{start_of_${openSection}: ${label}}`);
+    } else if (/^\s*\{\s*(?:start_of_|so[a-z]\b|chorus\b)/i.test(line)) {
+      // Other environments (tab, grid, …) and chorus repeats stand outside sections.
+      closeSection();
+      prepared.push(line);
     } else {
       const next = lines[index + 1] ?? "";
       // Standalone instrumental lines need explicit spacing; chord-over-lyric
       // lines still go through the parser to preserve their column positions.
       const standalone =
         simpleChordLine(line) &&
-        (!next.trim() || !!simpleSectionLabel(next) || simpleChordLine(next) || /^\s*\{/.test(next));
+        (!next.trim() || !!readSimpleLabel(next) || simpleChordLine(next) || /^\s*\{/.test(next));
       prepared.push(
         standalone ? line.replace(/\S+/g, (token) => (Chord.parse(token) ? `[${token}]` : token)) : shieldLyric(line),
       );
     }
   }
-  if (sectionOpen) prepared.push("{end_of_verse}");
+  closeSection();
   const song = parser.parse(prepared.join("\n"));
-  const formatter = new ChordProFormatter();
+  const formatter = new ChordProFormatter({ normalizeChords: false });
   return unshieldLyrics(formatter.format(song));
 };
+
+/** Comparable outline of a song: labels, directives, chords and lyrics, ignoring layout and section types. */
+function songOutline(chordProText: string): string[] {
+  const song = new ChordProParser().parse(chordProText);
+  const outline: string[] = [];
+  for (const line of song.lines) {
+    const parts: string[] = [];
+    for (const item of line.items) {
+      if (item instanceof ChordLyricsPair) {
+        if (item.annotation) parts.push(`*${item.annotation}`);
+        if (item.chords) parts.push(`[${item.chords}]`);
+        if (item.lyrics) parts.push(item.lyrics);
+      } else if (item instanceof Tag) {
+        const start = /^(?:start_of_(verse|chorus|bridge)|so([vcb]))$/.exec(item.name);
+        if (start) parts.push(`§${item.value || defaultSectionLabels[(start[1] ?? start[2]).charAt(0)]}`);
+        else if (!/^(?:end_of_(?:verse|chorus|bridge)|eo[vcb])$/.test(item.name))
+          parts.push(`{${item.name}:${item.value ?? ""}}`);
+      } else if ("string" in item && typeof item.string === "string") parts.push(item.string);
+    }
+    const text = parts.join(" ").replace(/\s+/g, " ").trim();
+    if (text) outline.push(text);
+  }
+  return outline;
+}
+
+/**
+ * Describe what saving from the simple editor would change in this ChordPro
+ * text. An empty list means the simple editor keeps the song intact.
+ */
+export function simpleEditorChanges(chordProText: string): string[] {
+  const body = stripMetadata(chordProText);
+  if (!body.trim()) return [];
+  let before: string[];
+  try {
+    before = songOutline(body);
+  } catch {
+    return []; // Invalid ChordPro is repaired in either editor.
+  }
+  let after: string[];
+  try {
+    after = songOutline(simpleToChordPro(chordProToSimple(body)));
+  } catch {
+    return ["the song could not be converted"];
+  }
+  if (before.join("\n") === after.join("\n")) return [];
+  const reasons = new Set<string>();
+  if (/\{\s*(?:start_of_(?:tab|grid)|so[tg])\b/i.test(body)) reasons.add("tab or grid blocks");
+  if (/\[\*/.test(body)) reasons.add("annotations such as [*Rit.]");
+  const chords = (lines: string[]) => lines.flatMap((line) => line.match(/\[[^\]]*\]/g) ?? []).join(" ");
+  if (chords(before) !== chords(after)) reasons.add("some chords");
+  if (!reasons.size) reasons.add("some ChordPro formatting");
+  return [...reasons];
+}
 
 /**
  * Metadata that can be extracted from ChordPro
@@ -323,35 +422,21 @@ export const extractMetadata = (chordProText: string): SongMetadata => {
  * Strip metadata directives from ChordPro content, leaving only lyrics/chords
  * This is used for the simple editor to avoid showing metadata in the text
  */
+const metadataDirective =
+  /^\s*\{\s*(title|t|subtitle|st|artist|composer|lyricist|copyright|album|year|key|tempo|capo|time|duration)\s*:.*\}\s*$/i;
+// Key, tempo and time can change mid-song; only their header copies belong to the form.
+const musicalChanges = new Set(["key", "tempo", "time"]);
+
 export const stripMetadata = (chordProText: string): string => {
-  // List of metadata directive patterns to remove
-  const metadataPatterns = [
-    /^\s*\{title:.*?\}\s*$/gim,
-    /^\s*\{t:.*?\}\s*$/gim,
-    /^\s*\{subtitle:.*?\}\s*$/gim,
-    /^\s*\{st:.*?\}\s*$/gim,
-    /^\s*\{artist:.*?\}\s*$/gim,
-    /^\s*\{composer:.*?\}\s*$/gim,
-    /^\s*\{lyricist:.*?\}\s*$/gim,
-    /^\s*\{copyright:.*?\}\s*$/gim,
-    /^\s*\{album:.*?\}\s*$/gim,
-    /^\s*\{year:.*?\}\s*$/gim,
-    /^\s*\{key:.*?\}\s*$/gim,
-    /^\s*\{tempo:.*?\}\s*$/gim,
-    /^\s*\{capo:.*?\}\s*$/gim,
-    /^\s*\{time:.*?\}\s*$/gim,
-    /^\s*\{duration:.*?\}\s*$/gim,
-  ];
-
-  let result = chordProText;
-  for (const pattern of metadataPatterns) {
-    result = result.replace(pattern, "");
-  }
-
+  let inHeader = true;
+  const kept = chordProText.split("\n").filter((line) => {
+    const directive = metadataDirective.exec(line);
+    if (directive) return !inHeader && musicalChanges.has(directive[1].toLowerCase());
+    if (line.trim() && !standaloneDirective.test(line)) inHeader = false;
+    return true;
+  });
   // Clean up excessive blank lines at the start
-  result = result.replace(/^\n+/, "");
-
-  return result;
+  return kept.join("\n").replace(/^\n+/, "");
 };
 
 /**

@@ -9,6 +9,7 @@ import {
   getSong,
   initDB,
   LIBRARY_CHANGED_EVENT,
+  restoreSong,
   type Song,
   updateSetlist,
   updateSong,
@@ -161,6 +162,24 @@ describe("durable sync with real IndexedDB", () => {
     expect((await getSong(id))?.content).toBe("[G]Remote edit");
     expect(manager.getStatus().conflictCount).toBe(0);
     expect(manager.getStatus().lastSyncTime).not.toBeNull();
+  });
+  it("an undone deletion that already synced is shared again with other devices", async () => {
+    const cloud = new Cloud();
+    const id = await seed();
+    const list = await addSetlist({ name: "Gig", songIds: [id] });
+    await new SyncManager(cloud).sync();
+    const deviceB = await snapshot();
+    const deleted = await deleteSong(id);
+    if (!deleted) throw new Error("Nothing deleted");
+    await new SyncManager(cloud).sync();
+    await restoreSong(deleted);
+    const manager = new SyncManager(cloud);
+    await manager.sync();
+    expect(manager.getStatus().conflictCount).toBe(0);
+    await switchDevice(deviceB);
+    await new SyncManager(cloud).sync();
+    expect((await getSong(id))?.content).toBe("[C]Original");
+    expect((await getAllSetlists()).find((setlist) => setlist.id === list)?.songIds).toEqual([id]);
   });
   it("propagates song and setlist deletions, cleans repeated references, and does not resurrect on a fresh device", async () => {
     const cloud = new Cloud();

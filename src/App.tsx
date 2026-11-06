@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { AppDialogs } from "./components/AppDialogs";
 import { LibraryWorkspace } from "./components/LibraryWorkspace";
 import { PwaRecovery } from "./components/PwaRecovery";
 import { HomePage } from "./pages/HomePage";
@@ -38,7 +39,12 @@ const router = createBrowserRouter(
 );
 
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <AppDialogs />
+    </>
+  );
 }
 
 export default App;

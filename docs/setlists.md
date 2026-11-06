@@ -4,6 +4,7 @@
 
 **Setlists** has three panels on desktop and landscape tablets: your setlists, the songs of the selected setlist, and a song preview. Smaller screens switch between them with the **Setlists / Songs / Preview** tabs.
 
+- **Delete setlist** removes it right away; select **Undo** in the message that appears to bring it back. Your songs stay in the library.
 - **New setlist** asks for a name, a date (prefilled with today, `YYYY-MM-DD`), tags and a description. **Edit details** changes them later; **Duplicate** copies the whole setlist, including repeats and keys.
 - Search matches names, dates, descriptions and tags, not song contents. Sort by recent changes, gig date, name or song count, or filter by tag. The search stays in the URL, so it survives reloads and browser Back. Creating or duplicating a setlist clears the filters so the new one is visible.
 - **Add songs** opens a searchable picker. A song can appear several times; the button then reads **Add again**. Adding a song never changes your library.
