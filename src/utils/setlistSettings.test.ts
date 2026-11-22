@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { Setlist, SetlistSongSettings, Song } from "../db";
 import { parseSyncedSetlist, parseSyncedSong } from "./libraryValidation";
 import { applyReadingPreferences } from "./readingPreferences";
-import { defaultSongSetting, occurrenceSettings, settingLabel, transposeKey } from "./setlistSettings";
+import {
+  defaultSongSetting,
+  effectiveTranspose,
+  occurrenceSettings,
+  rebaseSetting,
+  settingLabel,
+  transposeKey,
+  wrapTranspose,
+} from "./setlistSettings";
 
 const list: Setlist = {
   id: "list",
@@ -69,4 +77,51 @@ it("validates song defaults on sync and backup restoration", () => {
   expect(parseSyncedSong(JSON.stringify(record), "song")).toEqual(record);
   for (const defaultTranspose of [1.5, 25, -25, "2", null])
     expect(() => parseSyncedSong(JSON.stringify({ ...record, defaultTranspose }), "song")).toThrow();
+});
+
+describe("entry base keys", () => {
+  const inG = { key: "G", content: "{key: G}\n[G]Line" } as Song;
+  const inA = { key: "A", content: "{key: A}\n[A]Line" } as Song;
+  it("records the song key an entry's transposition was chosen for", () => {
+    expect(defaultSongSetting({ ...inG, defaultTranspose: 2 })).toEqual({ transpose: 2, baseKey: "G" });
+    expect(defaultSongSetting({ content: "[G]No key" } as Song)).toEqual({ transpose: 0 });
+  });
+  it("keeps entries sounding the same after the song's key changes", () => {
+    // Chosen as +2 from G (sounds A); the song is now written in A.
+    expect(effectiveTranspose(inA, { transpose: 2, baseKey: "G" })).toBe(0);
+    expect(effectiveTranspose(inA, { transpose: 0, baseKey: "G" })).toBe(-2);
+    expect(effectiveTranspose(inA, { transpose: 0, baseKey: "Gm" })).toBe(-2);
+    expect(settingLabel(inA, { transpose: 0, baseKey: "G" })).toBe("G | T-2 | 4/4");
+    // Legacy entries and unknown keys use the stored transposition as is.
+    expect(effectiveTranspose(inA, { transpose: 3 })).toBe(3);
+    expect(effectiveTranspose({ content: "[A]" } as Song, { transpose: 3, baseKey: "G" })).toBe(3);
+    expect(effectiveTranspose(inA, { transpose: 11, baseKey: "C" })).toBe(2);
+  });
+  it("rebases only entries that cannot correct themselves", () => {
+    // Chords moved with the label: entries with a base key are already right.
+    expect(rebaseSetting({ transpose: 2, baseKey: "G" }, "G", "A", 2)).toBeNull();
+    // Legacy entries are pinned to the new key, keeping their sound.
+    expect(rebaseSetting({ transpose: 0 }, "G", "A", 2)).toEqual({ transpose: -2, baseKey: "A" });
+    expect(rebaseSetting({ transpose: 2 }, "G", "A", 2)).toEqual({ transpose: 0, baseKey: "A" });
+    // Nothing moved.
+    expect(rebaseSetting({ transpose: 2 }, "G", "G", 0)).toBeNull();
+    // A corrected label without moved chords: the entry keeps its sound against the same chords.
+    expect(rebaseSetting({ transpose: 2, baseKey: "G" }, "G", "A", 0)).toEqual({ transpose: 2, baseKey: "A" });
+    // A key set for the first time pins legacy entries.
+    expect(rebaseSetting({ transpose: 1 }, undefined, "E", 0)).toEqual({ transpose: 1, baseKey: "E" });
+    // A cleared key drops the base key but keeps the sound.
+    expect(rebaseSetting({ transpose: 0, baseKey: "G" }, "A", undefined, 0)).toEqual({ transpose: -2 });
+    expect(wrapTranspose(-12)).toBe(0);
+  });
+  it("accepts base keys in backups and sync", () => {
+    const songSettings = [{ transpose: 2, baseKey: "G" }, { transpose: 0 }];
+    expect(parseSyncedSetlist(JSON.stringify({ ...list, songSettings }), "list").songSettings).toEqual(songSettings);
+    for (const baseKey of [3, "", "x".repeat(40)])
+      expect(() =>
+        parseSyncedSetlist(
+          JSON.stringify({ ...list, songSettings: [{ transpose: 0, baseKey }, { transpose: 0 }] }),
+          "list",
+        ),
+      ).toThrow();
+  });
 });

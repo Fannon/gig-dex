@@ -26,6 +26,7 @@ html, body, #root {
  .song-view__controls, .song-page__header, .setlists-page__header { background: #111; }
 }
 :root[data-reading-theme=light] {
+ color-scheme: light;
  --bg-primary: #f7f6f2; --bg-secondary: #efeee9; --bg-elevated: #e6e4dd;
  --text-primary: #292b31; --text-secondary: #60616b; --text-muted: #747580;
  --border-color: #d5d2dc; --color-accent: #5745aa;

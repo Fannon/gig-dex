@@ -5,7 +5,7 @@ import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { displayCalendarDate } from "../utils/calendarDate";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
 import { readingHtml } from "../utils/readingLayout";
-import { songSettingDetails } from "../utils/setlistSettings";
+import { effectiveTranspose, songSettingDetails } from "../utils/setlistSettings";
 import "./PrintPage.scss";
 
 type Contents = "all" | "songs" | "list";
@@ -200,13 +200,15 @@ function PrintSheet({
       let size: number | undefined;
       let result = paginate(contentElement, pageHeight, columns);
       if (autoFit) {
-        // Try sizes largest first, like the song view's fit-to-screen, falling back to the smallest.
-        for (const candidate of AUTO_SIZES) {
+        const tryFit = (candidate: number) => {
           size = candidate;
           sheetElement.style.fontSize = `${candidate}pt`;
           result = paginate(contentElement, pageHeight, columns);
-          if (result.pages === 1) break;
-        }
+          return result.pages === 1;
+        };
+        // A song too long even at the smallest size needs only one measurement; each one lays out
+        // the whole sheet. Otherwise try sizes largest first, like the song view's fit-to-screen.
+        if (tryFit(AUTO_SIZES[AUTO_SIZES.length - 1])) for (const candidate of AUTO_SIZES) if (tryFit(candidate)) break;
       } else sheetElement.style.fontSize = "";
       // Positions as fractions of the sheet, so they hold at any preview zoom.
       const breaks =
@@ -336,7 +338,9 @@ export const PrintPage = () => {
         const songs = await getSongs(list.songIds);
         if (cancelled) return;
         setSetlist(list);
-        setEntries(songs.map((song, index) => ({ song, transpose: list.songSettings?.[index]?.transpose ?? 0 })));
+        setEntries(
+          songs.map((song, index) => ({ song, transpose: effectiveTranspose(song, list.songSettings?.[index]) })),
+        );
       } else {
         const song = id ? await getSong(id) : undefined;
         if (!song) throw new Error("Song not found.");

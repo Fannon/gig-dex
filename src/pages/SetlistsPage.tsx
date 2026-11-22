@@ -20,7 +20,13 @@ import { useUnsavedEdits } from "../hooks/useUnsavedEdits";
 import { displayCalendarDate, isCalendarDate, localCalendarDate } from "../utils/calendarDate";
 import { confirmAction, discardChangesRequest } from "../utils/confirm";
 import { createLibrarySearch } from "../utils/librarySearch";
-import { defaultSongSetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import {
+  defaultSongSetting,
+  effectiveTranspose,
+  entrySetting,
+  occurrenceSettings,
+  settingLabel,
+} from "../utils/setlistSettings";
 import { readSongDrag, songDragType, writeSongDrag } from "../utils/songDrag";
 import { showToast } from "../utils/toast";
 import "./SetlistsPage.scss";
@@ -196,7 +202,7 @@ export const SetlistsPage = () => {
       const latest = await getSetlist(selected.id);
       if (!latest || latest.songIds[songIndex] !== selected.songIds[songIndex]) throw new Error("Setlist changed");
       const settings: SetlistSongSettings[] = occurrenceSettings(latest);
-      settings[songIndex] = { ...settings[songIndex], transpose };
+      settings[songIndex] = entrySetting(songMap.get(latest.songIds[songIndex]), transpose);
       await updateSetlist(selected.id, { songSettings: settings });
       setSetlists(await getAllSetlists());
     });
@@ -637,7 +643,7 @@ export const SetlistsPage = () => {
                 <SongView
                   key={`${selected?.id}:${songIndex}:${preview.id}`}
                   content={preview.content}
-                  transposeValue={selected?.songSettings?.[songIndex]?.transpose ?? 0}
+                  transposeValue={effectiveTranspose(preview, selected?.songSettings?.[songIndex])}
                   onTransposeChange={(transpose) => void saveTranspose(transpose)}
                   fitToScreen={false}
                   onKeyChange={setPreviewKey}

@@ -185,7 +185,8 @@
       letter-spacing: 0.05em;
     }
 
-    input {
+    input,
+    select {
       padding: 0.5rem 0.75rem;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -569,3 +570,5 @@
   .song-page__advanced-editor textarea { min-height: 55dvh; }
   .song-page__simple-preview { max-height: 70dvh; margin-top: 0.75rem; }
 }
+
+.song-page__key-message { display: block; margin: -0.25rem 0 0.25rem; font-size: 0.8rem; color: var(--color-accent); }

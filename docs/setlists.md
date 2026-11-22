@@ -18,6 +18,16 @@ Every setlist entry has its own transposition, so the same song can be played in
 
 A song's **Standard transposition** (in the song editor, −24 to +24 semitones) is the starting point. It is copied into each new setlist entry when the song is added. Changing it later does not change existing entries. It never rewrites the song's chords. Entries in older setlists without saved settings use no transposition.
 
+Each entry remembers the song key its transposition was chosen for, so it keeps sounding the same when the song's key changes later, even if the song and setlist changes reach another device separately.
+
+## Change a song's key
+
+To rewrite a song in another key, open it, select **Edit**, and pick the new key under **Change key** (it lists every key with the semitones it moves, for example *A (+2)*). Every `[chord]` and `{key}` directive moves; everything else in the text stays as written, including unsaved edits. Chords are spelled for the new key (Bb in F, F# in D). Change key needs the song's **Key** field; pick the old key again or select **Cancel** to undo before saving.
+
+Setlists keep their sound: an entry that played G still plays G, now shown as a transposition from the new key (for example `G | T-2`). The **Standard transposition** moves the opposite way too, so a song written in G with +2 becomes A with 0. If it was 0, the song page will open in the old key until you set it back to 0.
+
+Correcting only the **Key** field (when the chords are unchanged) does not move setlist entries either.
+
 Entry labels read like `G | T-4 | 120bpm | 6/8`: key after transposition, transposition, tempo and time signature (4/4 when none is set).
 
 ## The current setlist in the sidebar

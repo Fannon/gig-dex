@@ -36,3 +36,17 @@ it("treats omitted occurrence defaults like explicit zero transpose", () => {
     recordFingerprint(list),
   );
 });
+it("includes entry base keys only when present, so existing fingerprints stay unchanged", () => {
+  const list = { id: "set-1", name: "Gig", songIds: ["song-1", "song-1"] };
+  const legacy = { ...list, songSettings: [{ transpose: 2 }, { transpose: 0 }] };
+  expect(recordFingerprint(legacy)).toBe(recordFingerprint({ ...legacy }));
+  const pinned = { ...list, songSettings: [{ transpose: 2, baseKey: "G" }, { transpose: 0 }] };
+  expect(recordFingerprint(pinned)).not.toBe(recordFingerprint(legacy));
+  expect(recordFingerprint(pinned)).not.toBe(
+    recordFingerprint({ ...list, songSettings: [{ transpose: 2, baseKey: "A" }, { transpose: 0 }] }),
+  );
+  // A base key alone still counts as a setting.
+  expect(recordFingerprint({ ...list, songSettings: [{ transpose: 0, baseKey: "G" }, { transpose: 0 }] })).not.toBe(
+    recordFingerprint(list),
+  );
+});
