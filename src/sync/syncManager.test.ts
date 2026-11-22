@@ -15,9 +15,9 @@ import {
   updateSong,
 } from "../db";
 import { readSyncActivity } from "./activity";
-import { recordKey } from "./records";
+import { recordKey, type SyncConflict } from "./records";
 import { createSyncFile } from "./syncFormat";
-import { SyncManager } from "./syncManager";
+import { conflictSummary, SyncManager } from "./syncManager";
 import { getSyncConflicts, resolveConflict } from "./syncStore";
 import type { SyncMetadata, SyncProvider } from "./types";
 
@@ -219,6 +219,7 @@ describe("durable sync with real IndexedDB", () => {
     expect(manager.getStatus().conflictCount).toBe(1);
     expect(readSyncActivity()[0]).toMatchObject({
       kind: "conflict",
+      message: "Sync finished with 1 conflict to review: song “Test”.",
       stats: { sent: { added: 0, updated: 0, removed: 0 }, received: { added: 0, updated: 0, removed: 0 } },
     });
     await resolveConflict(conflict.id, "both");
@@ -611,4 +612,28 @@ it("rejects a reviewed legacy remote version changed before resolution is shared
   await manager.sync();
   expect(await getSyncConflicts()).toHaveLength(1);
   expect(cloud.files).toHaveLength(1);
+});
+
+it("names the songs and setlists in conflict, listing up to three", () => {
+  const conflict = (type: "song" | "setlist", title: string, local = true) =>
+    ({
+      id: `${type}:${title}`,
+      recordId: title,
+      type,
+      createdAt: "2026-01-01",
+      local: local ? (type === "song" ? { title } : { name: title }) : undefined,
+      remote: [{ revision: "r", record: type === "song" ? { title } : { name: title } }],
+    }) as unknown as SyncConflict;
+  expect(conflictSummary([conflict("setlist", "Friday Gig", false)])).toBe(
+    "Sync finished with 1 conflict to review: setlist “Friday Gig”.",
+  );
+  expect(
+    conflictSummary([
+      conflict("song", "One"),
+      conflict("song", "Two"),
+      conflict("setlist", "Three"),
+      conflict("song", "Four"),
+      conflict("song", "Five"),
+    ]),
+  ).toBe("Sync finished with 5 conflicts to review: song “One”, song “Two”, setlist “Three” and 2 more.");
 });
