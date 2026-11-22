@@ -94,3 +94,28 @@ test("change key needs a song key and can be reverted before saving", async ({ p
   await expect(page.locator(".song-page__key-message")).toHaveText("Chords are back in G.");
   await expect(page.getByLabel("Lyrics with chords")).toHaveValue(/^G\s+C\s+G\nHarbor lights/m);
 });
+
+test("dropdown lists follow the theme instead of showing white on white", async ({ page }) => {
+  const { songIds } = await seedLibrary(page);
+  await page.goto(`./song/${songIds[0]}?edit=true`);
+  const optionColors = () =>
+    page.getByLabel("Change key").evaluate((select) => {
+      const option = select.querySelector("option:not(:disabled)") as HTMLOptionElement;
+      const style = getComputedStyle(option);
+      return {
+        scheme: getComputedStyle(document.documentElement).colorScheme,
+        background: style.backgroundColor,
+        color: style.color,
+      };
+    });
+  // Default (pure black) theme: light text on the theme's dark surface.
+  expect(await optionColors()).toEqual({ scheme: "dark", background: "rgb(11, 11, 11)", color: "rgb(255, 255, 255)" });
+  await page.evaluate(() => {
+    document.documentElement.dataset.readingTheme = "light";
+  });
+  expect(await optionColors()).toEqual({
+    scheme: "light",
+    background: "rgb(239, 238, 233)",
+    color: "rgb(41, 43, 49)",
+  });
+});

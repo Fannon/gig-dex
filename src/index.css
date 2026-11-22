@@ -1,4 +1,7 @@
 :root {
+  /* Native controls (dropdown lists, scrollbars) use the dark palette; the light theme switches it. */
+  color-scheme: dark;
+
   /* Colors */
   --color-primary: #4f46e5;
   --color-primary-light: #7c3aed;
@@ -125,6 +128,16 @@ button {
   border: none;
   cursor: pointer;
   padding: 0;
+}
+
+/* Dropdown lists do not inherit translucent select backgrounds, so give options theme colors. */
+select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+select option:disabled {
+  color: var(--text-muted);
 }
 
 /* Input reset */
