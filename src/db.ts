@@ -32,6 +32,8 @@ interface Song {
 
 export interface SetlistSongSettings {
   transpose: number;
+  /** The song key `transpose` was chosen for; lets the entry keep its sound when the song's key changes. */
+  baseKey?: string;
 }
 
 interface Setlist {
@@ -207,6 +209,41 @@ export const updateSong = async (id: string, updates: Partial<Song>): Promise<vo
     ...updates,
     lastModified: now(),
   });
+  await tx.done;
+  notifyLibraryMutated();
+};
+
+/**
+ * Save a song and, in the same transaction, rewrite its setlist entries where `rebase` returns a
+ * new setting (for example after the song's key changed). Setlists without changes are untouched.
+ */
+export const updateSongAndEntries = async (
+  id: string,
+  updates: Partial<Song>,
+  rebase: (setting: SetlistSongSettings, before: Song, after: Song) => SetlistSongSettings | null,
+): Promise<void> => {
+  const db = await initDB();
+  const tx = db.transaction(["songs", "setlists"], "readwrite");
+  void tx.done.catch(() => {});
+  const songs = tx.objectStore("songs");
+  const setlists = tx.objectStore("setlists");
+  const before = await songs.get(id);
+  if (!before) throw new Error("Song not found");
+  const currentTime = now();
+  const after: Song = { ...before, ...updates, lastModified: currentTime };
+  await songs.put(after);
+  for (const list of await setlists.getAll()) {
+    if (!list.songIds.includes(id)) continue;
+    let changed = false;
+    const songSettings = list.songIds.map((songId, index) => {
+      const setting = list.songSettings?.[index] ?? { transpose: 0 };
+      const next = songId === id ? rebase(setting, before, after) : null;
+      if (!next) return setting;
+      changed = true;
+      return next;
+    });
+    if (changed) await setlists.put({ ...list, songSettings, lastModified: currentTime });
+  }
   await tx.done;
   notifyLibraryMutated();
 };

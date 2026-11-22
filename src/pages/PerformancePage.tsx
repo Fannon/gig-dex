@@ -9,7 +9,7 @@ import { getSetlist, getSongs, type Setlist, type Song, updateSetlist, updateSon
 import { useWakeLock } from "../hooks/useWakeLock";
 import { blockPwaUpdate } from "../pwa/lifecycle";
 import { extractMetadata } from "../utils/chordEngine";
-import { occurrenceSettings, settingLabel } from "../utils/setlistSettings";
+import { effectiveTranspose, entrySetting, occurrenceSettings, settingLabel } from "../utils/setlistSettings";
 import { tempoMeter, withSongTime } from "../utils/tempo";
 import "./PerformancePage.scss";
 
@@ -345,12 +345,12 @@ export const PerformancePage = () => {
         <SongView
           key={`${sessionKey}:${index}:${song.id}:${mode}`}
           content={song.content}
-          transposeValue={setlist ? (setlist.songSettings?.[index]?.transpose ?? 0) : readingTranspose}
+          transposeValue={setlist ? effectiveTranspose(song, setlist.songSettings?.[index]) : readingTranspose}
           onTransposeChange={
             setlist
               ? (transpose) => {
                   const settings = occurrenceSettings(setlist);
-                  settings[index] = { ...settings[index], transpose };
+                  settings[index] = entrySetting(song, transpose);
                   void updateSetlist(setlist.id, { songSettings: settings })
                     .then(() => setSetlist({ ...setlist, songSettings: settings }))
                     .catch(() => setError("Could not save transpose. Please try again."));

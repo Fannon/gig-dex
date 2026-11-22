@@ -13,7 +13,7 @@ import {
   restoreSong,
   type Song,
   updateSetlist,
-  updateSong,
+  updateSongAndEntries,
 } from "../db";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { useSetlistOccurrence } from "../hooks/useSetlistOccurrence";
@@ -30,8 +30,17 @@ import {
   stripMetadata,
 } from "../utils/chordEngine";
 import { confirmAction, discardChangesRequest } from "../utils/confirm";
+import { keyChoices, shiftedKeyName, transposeChordProText } from "../utils/keyChange";
 import { tagSearchQuery } from "../utils/librarySearch";
-import { defaultSongSetting, occurrenceSettings, songSettingDetails } from "../utils/setlistSettings";
+import {
+  defaultSongSetting,
+  effectiveTranspose,
+  occurrenceSettings,
+  rebaseSetting,
+  songKey,
+  songSettingDetails,
+  wrapTranspose,
+} from "../utils/setlistSettings";
 import { isValidTempo, MAX_BPM, MIN_BPM } from "../utils/tempo";
 import { showToast } from "../utils/toast";
 import "./SongPage.scss";
@@ -116,6 +125,9 @@ export const SongPage = () => {
   const [dirty, setDirty] = useState(false);
   const allowLeave = useUnsavedEdits(isEditing && dirty);
   const [readingTranspose, setReadingTranspose] = useState(0);
+  // Semitones the chords moved through "Change key" since the song was loaded or saved.
+  const [keyShift, setKeyShift] = useState(0);
+  const [keyMessage, setKeyMessage] = useState("");
   const [headerControls, setHeaderControls] = useState<HTMLDivElement | null>(null);
   const [{ chordMode }] = useReadingPreferences();
   const readingDetails = songSettingDetails(
@@ -218,6 +230,8 @@ export const SongPage = () => {
           setReadingTranspose(loadedSong.defaultTranspose ?? 0);
           setTagInput("");
           setSaveError("");
+          setKeyShift(0);
+          setKeyMessage("");
           setDirty(false);
         } else {
           navigate("/");
@@ -377,9 +391,15 @@ export const SongPage = () => {
         setDirty(false);
         navigate(`/song/${newId}`, { replace: true });
       } else if (id) {
-        await updateSong(id, songData);
+        // Setlist entries keep sounding the same: chords moved by keyShift, and a key label
+        // corrected by hand must not shift entries that remember the old key.
+        await updateSongAndEntries(id, songData, (setting, before, after) =>
+          rebaseSetting(setting, songKey(before), songKey(after), keyShift),
+        );
         setSong((prev) => ({ ...prev, ...songData }));
       }
+      setKeyShift(0);
+      setKeyMessage("");
       setTagInput("");
       setIsEditing(false);
       setDirty(false);
@@ -435,6 +455,46 @@ export const SongPage = () => {
       ...prev,
       tags: (prev.tags || []).filter((t) => t !== tag),
     }));
+  };
+
+  // The Key field is what saving writes, so the editor changes keys from it.
+  const currentKey = song.key?.trim() || undefined;
+  /** Rewrite the chords (and key) by `delta` semitones, keeping unsaved simple-editor edits. */
+  const changeKey = (delta: number) => {
+    const targetKey = shiftedKeyName(currentKey, delta);
+    if (!delta || !targetKey) return;
+    let content = song.content ?? "";
+    if (editorMode === "simple" && simpleContent !== simpleBaseline.current) {
+      try {
+        content = injectMetadata(simpleToChordPro(simpleContent), {
+          ...extractEditorMetadata(song),
+          subtitle: song.subtitle || undefined,
+          title: song.title || undefined,
+          artist: song.artist || undefined,
+          key: currentKey,
+          tempo: song.tempo || undefined,
+          time: song.time || undefined,
+        });
+      } catch {
+        setSaveError("Fix the song text before changing its key.");
+        return;
+      }
+    }
+    const shift = wrapTranspose(keyShift + delta);
+    setSong((prev) => ({
+      ...prev,
+      content: transposeChordProText(content, delta, targetKey),
+      key: targetKey,
+      // The standard transposition keeps starting new setlist entries in the same sounding key.
+      defaultTranspose: wrapTranspose((prev.defaultTranspose ?? 0) - delta),
+    }));
+    setKeyShift(shift);
+    setKeyMessage(
+      shift
+        ? `Chords moved ${shift > 0 ? "up" : "down"} ${Math.abs(shift)} ${Math.abs(shift) === 1 ? "semitone" : "semitones"} to ${targetKey}. Setlists and the standard transposition keep their sound.`
+        : `Chords are back in ${targetKey}.`,
+    );
+    setDirty(true);
   };
 
   const switchEditorMode = (mode: EditorMode) => {
@@ -665,7 +725,30 @@ export const SongPage = () => {
                 placeholder="G"
               />
             </div>
+            <div className="song-page__field song-page__field--flex1">
+              <label htmlFor="song-change-key">Change key</label>
+              <select
+                id="song-change-key"
+                value=""
+                disabled={!keyChoices(currentKey).length}
+                title={
+                  keyChoices(currentKey).length
+                    ? "Rewrite the chords in another key"
+                    : "Enter the song's key to change it"
+                }
+                onChange={(event) => changeKey(Number(event.target.value))}
+              >
+                <option value="">{keyChoices(currentKey).length ? `From ${currentKey}…` : "Key needed"}</option>
+                {keyChoices(currentKey).map((choice) => (
+                  <option key={choice.key} value={choice.delta}>
+                    {choice.key} ({choice.delta > 0 ? "+" : "−"}
+                    {Math.abs(choice.delta)})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+          {keyMessage && <output className="song-page__key-message">{keyMessage}</output>}
 
           {/* Row 2: Tempo, Standard transposition, Time, Tags */}
           <div className="song-page__meta-row">
@@ -888,8 +971,8 @@ That [G]saved a [Em]wretch like [D]me
           readingKey={occurrence.list ? `setlist:${occurrence.list.id}:${occurrenceIndex}:${id}` : `song:${id}`}
           key={`${id}:${searchParams.get("setlist")}:${occurrenceIndex}`}
           content={song.content || ""}
-          transposeValue={occurrence.list ? (occurrence.setting?.transpose ?? 0) : readingTranspose}
-          onTransposeChange={occurrence.list ? (value) => void occurrence.transpose(value) : setReadingTranspose}
+          transposeValue={occurrence.list ? effectiveTranspose(song, occurrence.setting) : readingTranspose}
+          onTransposeChange={occurrence.list ? (value) => void occurrence.transpose(value, song) : setReadingTranspose}
         />
       )}
     </div>

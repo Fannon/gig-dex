@@ -57,7 +57,9 @@ export function parseSyncedSetlist(content: string, expectedId: string): Setlist
             !setting ||
             typeof setting !== "object" ||
             !Number.isInteger(setting.transpose) ||
-            Math.abs(setting.transpose) > 24,
+            Math.abs(setting.transpose) > 24 ||
+            (setting.baseKey !== undefined &&
+              (typeof setting.baseKey !== "string" || !setting.baseKey.trim() || setting.baseKey.length > 16)),
         )))
   ) {
     throw new Error("Invalid remote setlist data");

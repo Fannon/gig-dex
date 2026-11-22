@@ -5,7 +5,7 @@ import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { displayCalendarDate } from "../utils/calendarDate";
 import { type ChordMode, parseChordPro, transposeChordPro } from "../utils/chordEngine";
 import { readingHtml } from "../utils/readingLayout";
-import { songSettingDetails } from "../utils/setlistSettings";
+import { effectiveTranspose, songSettingDetails } from "../utils/setlistSettings";
 import "./PrintPage.scss";
 
 type Contents = "all" | "songs" | "list";
@@ -338,7 +338,9 @@ export const PrintPage = () => {
         const songs = await getSongs(list.songIds);
         if (cancelled) return;
         setSetlist(list);
-        setEntries(songs.map((song, index) => ({ song, transpose: list.songSettings?.[index]?.transpose ?? 0 })));
+        setEntries(
+          songs.map((song, index) => ({ song, transpose: effectiveTranspose(song, list.songSettings?.[index]) })),
+        );
       } else {
         const song = id ? await getSong(id) : undefined;
         if (!song) throw new Error("Song not found.");

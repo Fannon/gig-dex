@@ -11,7 +11,7 @@ This document describes the durable files that Gig-Dex writes to a sync folder. 
 
 ## JSON contract
 
-Each file is UTF-8 JSON with one song, setlist, or deletion record at the top level. It retains the record's stable `id`, `createdAt`, and `lastModified` fields. Songs contain `title`, `artist`, `content`, and `tags`; setlists contain `name` and ordered `songIds`. A deletion record contains `id`, `type`, `deleted: true`, `title`, `createdAt`, and `lastModified`. Unknown record fields are preserved when read and written so optional additions can be made without discarding data.
+Each file is UTF-8 JSON with one song, setlist, or deletion record at the top level. It retains the record's stable `id`, `createdAt`, and `lastModified` fields. Songs contain `title`, `artist`, `content`, and `tags`; setlists contain `name` and ordered `songIds`, optionally with a parallel `songSettings` array of `{transpose, baseKey?}` entries (`baseKey` is the song key the transposition was chosen for). A deletion record contains `id`, `type`, `deleted: true`, `title`, `createdAt`, and `lastModified`. Unknown record fields are preserved when read and written so optional additions can be made without discarding data.
 
 The `_sync` member is protocol metadata:
 

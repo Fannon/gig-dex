@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getSetlist, LIBRARY_CHANGED_EVENT, type Setlist, updateSetlist } from "../db";
-import { occurrenceSettings } from "../utils/setlistSettings";
+import { getSetlist, LIBRARY_CHANGED_EVENT, type Setlist, type Song, updateSetlist } from "../db";
+import { entrySetting, occurrenceSettings } from "../utils/setlistSettings";
 
 export function useSetlistOccurrence(listId: string | null, songId: string | undefined, index: number) {
   const [list, setList] = useState<Setlist>();
@@ -26,7 +26,8 @@ export function useSetlistOccurrence(listId: string | null, songId: string | und
       window.removeEventListener(LIBRARY_CHANGED_EVENT, load);
     };
   }, [listId, songId, index]);
-  const transpose = async (value: number) => {
+  /** Save the entry's transposition, relative to the song's current key. */
+  const transpose = async (value: number, song: Partial<Song> | undefined) => {
     if (!list || saving) return;
     setSaving(true);
     setError("");
@@ -34,7 +35,7 @@ export function useSetlistOccurrence(listId: string | null, songId: string | und
       const latest = await getSetlist(list.id);
       if (!latest || latest.songIds[index] !== songId) throw new Error("Setlist changed");
       const settings = occurrenceSettings(latest);
-      settings[index] = { ...settings[index], transpose: value };
+      settings[index] = entrySetting(song, value);
       await updateSetlist(list.id, { songSettings: settings });
       setList({ ...latest, songSettings: settings });
     } catch {
