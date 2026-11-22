@@ -27,6 +27,8 @@ export interface SyncProvider {
   pickFolder?(): Promise<boolean>;
   getScope?(): string;
   isAuthenticated?(): boolean;
+  /** A remembered connection that only needs the user's permission again (one click). */
+  needsPermission?(): boolean;
   isEnabled(): boolean;
   authenticate(): Promise<boolean>;
   logout(): Promise<void>;

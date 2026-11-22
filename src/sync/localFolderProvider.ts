@@ -56,13 +56,24 @@ export class LocalFolderProvider implements SyncProvider {
     return `localfolder:${this.id}`;
   }
   async refreshConnection() {
-    this.granted = false;
-    if (!this.handle) return;
+    const handle = this.handle;
+    if (!handle) {
+      this.granted = false;
+      return;
+    }
+    // Decide only after the browser answers: clearing access first would break a sync that is
+    // running while the window regains focus.
+    let granted = false;
     try {
-      this.granted = (await this.handle.queryPermission({ mode: "readwrite" })) === "granted";
+      granted = (await handle.queryPermission({ mode: "readwrite" })) === "granted";
     } catch {
       this.restoreError = "Folder access was lost. Choose the folder again; your library is safe.";
     }
+    if (handle === this.handle) this.granted = granted;
+  }
+  /** A remembered folder whose permission lapsed (Chrome resets it after a restart unless allowed on every visit). */
+  needsPermission() {
+    return !!this.handle && !this.granted && !this.restoreError;
   }
   async pickFolder() {
     if (!window.showDirectoryPicker) throw new Error("Local folder sync needs desktop Chrome or Edge.");
@@ -172,6 +183,10 @@ export class LocalFolderProvider implements SyncProvider {
       const match = parseRevisionFilename(entry.name);
       if (entry.kind !== "file" || !match) continue;
       const file = await (entry as FileSystemFileHandle).getFile();
+      // A write creates the file before committing its content in one step, so an interrupted
+      // write (a closed tab, a reload) leaves an empty file. It holds no revision yet; uploading
+      // the same revision fills it. Partial non-empty files still stop sync below.
+      if (file.size === 0) continue;
       if (file.size > MAX_SYNC_FILE_BYTES) throw new Error("A local sync file exceeds the 5 MB safety limit.");
       const text = await file.text();
       const version = await digest(text);
@@ -237,12 +252,16 @@ export class LocalFolderProvider implements SyncProvider {
     const name = revisionFilename(metadata.type, metadata.revision);
     this.checkName(name);
     const dir = this.directory();
+    let existing: File | undefined;
     try {
-      const existing = await (await dir.getFileHandle(name)).getFile();
-      if ((await existing.text()) === content) return;
-      throw new Error("A different revision already uses this filename. Sync again.");
+      existing = await (await dir.getFileHandle(name)).getFile();
     } catch (error) {
       if (!missing(error)) throw error;
+    }
+    // An empty file is an interrupted earlier write of this revision; the name fixes its content.
+    if (existing && existing.size > 0) {
+      if ((await existing.text()) === content) return;
+      throw new Error("A different revision already uses this filename. Sync again.");
     }
     await this.write(dir, name, content);
   }

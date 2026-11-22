@@ -17,7 +17,7 @@ class MemoryFile {
   }
   async getFile() {
     const text = this.text;
-    return { text: async () => text, lastModified: this.modified } as File;
+    return { text: async () => text, size: new TextEncoder().encode(text).length, lastModified: this.modified } as File;
   }
   async createWritable() {
     let pending = "";
@@ -196,6 +196,20 @@ it("stops on recognized incomplete JSON and invalid timestamps rather than dropp
   await expect(provider.listRevisions()).rejects.toThrow("incomplete");
   file.text = content.replaceAll("2025-01-01T00:00:00Z", "invalid");
   await expect(provider.listRevisions()).rejects.toThrow("Invalid local-folder revision");
+});
+it("recovers from a write interrupted before its content was committed", async () => {
+  const provider = await connect();
+  const { metadata, content } = revision();
+  await provider.uploadFile(metadata, content);
+  const [file] = [...folder.entries.values()] as MemoryFile[];
+  // A closed tab during a write leaves the created but empty file behind.
+  file.text = "";
+  await expect(provider.listRevisions()).resolves.toEqual([]);
+  await provider.uploadFile(metadata, content);
+  expect(file.text).toBe(content);
+  expect(await provider.listRevisions()).toHaveLength(1);
+  // A complete file with other content is still never overwritten.
+  await expect(provider.uploadFile(metadata, `${content} `)).rejects.toThrow("different revision");
 });
 it("archives to recoverable trash without deleting sources, and reveals concurrent source changes", async () => {
   const provider = await connect();

@@ -189,6 +189,12 @@ const Host = ({ host, onStatus }: { host: (typeof syncHosts)[number]; onStatus: 
               {status.lastSyncTime ? `Last synced ${new Date(status.lastSyncTime).toLocaleString()}` : "Not synced yet"}
             </p>
             {provider.name === "Dropbox" && <p>Stays connected in this browser until you select Stop syncing.</p>}
+            {provider.needsPermission?.() && (
+              <p className="settings-page__sync-paused">
+                The browser asks for folder access again after a restart. Select Sync now and choose{" "}
+                <strong>Allow on every visit</strong> to keep access.
+              </p>
+            )}
             {status.isSyncing && (
               <p className="settings-page__sync-progress" role="status">
                 {status.progress || "Syncing…"}
