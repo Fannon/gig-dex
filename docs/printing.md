@@ -15,7 +15,7 @@ Each white sheet in the preview starts a new printed page: the song list and eve
 
 ### Seeing what fits on a page
 
-The preview is laid out at the real paper width; on small screens it is scaled down rather than rewrapped. The label in each sheet's corner says **Fits on 1 page** or how many pages it needs. Like the printout, it keeps verses and song-list rows together, moving them to the next page rather than splitting them. In one-column layouts, red **Page 2**, **Page 3** lines show where each printed page begins. With more columns, each page fills its columns in turn, so only the page count is shown. To fit a song on one page, try smaller text, more columns, landscape or narrower margins. The browser's print preview remains the final word.
+The preview is laid out at the real paper width; on small screens it is scaled down rather than rewrapped. The label in each sheet's corner says **Fits on 1 page** or how many pages it needs. Like the printout, it keeps verses and song-list rows together, moving them to the next page rather than splitting them. In one-column layouts, red **Page 2**, **Page 3** lines show where each printed page begins. With more columns, each page fills its columns in turn, so only the page count is shown. To fit a song on one page, choose **Auto** text size, or try more columns, landscape or narrower margins. The browser's print preview remains the final word.
 
 ### Options
 
@@ -25,7 +25,7 @@ The preview is laid out at the real paper width; on small screens it is scaled d
 - **Chords**: turn off for lyrics-only sheets.
 - **Comments**: ChordPro `{comment}` lines, such as performance notes or the demo songs' tips. Off by default.
 - **Columns**: 1 to 4 per page (default 2). Three or four columns suit landscape.
-- **Text size**: 8 to 24 pt (default 11 pt).
+- **Text size**: 8 to 24 pt (default 11 pt), or **Auto (fit 1 page)**: each song (and the song list) gets the largest size up to 18 pt that fits on one page, so short songs stay readable and long ones shrink. A song that does not fit even at 8 pt prints at 8 pt over several pages; its label says how many.
 - **Key** (shown when something is transposed): print as transposed (default) or in the original key.
 - **Song list page** (setlists): include it, leave it out, or print only the song list (for example as a stage set list).
 

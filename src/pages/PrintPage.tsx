@@ -16,6 +16,8 @@ const PAPER_SIZES: Record<Paper, { label: string; css: string; width: number; he
   letter: { label: "Letter", css: "letter", width: 215.9, height: 279.4 },
 };
 const TEXT_SIZES = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24] as const;
+/** Sizes Auto tries per sheet, largest first; capped so short songs stay a normal size. */
+const AUTO_SIZES = TEXT_SIZES.filter((size) => size <= 18).reverse();
 const MARGINS = [5, 8, 10, 14, 18, 20, 25] as const;
 const COLUMNS = [1, 2, 3, 4] as const;
 // Earlier versions saved named sizes.
@@ -28,8 +30,8 @@ interface PrintPreferences {
   chords: boolean;
   comments: boolean;
   columns: number;
-  /** Text size in points. */
-  size: number;
+  /** Text size in points, or "auto" to fit each sheet on one page. */
+  size: number | "auto";
   contents: Contents;
   /** Print in the chosen transposition (song page or setlist entry) instead of the original key. */
   transposed: boolean;
@@ -63,7 +65,10 @@ function savedPrintPreferences(): PrintPreferences {
       chords: typeof value.chords === "boolean" ? value.chords : defaults.chords,
       comments: typeof value.comments === "boolean" ? value.comments : defaults.comments,
       columns: COLUMNS.find((columns) => columns === value.columns) ?? defaults.columns,
-      size: TEXT_SIZES.find((size) => size === value.size) ?? NAMED_SIZES[String(value.size)] ?? defaults.size,
+      size:
+        value.size === "auto"
+          ? "auto"
+          : (TEXT_SIZES.find((size) => size === value.size) ?? NAMED_SIZES[String(value.size)] ?? defaults.size),
       contents: value.contents === "songs" || value.contents === "list" ? value.contents : "all",
       transposed: typeof value.transposed === "boolean" ? value.transposed : defaults.transposed,
     };
@@ -166,18 +171,24 @@ function PrintSheet({
   className,
   label,
   columns,
+  autoFit,
   children,
 }: {
   className: string;
   label: string;
   /** Columns of the song body; break lines are shown only for single-column flow. */
   columns: number;
+  /** Pick the largest text size that fits this sheet on one page. */
+  autoFit: boolean;
   children: ReactNode;
 }) {
   const sheet = useRef<HTMLElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const page = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<{ pages: number; breaks: number[] }>({ pages: 1, breaks: [] });
+  const [layout, setLayout] = useState<{ pages: number; breaks: number[]; size?: number }>({
+    pages: 1,
+    breaks: [],
+  });
   useLayoutEffect(() => {
     const sheetElement = sheet.current;
     const contentElement = content.current;
@@ -186,27 +197,54 @@ function PrintSheet({
     const measure = () => {
       const pageHeight = pageElement.offsetHeight;
       if (!pageHeight || !sheetElement.offsetHeight) return;
-      const { pages, breaks } = paginate(contentElement, pageHeight, columns);
+      let size: number | undefined;
+      let result = paginate(contentElement, pageHeight, columns);
+      if (autoFit) {
+        // Try sizes largest first, like the song view's fit-to-screen, falling back to the smallest.
+        for (const candidate of AUTO_SIZES) {
+          size = candidate;
+          sheetElement.style.fontSize = `${candidate}pt`;
+          result = paginate(contentElement, pageHeight, columns);
+          if (result.pages === 1) break;
+        }
+      } else sheetElement.style.fontSize = "";
       // Positions as fractions of the sheet, so they hold at any preview zoom.
-      const positions =
-        columns === 1 ? breaks.map((element) => (element.offsetTop / sheetElement.offsetHeight) * 100) : [];
+      const breaks =
+        columns === 1 ? result.breaks.map((element) => (element.offsetTop / sheetElement.offsetHeight) * 100) : [];
       setLayout((previous) =>
-        previous.pages === pages && previous.breaks.join() === positions.join()
+        previous.pages === result.pages && previous.size === size && previous.breaks.join() === breaks.join()
           ? previous
-          : { pages, breaks: positions },
+          : { pages: result.pages, breaks, size },
       );
     };
     measure();
-    const observer = new ResizeObserver(measure);
+    // Refit after the layout settles; measuring inside the callback would resize what it observes.
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
     observer.observe(contentElement);
     observer.observe(pageElement);
-    return () => observer.disconnect();
-  }, [columns]);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [columns, autoFit]);
+  const pageCount = layout.pages === 1 ? "Fits on 1 page" : `${layout.pages} pages`;
   return (
-    <section className={`print-page__sheet ${className}`} aria-label={label} data-pages={layout.pages} ref={sheet}>
+    <section
+      className={`print-page__sheet ${className}`}
+      aria-label={label}
+      data-pages={layout.pages}
+      ref={sheet}
+      style={autoFit && layout.size ? { fontSize: `${layout.size}pt` } : undefined}
+    >
       <div className="print-page__page-height" ref={page} aria-hidden="true" />
       <div ref={content}>{children}</div>
-      <span className="print-page__count">{layout.pages === 1 ? "Fits on 1 page" : `${layout.pages} pages`}</span>
+      <span className="print-page__count">
+        {autoFit && layout.size ? `${pageCount} at ${layout.size} pt` : pageCount}
+      </span>
       {layout.breaks.map((top, index) => (
         <div
           key={top}
@@ -225,11 +263,13 @@ function PrintSong({
   position,
   chordMode,
   columns,
+  autoFit,
 }: {
   entry: PrintEntry;
   position?: number;
   chordMode: ChordMode;
   columns: number;
+  autoFit: boolean;
 }) {
   const { song, transpose } = entry;
   const html = useMemo(
@@ -239,7 +279,7 @@ function PrintSong({
   const number = position !== undefined && <span className="print-song__number">{position}.</span>;
   if (!song)
     return (
-      <PrintSheet className="print-song print-song--missing" label="Missing song" columns={columns}>
+      <PrintSheet className="print-song print-song--missing" label="Missing song" columns={columns} autoFit={autoFit}>
         <header className="print-song__header">
           <h2>{number} Missing song</h2>
         </header>
@@ -250,7 +290,7 @@ function PrintSong({
     Boolean,
   );
   return (
-    <PrintSheet className="print-song" label={song.title || "Untitled"} columns={columns}>
+    <PrintSheet className="print-song" label={song.title || "Untitled"} columns={columns} autoFit={autoFit}>
       <header className="print-song__header">
         <h2>
           {number} {song.title || "Untitled"}
@@ -376,6 +416,7 @@ export const PrintPage = () => {
   const showList = !!setlist && preferences.contents !== "songs";
   const showSongs = !setlist || preferences.contents !== "list";
   const paper = PAPER_SIZES[preferences.paper];
+  const autoSize = preferences.size === "auto";
   const landscape = preferences.orientation === "landscape";
 
   return (
@@ -383,7 +424,7 @@ export const PrintPage = () => {
       className="print-page"
       style={
         {
-          fontSize: `${preferences.size}pt`,
+          fontSize: `${autoSize ? defaults.size : preferences.size}pt`,
           "--print-margin": `${preferences.margin}mm`,
           "--print-columns": preferences.columns,
           "--sheet-width": `${landscape ? paper.height : paper.width}mm`,
@@ -455,7 +496,11 @@ export const PrintPage = () => {
         </label>
         <label>
           Text size
-          <select value={preferences.size} onChange={(event) => update({ size: Number(event.target.value) })}>
+          <select
+            value={preferences.size}
+            onChange={(event) => update({ size: event.target.value === "auto" ? "auto" : Number(event.target.value) })}
+          >
+            <option value="auto">Auto (fit 1 page)</option>
             {TEXT_SIZES.map((size) => (
               <option key={size} value={size}>
                 {size} pt
@@ -510,7 +555,7 @@ export const PrintPage = () => {
           ) : (
             <>
               {showList && setlist && (
-                <PrintSheet className="print-setlist" label="Song list" columns={1}>
+                <PrintSheet className="print-setlist" label="Song list" columns={1} autoFit={autoSize}>
                   <header className="print-setlist__header">
                     <h1>{setlist.name}</h1>
                     <p>
@@ -545,6 +590,7 @@ export const PrintPage = () => {
                     position={setlist ? index + 1 : undefined}
                     chordMode={chordMode}
                     columns={preferences.columns}
+                    autoFit={autoSize}
                   />
                 ))}
               {setlist && entries.length === 0 && showSongs && (

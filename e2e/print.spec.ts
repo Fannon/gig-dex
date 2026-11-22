@@ -210,3 +210,47 @@ test("the preview shows how many pages each sheet needs", async ({ page }) => {
   await page.emulateMedia({ media: "print" });
   await expect(sheet.locator(".print-page__count")).toBeHidden();
 });
+
+test("auto text size fits each song on one page", async ({ page }) => {
+  await page.goto("./");
+  const ids = await page.evaluate(async (base) => {
+    const { addSong, addSetlist } = await import(`${base}src/db.ts`);
+    const song = (title: string, verses: number) =>
+      addSong({
+        title,
+        artist: "Test",
+        tags: [],
+        content: `{title: ${title}}\n\n${Array.from(
+          { length: verses },
+          (_, verse) =>
+            `{start_of_verse: Verse ${verse + 1}}\n${Array.from({ length: 4 }, (_, line) => `[G]Verse ${verse + 1} line ${line + 1} [C]keeps on [D]going`).join("\n")}\n{end_of_verse}`,
+        ).join("\n\n")}`,
+      });
+    const songIds = [await song("Short Fixture", 2), await song("Long Fixture", 8), await song("Huge Fixture", 120)];
+    return { songIds, setlistId: await addSetlist({ name: "Auto Gig", songIds, tags: [] }) };
+  }, new URL(page.url()).pathname);
+  await page.goto(`./print/setlist/${ids.setlistId}`);
+  await page.getByLabel("Song list page").selectOption("Leave out");
+  await page.getByLabel("Text size").selectOption("Auto (fit 1 page)");
+  const count = (title: string) => page.getByRole("region", { name: title }).locator(".print-page__count");
+  await expect(count("Short Fixture")).toHaveText("Fits on 1 page at 18 pt");
+  await expect(count("Long Fixture")).toHaveText(/^Fits on 1 page at (9|10|11|12|13|14|16) pt$/);
+  await expect(count("Huge Fixture")).toHaveText(/^[2-9] pages at 8 pt$/);
+  const sizes = await page
+    .locator(".print-song")
+    .evaluateAll((sheets) => sheets.map((sheet) => getComputedStyle(sheet).fontSize));
+  expect(new Set(sizes).size).toBe(3);
+
+  // Short and long songs each take exactly one printed page; the huge one needs the rest.
+  const huge = Number.parseInt(await count("Huge Fixture").innerText(), 10);
+  await page.emulateMedia({ media: "print" });
+  const file = (await page.pdf({ preferCSSPageSize: true })).toString("latin1");
+  expect(file.match(/\/Type\s*\/Page(?!s)/g)?.length).toBe(2 + huge);
+  await page.emulateMedia({ media: "screen" });
+
+  await page.reload();
+  await expect(page.getByLabel("Text size")).toHaveValue("auto");
+  await page.getByLabel("Text size").selectOption("11");
+  await expect(count("Short Fixture")).toHaveText("Fits on 1 page");
+  await expect(page.locator(".print-song").first()).toHaveCSS("font-size", /^14\.6/); // 11pt
+});
