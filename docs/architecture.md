@@ -33,7 +33,7 @@ Schema upgrades run inside the IndexedDB upgrade transaction. The v1→v2 migrat
 
 ## Fitting songs to the screen
 
-`SongView` measures the real rendered chord/lyric tables. `findSongLayout` searches font sizes from 36px down to the minimum (12–20px, user setting), trying 1…N columns at each size, and takes the largest size that fits, preferring fewer columns. The search is descending because column fragmentation is not monotonic. Every row is checked for horizontal and vertical overflow, including overflow into implicit extra columns. Geometry and inputs are cached; resizing, font loading, notation, transposition and chord visibility trigger a refit. If nothing fits, the song scrolls in one column at 18px or the minimum font, with optional word-boundary wrapping that keeps chords above their syllables.
+`SongView` measures the real rendered chord/lyric tables. `findSongLayout` searches font sizes from the maximum (24–72px, default 36px) down to the minimum (12–32px), both user settings,, trying 1…N columns at each size, and takes the largest size that fits, preferring fewer columns. The search is descending because column fragmentation is not monotonic. Every row is checked for horizontal and vertical overflow, including overflow into implicit extra columns. Geometry and inputs are cached; resizing, font loading, notation, transposition and chord visibility trigger a refit. If nothing fits, the song scrolls in one column at 18px or the minimum font, with optional word-boundary wrapping that keeps chords above their syllables.
 
 `npm run screenshots` renders songs at five viewports and reports clipping and fallbacks; see `.agent/skills/validate/SKILL.md`. Only synthetic lyrics belong in the repository.
 

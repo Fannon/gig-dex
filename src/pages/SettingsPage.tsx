@@ -4,13 +4,21 @@ import { CloudSync } from "../components/CloudSync";
 import { DataManagement } from "../components/DataManagement";
 import { PwaSettings } from "../components/PwaSettings";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
-import { applyMinimumFontSize, minimumFontSizes, savedMinimumFontSize } from "../utils/readingFont";
+import {
+  applyMaximumFontSize,
+  applyMinimumFontSize,
+  maximumFontSizes,
+  minimumFontSizes,
+  savedMaximumFontSize,
+  savedMinimumFontSize,
+} from "../utils/readingFont";
 import { columnLimits } from "../utils/readingPreferences";
 import { applyReadingTheme, type ReadingTheme, savedReadingTheme } from "../utils/readingTheme";
 import "./SettingsPage.scss";
 
 export const SettingsPage = () => {
   const [minimumFontSize, setMinimumFontSize] = useState(savedMinimumFontSize);
+  const [maximumFontSize, setMaximumFontSize] = useState(savedMaximumFontSize);
   const [readingTheme, setReadingTheme] = useState(savedReadingTheme);
   const [reading, setReading] = useReadingPreferences();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -88,8 +96,26 @@ export const SettingsPage = () => {
                 }}
               >
                 {minimumFontSizes.map((size) => (
-                  <option key={size} value={size}>
+                  <option key={size} value={size} disabled={size > maximumFontSize}>
                     {size}px
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Maximum font
+              <select
+                aria-label="Maximum font"
+                value={maximumFontSize}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setMaximumFontSize(value);
+                  applyMaximumFontSize(value);
+                }}
+              >
+                {maximumFontSizes.map((size) => (
+                  <option key={size} value={size} disabled={size < minimumFontSize}>
+                    {size}px{size === 36 ? " (default)" : ""}
                   </option>
                 ))}
               </select>
@@ -118,9 +144,9 @@ export const SettingsPage = () => {
             </label>
             <p className="settings-page__hint">
               Applies to all songs on this device, including setlist previews and performance. German changes how
-              standard chords are shown. Number notation needs a song key. Auto-fit uses up to your column limit without
-              going below the minimum font. Songs that cannot fit scroll in one column; wrapping keeps wide lyrics
-              readable.
+              standard chords are shown. Number notation needs a song key. Auto-fit picks the largest size between the
+              minimum and maximum font that fits, using up to your column limit. Songs that cannot fit scroll in one
+              column; wrapping keeps wide lyrics readable.
             </p>
           </section>
         </div>

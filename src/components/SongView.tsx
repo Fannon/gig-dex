@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useReadingPreferences } from "../hooks/useReadingPreferences";
 import { useSongReading } from "../hooks/useSongReading";
 import { parseChordPro, transposeChordPro } from "../utils/chordEngine";
-import { savedMinimumFontSize } from "../utils/readingFont";
+import { MANUAL_FONT_LIMIT, savedMaximumFontSize, savedMinimumFontSize } from "../utils/readingFont";
 import { readingHtml } from "../utils/readingLayout";
 import { savedReadingTheme } from "../utils/readingTheme";
 import { createSongFitChecker, findSongLayout } from "../utils/songLayout";
@@ -48,8 +48,12 @@ export const SongView = ({
   const [fontSize, setFontSize] = useState(fitToScreen ? 16 : 18);
   const [autoSize, setAutoSize] = useState(fitToScreen);
   const [minimumFontSize, setMinimumFontSize] = useState(savedMinimumFontSize);
+  const [maximumFontSize, setMaximumFontSize] = useState(savedMaximumFontSize);
   useEffect(() => {
-    const update = () => setMinimumFontSize(savedMinimumFontSize());
+    const update = () => {
+      setMinimumFontSize(savedMinimumFontSize());
+      setMaximumFontSize(savedMaximumFontSize());
+    };
     window.addEventListener("reading-font-changed", update);
     window.addEventListener("storage", update);
     return () => {
@@ -148,6 +152,7 @@ export const SongView = ({
         displayOpen,
         autoSize ? "auto" : fontSize,
         minimumFontSize,
+        maximumFontSize,
         columnLimit,
         showChords,
         wrapLines,
@@ -174,6 +179,7 @@ export const SongView = ({
             },
             autoSize ? undefined : fontSize,
             minimumFontSize,
+            maximumFontSize,
           );
       contentEl.style.fontSize = `${result.fontSize}px`;
       contentEl.style.columnCount = String(result.columns);
@@ -221,6 +227,7 @@ export const SongView = ({
     autoSize,
     fontSize,
     minimumFontSize,
+    maximumFontSize,
     columnLimit,
     parsed.html,
     parsed.error,
@@ -238,7 +245,7 @@ export const SongView = ({
 
   const handleFontSize = (delta: number) => {
     setAutoSize(false);
-    setFontSize((prev) => Math.max(10, Math.min(48, prev + delta)));
+    setFontSize((prev) => Math.max(10, Math.min(MANUAL_FONT_LIMIT, prev + delta)));
   };
 
   const toggleAutoSize = () => {

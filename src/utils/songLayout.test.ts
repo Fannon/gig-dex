@@ -41,3 +41,14 @@ it("honors a configurable automatic minimum and readable fallback", () => {
   });
   expect(findSongLayout(3, () => false, undefined, 20).fontSize).toBe(20);
 });
+
+it("starts automatic fitting at a configurable maximum", () => {
+  expect(findSongLayout(3, () => true).fontSize).toBe(36);
+  expect(findSongLayout(3, () => true, undefined, 12, 64).fontSize).toBe(64);
+  expect(findSongLayout(3, (size) => size <= 50, undefined, 12, 72).fontSize).toBe(50);
+  expect(findSongLayout(3, () => true, undefined, 12, 24).fontSize).toBe(24);
+  // A minimum above the maximum wins, so the size range is never empty.
+  expect(findSongLayout(3, () => true, undefined, 32, 24).fontSize).toBe(32);
+  // Manual sizes ignore the automatic range.
+  expect(findSongLayout(3, () => true, 60, 12, 36).fontSize).toBe(60);
+});

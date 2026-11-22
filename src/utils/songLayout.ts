@@ -10,10 +10,12 @@ export function findSongLayout(
   fits: (fontSize: number, columns: number) => boolean,
   manualFontSize?: number,
   minimumFontSize = 12,
+  maximumFontSize = 36,
 ): SongLayout {
   // Column fragmentation is not monotonic: an oversized section can start splitting
   // at a larger size. A descending search avoids binary-search false negatives.
-  for (let fontSize = manualFontSize ?? 36; fontSize >= (manualFontSize ?? minimumFontSize); fontSize--) {
+  const largest = manualFontSize ?? Math.max(maximumFontSize, minimumFontSize);
+  for (let fontSize = largest; fontSize >= (manualFontSize ?? minimumFontSize); fontSize--) {
     for (let columns = 1; columns <= maxColumns; columns++) {
       if (fits(fontSize, columns)) return { fontSize, columns, fits: true };
     }
