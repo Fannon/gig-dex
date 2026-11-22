@@ -211,8 +211,6 @@ $font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica N
       break-after: avoid;
     }
 
-    .label.section-chorus { padding-left: .4em; border-left: 3px solid $ink; }
-
     // Word-wrapped lines keep each chord above its syllable.
     .reading-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: .2em; break-inside: avoid; }
     .chord-word { display: inline-flex; align-items: flex-end; }
