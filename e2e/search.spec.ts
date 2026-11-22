@@ -123,3 +123,35 @@ test("minimum font lives in Settings and refits an open song after a preference 
   await mkdir("reports/search", { recursive: true });
   await page.screenshot({ path: "reports/search/settings-minimum-font.png" });
 });
+
+test("maximum font lets short songs grow beyond 36px and caps automatic fitting", async ({ page }) => {
+  await seedLibrary(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  const fontSize = () =>
+    page.locator(".song-view__content").evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  await expect(page.locator(".song-view")).toHaveAttribute("data-layout", "fit");
+  await expect.poll(fontSize).toBe(36);
+
+  await page.goto("./settings");
+  await expect(page.getByLabel("Maximum font", { exact: true })).toHaveValue("36");
+  // The maximum cannot go below the minimum.
+  await page.getByLabel("Minimum font", { exact: true }).selectOption("28");
+  await expect(page.getByLabel("Maximum font", { exact: true }).locator("option[value='24']")).toHaveJSProperty(
+    "disabled",
+    true,
+  );
+  await page.getByLabel("Minimum font", { exact: true }).selectOption("12");
+  await page.getByLabel("Maximum font", { exact: true }).selectOption("72");
+  await page.reload();
+  await expect(page.getByLabel("Maximum font", { exact: true })).toHaveValue("72");
+
+  await page.goBack();
+  await expect(page.locator(".song-view")).toHaveAttribute("data-layout", "fit");
+  await expect.poll(fontSize).toBeGreaterThan(36);
+  expect(await fontSize()).toBeLessThanOrEqual(72);
+
+  await page.goto("./settings");
+  await page.getByLabel("Maximum font", { exact: true }).selectOption("24");
+  await page.goBack();
+  await expect.poll(fontSize).toBeLessThanOrEqual(24);
+});

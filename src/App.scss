@@ -37,7 +37,7 @@ html, body, #root {
  .app-shell :is(h1,h2,h3,strong) { color: #292b31; }
  .app-shell .workspace-topbar .workspace-brand { color: #292b31; background: none; -webkit-text-fill-color: currentColor; }
  .app-shell a { color: #5541a1; }
- .app-shell :is(button,input,select,textarea) { background: #e8e6ed; color: #292b31; border-color: #c6c2d3; }
+ .app-shell :is(button,input,select,textarea,.setlists-page__print) { background: #e8e6ed; color: #292b31; border-color: #c6c2d3; }
  .app-shell :is(input,textarea)::placeholder { color: #66616f; opacity: 1; }
  .app-shell .song-page__simple-preview > .label { color: #50515d; }
  .app-shell .song-page__mode-note { color: #8a4b00; }

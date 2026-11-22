@@ -21,10 +21,14 @@ Tags containing spaces use quoted filters, for example `#"Sunday morning"`.
 Clicking a tag in a song's header opens the overview with that tag filter. The
 overview search is stored in its URL, so the filtered view survives reloading.
 
-**Settings → Appearance → Minimum font** controls the smallest automatic song
-fitting size on this device. It retains the existing saved preference, defaults
-to 12px, and supports 12/14/16/18/20px. Songs scroll if they cannot fit at that
-size. Open song views refit when the preference changes in another tab.
+**Settings → Appearance → Minimum font** and **Maximum font** set the range for
+automatic song fitting on this device: Gig-Dex picks the largest size in that
+range that fits the screen. The minimum defaults to 12px (12–32px); songs scroll
+if they cannot fit at that size. The maximum defaults to 36px (24–72px); raise it
+so short songs fill a tablet from a distance, or lower it to keep text calm. The
+maximum cannot be set below the minimum. The **A−/A+** buttons in Display options
+go from 10px to 72px. Open song views refit when either preference changes,
+including in another tab.
 Minimum font and column-count diagnostics no longer occupy the song controls.
 
 The same **Song reading** section now contains **Notation** (standard chord names,
