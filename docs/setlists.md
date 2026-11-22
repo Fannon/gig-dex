@@ -34,3 +34,7 @@ On a song page, **In N setlists** counts the distinct setlists containing the so
 ## Perform a setlist
 
 **Perform setlist** opens the stage view for the whole setlist. See [Performance mode](performance-mode.md).
+
+## Print a setlist
+
+**Print** opens a print preview of the song list and all songs, each in its entry's key. Print it or save it as PDF from the browser's print dialog. See [Printing and PDF](printing.md).

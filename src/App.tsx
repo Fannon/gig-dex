@@ -1,4 +1,4 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppDialogs } from "./components/AppDialogs";
 import { LibraryWorkspace } from "./components/LibraryWorkspace";
@@ -13,8 +13,23 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage").then((module) => 
 const PerformancePage = lazy(() =>
   import("./pages/PerformancePage").then((module) => ({ default: module.PerformancePage })),
 );
+const PrintPage = lazy(() => import("./pages/PrintPage").then((module) => ({ default: module.PrintPage })));
+const printElement = (
+  <Suspense
+    fallback={
+      <div className="app-loading">
+        <output>Loading…</output>
+      </div>
+    }
+  >
+    <PrintPage />
+  </Suspense>
+);
 const router = createBrowserRouter(
   [
+    // Print views render outside the workspace so only the paper reaches the printer.
+    { path: "/print/song/:id", element: printElement, errorElement: <PwaRecovery /> },
+    { path: "/print/setlist/:listId", element: printElement, errorElement: <PwaRecovery /> },
     {
       errorElement: <PwaRecovery />,
       element: (

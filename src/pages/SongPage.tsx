@@ -557,6 +557,14 @@ export const SongPage = () => {
                 <ActionIcon name="perform" />
                 Perform
               </Link>
+              <Link
+                to={`/print/song/${id}?transpose=${readingDetails.transpose}${occurrence.list ? `&setlist=${occurrence.list.id}&occurrence=${occurrenceIndex}` : ""}`}
+                className="song-page__btn song-page__btn--secondary"
+                title="Print this song or save it as PDF, in the key shown"
+              >
+                <ActionIcon name="print" />
+                Print
+              </Link>
             </>
           )}
           {isEditing ? (

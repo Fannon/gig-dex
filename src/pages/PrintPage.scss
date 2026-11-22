@@ -1,0 +1,251 @@
+// Paper is always dark ink on white, independent of the reading theme.
+$ink: #111;
+$ink-muted: #555;
+$rule: #c8c8c8;
+$font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+
+.print-page {
+  --sheet-width: 210mm;
+  --sheet-height: 297mm;
+  min-height: 100%;
+  background: #6b6b75;
+  color: $ink;
+  font-family: $font-stack;
+  font-size: 11pt;
+
+  &__toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem 1rem;
+    padding: .6rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: .875rem;
+
+    a { color: var(--color-accent); padding: .35rem 0; }
+
+    label { display: inline-flex; align-items: center; gap: .4rem; color: var(--text-secondary); }
+
+    select {
+      min-height: 36px;
+      padding: .25rem .4rem;
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+    }
+
+    input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--color-primary); }
+  }
+
+  &__print {
+    margin-left: auto;
+    min-height: 40px;
+    padding: .5rem .9rem;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+
+    &:disabled { opacity: .5; cursor: default; }
+  }
+
+  // Each sheet previews one printed page at real paper width (longer content continues onto more pages).
+  &__sheets { padding: 1.5rem 1rem; }
+
+  &__ruler { width: var(--sheet-width); height: 0; visibility: hidden; }
+
+  &__zoom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    zoom: var(--preview-zoom, 1);
+  }
+
+  &__sheet {
+    position: relative;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: var(--sheet-width);
+    min-height: var(--sheet-height);
+    margin: 0;
+    padding: var(--print-margin, 10mm);
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, .35);
+  }
+
+  // The printable height of one page, measured to count pages.
+  &__page-height {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: calc(var(--sheet-height) - 2 * var(--print-margin, 10mm));
+    visibility: hidden;
+  }
+
+  &__count {
+    position: absolute;
+    top: 1.5mm;
+    right: 3mm;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #2f6b3a;
+    background: #e3f1e5;
+  }
+
+  &__sheet:not([data-pages="1"]) > &__count { color: #8a4b00; background: #fbecd5; }
+
+  // Where a new printed page starts (positioned from the pagination in PrintPage.tsx).
+  &__break {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px dashed #c0392b;
+    pointer-events: none;
+
+    &::after {
+      content: "Page " attr(data-page);
+      position: absolute;
+      top: 2px;
+      right: 3mm;
+      font-size: 11px;
+      color: #c0392b;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .print-page__sheets { padding: .75rem .5rem; }
+  .print-page__print { margin-left: 0; }
+}
+
+.print-setlist {
+  &__header {
+    border-bottom: 2px solid $ink;
+    margin-bottom: 1em;
+    padding-bottom: .5em;
+
+    h1 { margin: 0; font-size: 2em; line-height: 1.15; color: $ink; }
+    p { margin: .25em 0 0; color: $ink-muted; }
+  }
+
+  &__songs {
+    margin: 0;
+    padding-left: 2.2em;
+    font-size: 1.35em;
+
+    li { padding: .3em 0; border-bottom: 1px solid $rule; break-inside: avoid; }
+    li::marker { font-weight: 700; }
+  }
+
+  &__title { font-weight: 700; }
+
+  // Kept together beside the title, or on its own line when the title is long.
+  &__details { display: inline-block; margin-left: .75em; font-size: .7em; color: $ink-muted; }
+}
+
+.print-song {
+  &__header {
+    break-after: avoid;
+    border-bottom: 1px solid $ink;
+    margin-bottom: .75em;
+    padding-bottom: .35em;
+
+    h2 { margin: 0; font-size: 1.6em; line-height: 1.2; color: $ink; }
+    p { margin: .15em 0 0; color: $ink-muted; }
+  }
+
+  &__number { color: $ink-muted; }
+
+  &__credits, &__copyright { font-size: .85em; }
+
+  &__copyright { margin: 1em 0 0; color: $ink-muted; break-before: avoid; }
+
+  &__raw { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9em; }
+
+  &__body {
+    line-height: 1.35;
+    column-count: var(--print-columns, 2);
+    column-gap: 1.5em;
+    column-rule: 1px solid #e2e2e2;
+
+    // Title and artist are already in the song header.
+    h1, h2, .title, .artist, .subtitle { display: none; }
+
+    .chord-sheet { display: contents; }
+
+    table { border-collapse: collapse; break-inside: avoid; }
+    td { padding: 0; vertical-align: bottom; white-space: nowrap; }
+
+    .paragraph { margin-bottom: .8em; break-inside: avoid; }
+    .row { break-inside: avoid; }
+    .lyrics { color: $ink; white-space: pre; }
+
+    .chord {
+      color: $ink;
+      font-weight: 700;
+      font-size: .9em;
+      padding-right: .2em;
+      white-space: nowrap;
+    }
+
+    .comment { color: $ink-muted; font-style: italic; margin-bottom: .3em; }
+
+    .label {
+      display: block;
+      color: $ink;
+      font-weight: 700;
+      font-size: .8em;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin: .4em 0 .15em;
+      break-after: avoid;
+    }
+
+    .label.section-chorus { padding-left: .4em; border-left: 3px solid $ink; }
+
+    // Word-wrapped lines keep each chord above its syllable.
+    .reading-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: .2em; break-inside: avoid; }
+    .chord-word { display: inline-flex; align-items: flex-end; }
+    .chord-fragment { display: inline-flex; flex-direction: column; justify-content: flex-end; }
+    .lyrics:empty { min-height: 1lh; }
+    .chord:empty { padding-right: 0; }
+    .chord:empty::before { content: '\00a0'; }
+    td, .label, .comment { white-space: normal; overflow-wrap: anywhere; }
+
+    [data-chords=false] & .chord { display: none; }
+
+    // ChordPro {comment} lines, such as performance notes. Drop paragraphs that held nothing else.
+    [data-comments=false] & .row:has(.comment),
+    [data-comments=false] & .paragraph:not(:has(.lyrics, .chord, .label)) { display: none; }
+  }
+}
+
+@media print {
+  html, body, #root { height: auto; background: #fff; }
+
+  .print-page {
+    background: #fff;
+
+    &__toolbar { display: none; }
+
+    &__sheets { padding: 0; }
+
+    &__zoom { display: block; zoom: 1; }
+
+    &__sheet { width: auto; min-height: 0; padding: 0; box-shadow: none; }
+
+    &__ruler, &__page-height, &__count, &__break { display: none; }
+
+    &__sheet + &__sheet { break-before: page; }
+  }
+}

@@ -457,6 +457,11 @@ export const SetlistsPage = () => {
                       Perform setlist ↗
                     </Link>
                   )}
+                  {selected.songIds.length > 0 && (
+                    <Link className="setlists-page__print" to={`/print/setlist/${selected.id}`}>
+                      Print
+                    </Link>
+                  )}
                   <button
                     type="button"
                     disabled={busy}

@@ -39,7 +39,7 @@ Schema upgrades run inside the IndexedDB upgrade transaction. The v1→v2 migrat
 
 ## Bundle and offline
 
-The chord engine (ChordSheetJS) is the largest dependency and loads only when a song is shown or the demo songs are added. `production.spec.ts` checks this. ChordSheetJS imports jsPDF eagerly; `vite.config.ts` drops jsPDF's side effects because Gig-Dex never uses PDF output. Revisit that before adding PDF export. All route chunks are precached by the service worker (`vite-plugin-pwa`, `registerType: "prompt"`).
+The chord engine (ChordSheetJS) is the largest dependency and loads only when a song is shown or the demo songs are added. `production.spec.ts` checks this. ChordSheetJS imports jsPDF eagerly; `vite.config.ts` drops jsPDF's side effects because Gig-Dex never uses PDF output. Printing and PDF export go through the browser instead: `/print/song/:id` and `/print/setlist/:listId` render outside the workspace with print CSS (`PrintPage.scss`), and the print dialog's **Save as PDF** produces the file. Revisit the jsPDF setting before adding generated PDFs. All route chunks are precached by the service worker (`vite-plugin-pwa`, `registerType: "prompt"`).
 
 `src/pwa/lifecycle.ts` controls updates: a waiting service worker activates only on request, and never while performance, unsaved edits, sync, cleanup or library imports/exports are registered as blockers. Web Locks coordinate tabs where available.
 

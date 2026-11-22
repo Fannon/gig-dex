@@ -91,7 +91,7 @@ More commands:
 
 ### Docs
 
-- Using Gig-Dex: [setlists](docs/setlists.md), [performance mode](docs/performance-mode.md), [search and reading settings](docs/search-and-reading-settings.md), [backup and import](docs/backup-and-import.md), [offline use and updates](docs/offline-and-updates.md)
+- Using Gig-Dex: [setlists](docs/setlists.md), [performance mode](docs/performance-mode.md), [printing and PDF](docs/printing.md), [search and reading settings](docs/search-and-reading-settings.md), [backup and import](docs/backup-and-import.md), [offline use and updates](docs/offline-and-updates.md)
 - Sync: [overview](docs/sync.md), [Dropbox setup](docs/dropbox-sync.md), [local folder and your own Client IDs](docs/local-folder-sync.md), [sync folder format](docs/sync-format.md)
 - Development: [architecture notes](docs/architecture.md), [AGENTS.md](AGENTS.md) (verification workflow)
 

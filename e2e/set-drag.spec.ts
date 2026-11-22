@@ -152,7 +152,7 @@ test("new sets prefill today's date and drag indicators remain straight", async 
   const heights = await page
     .locator(".setlists-page__actions > *")
     .evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().height));
-  expect(heights).toEqual([38, 38, 38, 38, 38]);
+  expect(heights).toEqual([38, 38, 38, 38, 38, 38]);
   const source = await rows.first().locator(".setlists-page__song-select").boundingBox();
   const target = await rows.nth(1).boundingBox();
   if (!source || !target) throw new Error("Missing drag rows");
