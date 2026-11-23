@@ -61,8 +61,8 @@ export const SettingsPage = () => {
                   applyReadingTheme(theme);
                 }}
               >
-                <option value="violet">Dark violet</option>
                 <option value="black">Pure black</option>
+                <option value="violet">Dark violet</option>
                 <option value="light">Light</option>
               </select>
             </label>

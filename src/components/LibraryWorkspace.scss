@@ -123,10 +123,11 @@
   .workspace-sync-alert { position: absolute; top: 0; right: 0; width: .85rem; height: .85rem; margin: 0; font-size: .6rem; color: #fff; }
 }
 :root[data-reading-theme=light] .workspace-topbar .workspace-sync-link {
-  color: #66616f;
-  &[data-configured=true] { color: #5745aa; }
-  &[data-needs-attention=true] { color: #963236; background: #f5e4e1; border-color: #b56b6d; }
-  &[data-syncing=true] { color: #fff; background: #6752a9; border-color: #5745aa; }
+  color: var(--text-muted);
+  &:hover, &:focus-visible { color: var(--color-accent); }
+  &[data-configured=true] { color: var(--color-accent); }
+  &[data-needs-attention=true] { color: var(--light-danger); background: var(--light-danger-surface); border-color: var(--light-danger-border); }
+  &[data-syncing=true] { color: #fff; background: var(--color-primary); border-color: var(--color-accent); }
 }
 @keyframes workspace-sync-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .workspace-sync-link svg { animation: none !important; } }

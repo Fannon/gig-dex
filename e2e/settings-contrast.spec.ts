@@ -1,33 +1,6 @@
 import { mkdir } from "node:fs/promises";
-import { expect, type Locator, test } from "@playwright/test";
-
-async function textContrast(locator: Locator) {
-  return locator.evaluate((element) => {
-    const rgba = (value: string) => {
-      const channels = (value.match(/[\d.]+/g) ?? []).map(Number);
-      return [channels[0], channels[1], channels[2], channels[3] ?? 1];
-    };
-    const blend = (front: number[], back: number[]) =>
-      front.slice(0, 3).map((channel, index) => channel * front[3] + back[index] * (1 - front[3]));
-    const ancestors: Element[] = [];
-    for (let node: Element | null = element; node; node = node.parentElement) ancestors.unshift(node);
-    let background = [255, 255, 255];
-    for (const ancestor of ancestors) background = blend(rgba(getComputedStyle(ancestor).backgroundColor), background);
-    const foreground = blend(rgba(getComputedStyle(element).color), background);
-    const luminance = (channels: number[]) => {
-      const [r, g, b] = channels.map((channel) => {
-        const value = channel / 255;
-        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    };
-    const values = [luminance(foreground), luminance(background)];
-    return {
-      text: element.textContent?.trim().slice(0, 80),
-      ratio: (Math.max(...values) + 0.05) / (Math.min(...values) + 0.05),
-    };
-  });
-}
+import { expect, test } from "@playwright/test";
+import { textContrast } from "./fixtures";
 
 for (const theme of ["black", "violet", "light"])
   for (const viewport of [

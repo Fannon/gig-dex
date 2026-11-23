@@ -559,7 +559,7 @@
 .song-page__actions { align-items: center; }
 
 .song-page .song-page__reading-actions button[aria-expanded=true] { background: var(--color-primary); color: #fff; }
-:root[data-reading-theme=light] .app-shell .song-page__key { background: #ded8ed; color: #493977; }
+:root[data-reading-theme=light] .app-shell .song-page__key { background: var(--light-accent-surface); color: var(--light-accent-text); }
 
 // Narrow screens stack the editor and let the whole form scroll, so the lyrics
 // keep a usable height instead of sharing what is left below the fields.
