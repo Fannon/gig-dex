@@ -22,6 +22,17 @@ const SNAPSHOT_MEMORY_LIMIT = 8 * 1024 * 1024;
 type Tokens = { access_token: string; refresh_token?: string; expiresAt: number; account_id?: string; appKey: string };
 type Item = { ".tag": string; id?: string; name: string; path_lower?: string; rev?: string; server_modified?: string };
 
+/** The OAuth `error` code of a failed token response, such as `invalid_grant`. */
+async function oauthError(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = JSON.parse(await response.text());
+    const error = (body as { error?: unknown } | null)?.error;
+    return typeof error === "string" ? error : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class DropboxProvider implements SyncProvider {
   name = "Dropbox";
   private appKey: string;
@@ -105,16 +116,19 @@ export class DropboxProvider implements SyncProvider {
       body: new URLSearchParams({ client_id: this.appKey, ...parameters }),
     });
     if (!response.ok) {
-      // Invalid credentials require reconnecting; network, rate-limit and server
-      // failures must leave the refresh token available for the next attempt.
-      const reconnect = response.status === 400 || response.status === 401;
-      if (reconnect) await this.logout();
+      // Only a rejected grant (a revoked or expired refresh token, or a used sign-in code) ends
+      // the connection. Any other failure keeps the refresh token for the next attempt, so an
+      // unexpected or temporary response never forces another sign-in.
+      const revoked =
+        (response.status === 400 || response.status === 401) &&
+        (await oauthError(response.clone())) === "invalid_grant";
+      if (revoked) await this.logout();
       throw await syncHttpError(
         context,
         response,
-        reconnect
-          ? "Dropbox sign-in expired or failed. Connect Dropbox again"
-          : "Dropbox sign-in unavailable. Please retry",
+        revoked
+          ? "Dropbox access was revoked or has expired. Connect Dropbox again"
+          : "Dropbox sign-in could not be renewed. Gig-Dex retries on the next sync",
       );
     }
     const result = await response.json();
@@ -232,8 +246,17 @@ export class DropboxProvider implements SyncProvider {
       return this.request(url, init, true);
     }
     if (response.status === 401) {
-      await this.logout();
-      throw await syncHttpError(context, response, "Dropbox sign-in expired. Connect again");
+      // Without a refresh token the session cannot recover. With one, a 401 right after a
+      // successful renewal is not proof the connection is gone: keep it and retry next sync.
+      if (!this.tokens?.refresh_token) {
+        await this.logout();
+        throw await syncHttpError(context, response, "Dropbox sign-in expired. Connect again");
+      }
+      throw await syncHttpError(
+        context,
+        response,
+        "Dropbox did not accept the renewed sign-in. Gig-Dex retries on the next sync; if this continues, select Stop syncing and connect again",
+      );
     }
     if (!response.ok) {
       throw await syncHttpError(context, response);

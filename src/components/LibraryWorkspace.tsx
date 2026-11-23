@@ -77,6 +77,7 @@ export function LibraryWorkspace() {
   const refreshSequence = useRef(0);
   const [error, setError] = useState("");
   const [syncNeedsAttention, setSyncNeedsAttention] = useState(false);
+  const [folderPaused, setFolderPaused] = useState(false);
   const [syncRunning, setSyncRunning] = useState(() => syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
   const [syncProgress, setSyncProgress] = useState("");
   const [syncConfigured, setSyncConfigured] = useState(false);
@@ -132,10 +133,14 @@ export function LibraryWorkspace() {
       refreshSyncProgress();
       setSyncRunning(syncHosts.some(({ manager }) => manager.getStatus().isSyncing));
       setSyncConfigured(syncHosts.some(({ provider }) => provider.isAuthenticated?.() || provider.getFolderName?.()));
-      const statusIssue = syncHosts.some(({ manager }) => {
-        const status = manager.getStatus();
-        return !!status.error || !!status.conflictCount;
-      });
+      const paused = syncHosts.some(({ provider }) => provider.needsPermission?.());
+      setFolderPaused(paused);
+      const statusIssue =
+        paused ||
+        syncHosts.some(({ manager }) => {
+          const status = manager.getStatus();
+          return !!status.error || !!status.conflictCount;
+        });
       void getSyncConflicts()
         .then((conflicts) => {
           if (!disposed) setSyncNeedsAttention(statusIssue || conflicts.length > 0);
@@ -153,7 +158,12 @@ export function LibraryWorkspace() {
     window.addEventListener("storage", refreshSyncAttention);
     window.addEventListener(CLIENT_CONFIG_EVENT, refreshSyncAttention);
     window.addEventListener(LIBRARY_CHANGED_EVENT, refreshSyncAttention);
-    window.addEventListener("focus", refreshSyncAttention);
+    // Folder permission can change outside the app (for example in the browser's site settings).
+    const refocus = () =>
+      void Promise.allSettled(syncHosts.map(({ provider }) => provider.refreshConnection?.())).then(() => {
+        if (!disposed) refreshSyncAttention();
+      });
+    window.addEventListener("focus", refocus);
     return () => {
       disposed = true;
       window.removeEventListener("gigdex-sync-status", refreshSyncAttention);
@@ -161,7 +171,7 @@ export function LibraryWorkspace() {
       window.removeEventListener("storage", refreshSyncAttention);
       window.removeEventListener(CLIENT_CONFIG_EVENT, refreshSyncAttention);
       window.removeEventListener(LIBRARY_CHANGED_EVENT, refreshSyncAttention);
-      window.removeEventListener("focus", refreshSyncAttention);
+      window.removeEventListener("focus", refocus);
     };
   }, []);
   useEffect(() => {
@@ -390,6 +400,16 @@ export function LibraryWorkspace() {
         </nav>
         <Link
           to="/settings?section=sync"
+          onClick={(event) => {
+            const paused = syncHosts.find(({ provider }) => provider.needsPermission?.());
+            if (!paused || syncRunning) return;
+            // One tap resumes folder sync: ask for access within this click, then sync.
+            event.preventDefault();
+            void paused.provider
+              .authenticate()
+              .then(() => paused.manager.sync())
+              .catch(() => navigate("/settings?section=sync"));
+          }}
           className="workspace-sync-link"
           data-syncing={syncRunning}
           data-needs-attention={syncNeedsAttention}
@@ -397,20 +417,24 @@ export function LibraryWorkspace() {
           aria-label={
             syncRunning
               ? "Syncing library — open sync settings"
-              : syncNeedsAttention
-                ? "Sync needs attention — open sync settings"
-                : syncConfigured
-                  ? "Sync settings"
-                  : "Sync settings — no sync connected"
+              : folderPaused
+                ? "Folder sync paused — allow folder access"
+                : syncNeedsAttention
+                  ? "Sync needs attention — open sync settings"
+                  : syncConfigured
+                    ? "Sync settings"
+                    : "Sync settings — no sync connected"
           }
           title={
             syncRunning
               ? syncProgress || "Syncing library"
-              : syncNeedsAttention
-                ? "Sync needs attention"
-                : syncConfigured
-                  ? "Sync settings"
-                  : "No sync connected"
+              : folderPaused
+                ? "Folder sync paused. Select to allow access to the folder again."
+                : syncNeedsAttention
+                  ? "Sync needs attention"
+                  : syncConfigured
+                    ? "Sync settings"
+                    : "No sync connected"
           }
         >
           <ActionIcon name="sync" />

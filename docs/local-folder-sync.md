@@ -9,8 +9,13 @@ the desktop client to finish transferring files before syncing another device.
 Folder picking requires a browser exposing `showDirectoryPicker`, normally Chrome
 or Edge on desktop, over HTTPS or localhost. Unsupported browsers show alternatives;
 mobile users can use [Dropbox sync](dropbox-sync.md) or [backup files](backup-and-import.md). An installed
-Chromium PWA uses the same folder connection as its browser origin. Permissions
-may need to be granted again after reopening. [Chrome's File System Access guide](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
+Chromium PWA uses the same folder connection as its browser origin, but each address (for example
+`localhost:5173` and `localhost:5174`, or a browser tab on another domain) has its own connection.
+
+Gig-Dex remembers the folder, but the browser decides how long read/write permission lasts and can only
+ask again after a click. After a browser restart the sync icon shows **!** and its tooltip says folder
+sync is paused: select it once to allow access and sync, without leaving the page. In the browser's
+prompt, choose **Allow on every visit** to keep access across restarts. [Chrome's File System Access guide](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
 explains handle persistence and permission renewal.
 
 Gig-Dex checks the folder when it opens with permission. After a completed song or setlist edit or import, it starts
@@ -46,8 +51,10 @@ Each revision is a plaintext `gigdex-song-<revision>.json` or
 cloud providers. Song IDs/titles never enter filenames. Independent edits append
 unique revisions, preserve branches, and join after conflict review; they never
 overwrite an existing revision with different content. File writes publish on
-closing the writable stream. Read errors, incomplete cloud downloads and content
-changes detected after listing stop sync so it can be retried.
+closing the writable stream; a write interrupted before that (for example by closing
+the tab) leaves an empty file, which sync ignores and fills on the next upload. Read
+errors, incomplete cloud downloads and content changes detected after listing stop
+sync so it can be retried.
 
 History cleanup uses the existing preview/retention rules. Local archival creates
 verified copies inside `.gigdex-trash/`, named with their content hashes, and hides

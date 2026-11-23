@@ -210,3 +210,55 @@ test("unsupported browsers explain folder alternatives without opening a picker"
   await expect(host).toContainText("Folder sync is available in Chrome or Edge on a computer");
   await expect(host.getByRole("button")).toHaveCount(0);
 });
+
+test("a folder whose permission lapsed is flagged and resumes with one tap", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.addInitScript(() => {
+    // Like Chrome after a restart: the folder is remembered, its permission starts at "prompt".
+    const state = {
+      permission: (localStorage.getItem("fixture-permission") ?? "granted") as PermissionState,
+      requests: [] as boolean[],
+    };
+    (window as unknown as { folderFixture: typeof state }).folderFixture = state;
+    const root = navigator.storage.getDirectory();
+    window.showDirectoryPicker = async () => (await root).getDirectoryHandle("Cloud songbook", { create: true });
+    FileSystemHandle.prototype.requestPermission = async () => {
+      state.requests.push(navigator.userActivation.isActive);
+      state.permission = "granted";
+      return state.permission;
+    };
+    FileSystemHandle.prototype.queryPermission = async () => state.permission;
+  });
+  await seedLibrary(page);
+  await page.goto("./settings?section=sync");
+  const host = page.getByRole("region", { name: "Local Folder sync", exact: true });
+  await host.getByRole("button", { name: "Choose folder", exact: true }).click();
+  await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
+  const syncLink = page.locator(".workspace-sync-link");
+  await expect(syncLink).toHaveAttribute("data-needs-attention", "false");
+
+  await page.evaluate(() => localStorage.setItem("fixture-permission", "prompt"));
+  await page.reload();
+  await expect(host.getByRole("heading", { name: /reconnect to continue — Cloud songbook/ })).toBeVisible();
+  await expect(host.getByText("Allow on every visit")).toBeVisible();
+  await page.goto("./");
+  await expect(syncLink).toHaveAttribute("data-needs-attention", "true");
+  await expect(syncLink).toHaveAttribute("aria-label", "Folder sync paused — allow folder access");
+  await page.screenshot({ path: "reports/sync/folder-paused.png", clip: { x: 0, y: 0, width: 1440, height: 60 } });
+
+  // One tap asks for access within the click and syncs, without leaving the page.
+  await syncLink.click();
+  await expect(syncLink).toHaveAttribute("data-needs-attention", "false");
+  await expect(page).toHaveURL(/\/$/);
+  // Every request ran within the tap; once access is allowed, Chrome answers later ones without asking.
+  const requests = await page.evaluate(
+    () => (window as unknown as { folderFixture: { requests: boolean[] } }).folderFixture.requests,
+  );
+  expect(requests.length).toBeGreaterThan(0);
+  expect(requests).not.toContain(false);
+  // With access back, the icon opens sync settings as usual (in-app, so the session's permission stays).
+  await syncLink.click();
+  await expect(page).toHaveURL(/settings\?section=sync/);
+  await expect(host.getByRole("heading", { name: "Local Folder Connected — Cloud songbook" })).toBeVisible();
+  await expect(host.getByText(/Last synced/)).toBeVisible();
+});

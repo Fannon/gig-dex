@@ -268,3 +268,42 @@ it("logs a failed token refresh with API diagnostics without exposing OAuth cred
   expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(/secret-access|secret-refresh/);
   expect(localStorage.getItem("dropbox_tokens")).toBeNull();
 });
+
+it("keeps the connection when a renewal fails for any reason other than a rejected grant", async () => {
+  const saved = JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}");
+  const expired = JSON.stringify({ ...saved, refresh_token: "refresh", expiresAt: 0 });
+  for (const [body, status] of [
+    [{ error: "invalid_request", error_description: "Temporary problem" }, 400],
+    ["Unauthorized", 401],
+    [{ error: "server_error" }, 500],
+  ] as const) {
+    localStorage.setItem("dropbox_tokens", expired);
+    mocked.mockResolvedValueOnce(new Response(typeof body === "string" ? body : JSON.stringify(body), { status }));
+    const provider = new DropboxProvider("testappkey123");
+    await expect(provider.authenticate()).rejects.toThrow("Gig-Dex retries on the next sync");
+    expect(localStorage.getItem("dropbox_tokens")).toBe(expired);
+    expect(provider.isAuthenticated()).toBe(true);
+  }
+});
+
+it("keeps the connection when Dropbox still answers 401 right after a successful renewal", async () => {
+  const saved = JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}");
+  localStorage.setItem("dropbox_tokens", JSON.stringify({ ...saved, refresh_token: "refresh" }));
+  respond({ error_summary: "expired_access_token" }, undefined, 401);
+  respond({ access_token: "new-access", expires_in: 3600 });
+  respond({ error_summary: "invalid_access_token" }, undefined, 401);
+  const provider = new DropboxProvider("testappkey123");
+  await expect(provider.listFiles()).rejects.toThrow("select Stop syncing and connect again");
+  expect(provider.isAuthenticated()).toBe(true);
+  expect(JSON.parse(localStorage.getItem("dropbox_tokens") ?? "{}")).toMatchObject({
+    access_token: "new-access",
+    refresh_token: "refresh",
+  });
+});
+
+it("ends a session that cannot be renewed when Dropbox rejects it", async () => {
+  respond({ error_summary: "invalid_access_token" }, undefined, 401);
+  const provider = new DropboxProvider("testappkey123");
+  await expect(provider.listFiles()).rejects.toThrow("Connect again");
+  expect(provider.isAuthenticated()).toBe(false);
+});

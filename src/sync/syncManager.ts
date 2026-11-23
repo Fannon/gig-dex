@@ -11,6 +11,7 @@ import {
   type RemoteVersion,
   recordKey,
   recordTitle,
+  type SyncConflict,
   syncKey,
 } from "./records";
 import { createSyncFile, parseSyncFile, SYNC_FORMAT_VERSION, syncEnvelope, verifySyncFile } from "./syncFormat";
@@ -40,6 +41,18 @@ async function withSyncLock<T>(operation: () => Promise<T>, wait = false): Promi
       throw new Error("Another Gig-Dex tab is syncing or cleaning history. Wait for it to finish, then try again.");
     return operation();
   });
+}
+
+/** Name what is in conflict, e.g. `Sync finished with 1 conflict to review: song "Harbor Lights".` */
+export function conflictSummary(conflicts: SyncConflict[]): string {
+  const names = conflicts.map((conflict) => {
+    const record = conflict.local ?? conflict.remote[0]?.record;
+    const title = (record && recordTitle(record)?.trim()) || "Untitled";
+    return `${conflict.type} “${title}”`;
+  });
+  const shown = names.slice(0, 3).join(", ");
+  const more = names.length > 3 ? ` and ${names.length - 3} more` : "";
+  return `Sync finished with ${conflicts.length} conflict${conflicts.length === 1 ? "" : "s"} to review: ${shown}${more}.`;
 }
 
 export class SyncManager {
@@ -153,9 +166,8 @@ export class SyncManager {
           }
           progress(`Syncing songs and setlists: ${++completed} of ${identities.size}…`);
         }
-        this.status.conflictCount = (await getSyncConflicts()).filter(
-          (conflict) => (conflict.scope ?? "") === this.scope,
-        ).length;
+        const conflicts = (await getSyncConflicts()).filter((conflict) => (conflict.scope ?? "") === this.scope);
+        this.status.conflictCount = conflicts.length;
         if (failures.length) {
           const details = failures.slice(0, 3).join("; ");
           throw new Error(
@@ -170,9 +182,7 @@ export class SyncManager {
           kind: this.status.conflictCount ? "conflict" : "success",
           stats,
           durationMs: Date.now() - started,
-          message: this.status.conflictCount
-            ? `Sync finished with ${this.status.conflictCount} conflict${this.status.conflictCount === 1 ? "" : "s"} to review.`
-            : "Sync completed.",
+          message: conflicts.length ? conflictSummary(conflicts) : "Sync completed.",
         });
       }, true);
     } catch (error) {
