@@ -115,7 +115,7 @@ test("dropdown lists follow the theme instead of showing white on white", async 
   });
   expect(await optionColors()).toEqual({
     scheme: "light",
-    background: "rgb(239, 238, 233)",
-    color: "rgb(41, 43, 49)",
+    background: "rgb(238, 236, 231)",
+    color: "rgb(35, 36, 42)",
   });
 });

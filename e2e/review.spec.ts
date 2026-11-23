@@ -214,10 +214,10 @@ test("editor remains usable on phone and desktop across themes", async ({ page }
           return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
         });
         expect(contrast).toBeGreaterThanOrEqual(4.5);
-        await expect(page.locator(".song-page__simple-preview > .label")).toHaveCSS("color", "rgb(80, 81, 93)");
+        await expect(page.locator(".song-page__simple-preview > .label")).toHaveCSS("color", "rgb(79, 80, 89)");
         await expect(page.getByRole("button", { name: "Simple", exact: true })).toHaveCSS(
           "background-color",
-          "rgb(103, 82, 169)",
+          "rgb(90, 68, 173)",
         );
       }
       await page.screenshot({ path: `reports/final-review/editor-${theme}-${viewport.width}.png`, fullPage: true });
@@ -316,7 +316,7 @@ test("mobile song controls stay compact and selected colors remain clear in ever
     if (theme === "light") {
       await expect(page.getByRole("button", { name: "Auto", exact: true })).toHaveCSS(
         "background-color",
-        "rgb(103, 82, 169)",
+        "rgb(90, 68, 173)",
       );
     }
     await info.attach(`toolbar-${theme}`, { body: JSON.stringify(controls), contentType: "application/json" });
@@ -325,7 +325,7 @@ test("mobile song controls stay compact and selected colors remain clear in ever
       await page.getByRole("button", { name: "Edit", exact: true }).click();
       await expect(page.getByRole("button", { name: "Delete song", exact: true })).toHaveCSS(
         "color",
-        "rgb(166, 41, 41)",
+        "rgb(163, 38, 31)",
       );
       await page.getByRole("button", { name: "Cancel", exact: true }).click();
     }

@@ -33,7 +33,7 @@ for (const theme of ["black", "light"]) {
     await page.goto("./settings?section=sync");
     const link = page.locator(".workspace-sync-link");
     await expect(link).toHaveAttribute("data-syncing", "true");
-    await expect(link).toHaveCSS("background-color", theme === "light" ? "rgb(103, 82, 169)" : "rgb(100, 82, 194)");
+    await expect(link).toHaveCSS("background-color", theme === "light" ? "rgb(90, 68, 173)" : "rgb(100, 82, 194)");
     await expect(link.locator("svg")).toHaveCSS("animation-duration", "6s");
     const initialRotation = await link.locator("svg").evaluate((element) => getComputedStyle(element).transform);
     await expect
@@ -69,7 +69,7 @@ for (const theme of ["black", "light"]) {
     fail = true;
     await host.getByRole("button", { name: "Sync now", exact: true }).click();
     await expect(link).toHaveAttribute("data-needs-attention", "true");
-    await expect(link).toHaveCSS("color", theme === "light" ? "rgb(150, 50, 54)" : "rgb(255, 180, 180)");
+    await expect(link).toHaveCSS("color", theme === "light" ? "rgb(163, 38, 31)" : "rgb(255, 180, 180)");
     await expect(link).toHaveAccessibleName("Sync needs attention — open sync settings");
     fail = false;
     await host.getByRole("button", { name: "Sync now", exact: true }).click();
@@ -77,7 +77,7 @@ for (const theme of ["black", "light"]) {
     await expect(link).toHaveAttribute("data-needs-attention", "false");
     await host.getByRole("button", { name: "Stop syncing", exact: true }).click();
     await expect(link).toHaveAttribute("data-configured", "false");
-    await expect(link).toHaveCSS("color", theme === "light" ? "rgb(102, 97, 111)" : "rgb(165, 165, 178)");
+    await expect(link).toHaveCSS("color", theme === "light" ? "rgb(94, 95, 105)" : "rgb(165, 165, 178)");
     await expect(link).toHaveAccessibleName("Sync settings — no sync connected");
   });
 }

@@ -392,20 +392,20 @@
 }
 
 :root[data-reading-theme=light] .settings-page {
-  --bg-primary: #f3f1f6;
-  --bg-secondary: #faf9fc;
-  --bg-elevated: #e9e5ef;
-  --text-primary: #403b49;
-  --text-secondary: #54515f;
-  --text-muted: #625e6c;
-  --border-color: #c5bfce;
-  --color-accent: #5745aa;
-  --settings-control-border: #8a8197;
-  --settings-primary: #6752a9;
-  --settings-tab-bg: #e2daee;
-  --settings-tab-text: #584274;
-  --settings-danger: #963236;
-  --settings-danger-bg: #f5e4e1;
+  --bg-primary: inherit;
+  --bg-secondary: var(--light-surface);
+  --bg-elevated: var(--light-accent-surface);
+  --text-primary: inherit;
+  --text-secondary: inherit;
+  --text-muted: inherit;
+  --border-color: inherit;
+  --color-accent: inherit;
+  --settings-control-border: var(--light-control-border);
+  --settings-primary: var(--color-primary);
+  --settings-tab-bg: var(--light-accent-surface);
+  --settings-tab-text: var(--light-accent-text);
+  --settings-danger: var(--light-danger);
+  --settings-danger-bg: var(--light-danger-surface);
 }
 
 .settings-page .settings-page__content {

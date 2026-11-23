@@ -27,32 +27,77 @@ html, body, #root {
 }
 :root[data-reading-theme=light] {
  color-scheme: light;
- --bg-primary: #f7f6f2; --bg-secondary: #efeee9; --bg-elevated: #e6e4dd;
- --text-primary: #292b31; --text-secondary: #60616b; --text-muted: #747580;
- --border-color: #d5d2dc; --color-accent: #5745aa;
- --color-primary: #6752a9;
- .app-shell { color: #292b31; }
- .app-shell, .app-route, .song-page, .home-page, .setlists-page, .performance-page, .song-view__wrapper { background: #f7f6f2; color: #292b31; }
- .workspace-topbar, .library-sidebar, .workspace-search, .performance-page__options, .setlists-page__modal, .song-view__controls, .song-page__header, .setlists-page__header { background: #efeee9; color: #292b31; border-color: #d5d2dc; }
- .app-shell :is(h1,h2,h3,p,label,small,span,dt,dd,summary,output) { color: #50515d; }
- .app-shell :is(h1,h2,h3,strong) { color: #292b31; }
- .app-shell .workspace-topbar .workspace-brand { color: #292b31; background: none; -webkit-text-fill-color: currentColor; }
- .app-shell a { color: #5541a1; }
- .app-shell :is(button,input,select,textarea,.setlists-page__print) { background: #e8e6ed; color: #292b31; border-color: #c6c2d3; }
- .app-shell :is(input,textarea)::placeholder { color: #66616f; opacity: 1; }
- .app-shell .song-page__simple-preview > .label { color: #50515d; }
+ // A paper-like page with white surfaces for content and controls, light-gray chrome, and violet
+ // reserved for actions and selection.
+ $page: #f6f5f2; $chrome: #eeece7; $surface: #fff; $line: #e1dee6; $control-line: #857b91;
+ $ink: #23242a; $ink-2: #4f5059; $ink-3: #5e5f69; $violet: #5a44ad; $violet-strong: #4a378f; $tint: #ece7f8;
+ --bg-primary: #{$page}; --bg-secondary: #{$chrome}; --bg-elevated: #{$surface};
+ --text-primary: #{$ink}; --text-secondary: #{$ink-2}; --text-muted: #{$ink-3};
+ --border-color: #{$line}; --color-accent: #{$violet}; --color-primary: #{$violet};
+ --light-surface: #{$surface}; --light-control-border: #{$control-line};
+ --light-accent-surface: #{$tint}; --light-accent-text: #36246a;
+ --light-danger: #a3261f; --light-danger-surface: #fdf0ee; --light-danger-border: #b56b6d;
+ accent-color: var(--color-primary);
+ .app-shell { color: $ink; }
+ .app-shell, .app-route, .song-page, .home-page, .setlists-page, .performance-page, .song-view__wrapper { background: $page; color: $ink; }
+ .workspace-topbar, .library-sidebar, .workspace-search, .performance-page__options, .setlists-page__modal, .song-view__controls, .song-page__header, .setlists-page__header { background: $chrome; color: $ink; border-color: $line; }
+ .app-shell :is(h1,h2,h3,p,label,small,span,dt,dd,summary,output) { color: $ink-2; }
+ .app-shell :is(h1,h2,h3,strong) { color: $ink; }
+ .app-shell .workspace-topbar .workspace-brand { color: $ink; background: none; -webkit-text-fill-color: currentColor; }
+ .app-shell a { color: $violet; }
+
+ // Leave native checkboxes and radios to accent-color.
+ .app-shell :is(input:not(:where([type=checkbox], [type=radio], [type=range])),select,textarea) { background: $surface; color: $ink; border: 1px solid $control-line; }
+ .app-shell :is(input,textarea)::placeholder { color: $ink-3; opacity: 1; }
+ .app-shell button, .app-shell :is(.song-page__btn, .setlists-page__perform, .setlists-page__print, .performance-page__edit) {
+  background: $surface; color: $ink; border: 1px solid $line; box-shadow: 0 1px 1px rgba(35, 36, 42, .04);
+  &:hover:not(:disabled) { border-color: $control-line; background: #faf9fc; }
+ }
+ .app-shell :is(.song-page__btn--primary, .song-page__mode-btn--active, .song-view__btn--active, .setlists-page__tabs button[aria-pressed=true], .setlists-page__add, .setlists-page .primary, .home-page__demo-btn, .settings-page__sync-btn, .print-page__print) {
+  background: $violet; color: #fff; border-color: $violet;
+  &:hover:not(:disabled) { background: $violet-strong; border-color: $violet-strong; }
+ }
+ .app-shell .setlists-page__perform { color: $violet; border-color: #c9bfea; background: $tint; }
+ .app-shell :is(.song-page__btn--danger, .setlists-page .danger, .settings-page__logout-btn) { color: var(--light-danger); background: var(--light-danger-surface); border-color: var(--light-danger-border); }
+ .app-shell :is(button,a,input,select,textarea):focus-visible { outline: 2px solid $violet; outline-offset: 2px; }
+
+ // Flat navigation controls: tabs and the sidebar's section headers keep the chrome look.
+ .app-shell .settings-page__tabs button { background: transparent; border-color: transparent; box-shadow: none; }
+ .app-shell :is(.library-sidebar__heading-row, .library-sidebar__heading) { background: #e7e4de; border-color: transparent; box-shadow: none; }
+
+ // Selection and navigation.
+ .app-shell .workspace-topbar nav a.active, .app-shell .library-sidebar__links a[aria-current=page], .app-shell .setlists-page__item[aria-pressed=true], .app-shell .setlists-page__song[data-selected=true] { background: $tint; color: var(--light-accent-text); }
+ .app-shell .home-page__fab { background: $violet; color: #fff; &:hover { background: $violet-strong; } }
+
+ // Content cards and panels.
+ .app-shell .home-page__songs li { background: $surface; border-color: $line; box-shadow: 0 1px 2px rgba(35, 36, 42, .05); span { color: $ink-3; } }
+ .app-shell .home-page__songs li:is(:hover, :focus-within) { border-color: #b8acdf; background: $surface; }
+ .app-shell :is(.home-page__tags-list button, .song-page__tag-inline) { background: $tint; color: #4b3a8c; border-color: transparent; box-shadow: none; }
+ .app-shell .song-page__meta-tag { background: $tint; color: #46358c; }
+ .app-shell .setlists-page__item { background: $surface; border-color: $line; }
+ .app-shell .setlists-page__song { background: $surface; border-color: $line; }
+ .app-shell .setlists-page__song-select { background: transparent; border: 0; box-shadow: none; small { color: $ink-3; } }
+ .app-shell .setlists-page__song-actions button { background: $surface; }
+ .app-shell :is(.setlists-page__eyebrow, .setlists-page__song-number) { color: #6a55b8; }
+ .app-shell .setlists-page__preview { background: #fbfaf8; }
+ .app-shell :is(.setlists-page__preview-header p, .setlists-page__empty) { color: $ink-3; }
+ .app-shell .setlists-page__tags span { background: $tint; color: #4b3a8c; }
+ .app-shell .song-view__buttons { background: $surface; border: 1px solid $line; button { border: 0; box-shadow: none; background: transparent; } }
+ .app-shell .song-view__value { color: $violet; }
+
+ // Song editor.
+ .app-shell .song-page__simple-preview > .label { color: $ink-2; }
  .app-shell .song-page__mode-note { color: #8a4b00; }
- .app-shell .song-page__preview-content { background: #efeee9; border-color: #c6c2d3; }
- .app-shell .song-page__resize-handle { background: #c6c2d3; &:focus-visible { outline: 2px solid #6d54b8; } }
- .app-shell :is(button,a):focus-visible { outline: 2px solid #6d54b8; outline-offset: 2px; }
- .app-shell .workspace-topbar nav a.active, .app-shell .library-sidebar__links a[aria-current=page], .app-shell .setlists-page__item[aria-pressed=true], .app-shell .setlists-page__song[data-selected=true] { background: #ddd6ed; color: #392663; }
- .app-shell :is(.song-page__btn--primary, .song-page__mode-btn--active, .song-view__btn--active, .setlists-page__tabs button[aria-pressed=true], .setlists-page__add, .setlists-page .primary, .home-page__demo-btn) { background: #6752a9; color: #f7f6f2; }
- .app-shell :is(.song-page__btn--danger, .setlists-page .danger) { color: #a62929; background: #f5e4e1; border-color: #d9aaa4; }
- .app-shell .song-view__toggle-slider { background: #a8a1b7; }
- .app-shell .song-view__toggle input:checked + .song-view__toggle-slider { background: #6752a9; }
- .app-shell :is(.song-view__content, .song-page__preview-content) { color: #292b31; .lyrics { color: #292b31; } .chord { color: #875714; } .comment { color: #66606c; }
+ .app-shell .song-page__preview-content { background: $surface; border-color: $line; }
+ .app-shell .song-page__resize-handle { background: $control-line; &:focus-visible { outline: 2px solid $violet; } }
+ .app-shell .song-view__toggle-slider { background: $control-line; }
+ .app-shell .song-view__toggle input:focus-visible + .song-view__toggle-slider { outline-color: $violet; }
+ .app-shell .song-view__toggle input:checked + .song-view__toggle-slider { background: $violet; }
+
+ // Song text: dark ink, amber-brown chords, section colors dark enough for paper-like light.
+ .app-shell :is(.song-view__content, .song-page__preview-content) { color: $ink; .lyrics { color: $ink; } .chord { color: #8a5310; } .comment { color: #66606c; }
   .label.section-verse { color: #5548a0; } .label.section-chorus { color: #087f75; } .label.section-prechorus { color: #28649a; } .label.section-bridge { color: #924195; } .label.section-intro { color: #715da0; } .label.section-outro { color: #8c641c; } .label.section-instrumental { color: #a15a2b; }
  }
- .app-shell .workspace-search__type { background: #ded8ed; color: #493977; &[data-type=Setlist] { background: #d4e6df; color: #256153; } }
- .app-shell .tempo-indicator__dots > span { background: #a6a1b1; &.active { background: #a86515; } &[data-first=true].active { background: #007d8f; } }
+ .app-shell .workspace-search__type { background: $tint; color: #493977; &[data-type=Setlist] { background: #dcefe8; color: #256153; } }
+ .app-shell .tempo-indicator__dots > span { background: #b3aebe; &.active { background: #a86515; } &[data-first=true].active { background: #007d8f; } }
 }

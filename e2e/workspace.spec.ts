@@ -234,14 +234,14 @@ test("light theme uses a soft background and readable section accents", async ({
   await page.goto(`./song/${song}`);
   await expect(page.locator(".song-view")).toHaveAttribute("data-layout", /fit|scroll/);
   expect(await page.locator(".song-page").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
-    "rgb(247, 246, 242)",
+    "rgb(246, 245, 242)",
   );
   expect(
     await page
       .locator(".song-view__content .lyrics")
       .first()
       .evaluate((el) => getComputedStyle(el).color),
-  ).toBe("rgb(41, 43, 49)");
+  ).toBe("rgb(35, 36, 42)");
   await screenshots();
   await page.screenshot({ path: "reports/workspace/light-song.png" });
   await page.goto("./settings");
